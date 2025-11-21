@@ -16,6 +16,7 @@ Núcleo Originário é a implementação de referência de uma arquitetura simb�
 /spec                # Especificações normativas (LIU, Compilers, Runtime, ΣVM, Manifesto)
 /src                 # Implementações em Python 3.11+
   ├── liu            # Tipos, serialização, normalização e ontologia base
+  ├── ontology       # Pacotes core/code para o NSR
   ├── nsr            # Estado ISR, operadores Φ, LxU/PSE e orquestrador
   ├── svm            # Bytecode, assembler, opcodes e VM de referência
   ├── frontend_*     # Frontends determinísticos (python/elixir/rust/logic)
@@ -34,6 +35,8 @@ Núcleo Originário é a implementação de referência de uma arquitetura simb�
 ```bash
 # Executar testes de conformidade
 python3 -m pytest
+# Suite rápida (CTS)
+python3 -m pytest tests/cts
 
 # Rodar o NSR em modo textual
 PYTHONPATH=src python3 - <<'PY'
@@ -47,13 +50,13 @@ PY
 PYTHONPATH=src python3 - <<'PY'
 from svm import build_program_from_assembly, SigmaVM
 asm = """
-PUSH_TEXT 0
-PUSH_TEXT 1
-BUILD_STRUCT 1
+PUSH_CONST 0
+PUSH_KEY 1
+BEGIN_STRUCT 1
 STORE_ANSWER
 HALT
 """
-program = build_program_from_assembly(asm, ["answer", "O carro anda rápido."])
+program = build_program_from_assembly(asm, ["O carro anda rápido.", "answer"])
 vm = SigmaVM()
 vm.load(program)
 print(vm.run())
@@ -65,7 +68,7 @@ PY
 - Sem IO dentro de LIU/NSR/ΣVM; qualquer capacidade externa deve ser encapsulada e auditada antes de ativar.
 - Estruturas imutáveis e arenas canônicas garantem hashes de estado reprodutíveis.
 - Operadores Φ são puros, tipados e fechados sob transformação.
-- Testes cobrem bem-formação, normalização, inferência, compiladores e bytecode.
+- Testes cobrem bem-formação, normalização, inferência, compiladores, ΣVM e CTS.
 
 ## Licença
 

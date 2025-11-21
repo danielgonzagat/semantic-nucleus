@@ -8,7 +8,9 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Sequence, Tuple
 
-from liu import Node, relation, operation, struct, list_node, ontology
+from liu import Node, relation, operation, struct, list_node
+from ontology import core as core_ontology
+from ontology import code as code_ontology
 
 
 @dataclass(slots=True)
@@ -38,10 +40,13 @@ class Token:
     tag: str
 
 
+DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1
+
+
 @dataclass(slots=True)
 class SessionCtx:
     config: Config = field(default_factory=Config)
-    kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: ontology.BASE_ONTOLOGY)
+    kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: DEFAULT_ONTOLOGY)
     kb_rules: Tuple[Rule, ...] = field(default_factory=tuple)
     lexicon: Lexicon = field(default_factory=Lexicon)
 

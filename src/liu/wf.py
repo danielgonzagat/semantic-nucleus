@@ -32,7 +32,7 @@ FIELD_SIGNATURES: Dict[str, Sort] = {
     "guard": Sort.ANY,
     "pattern": Sort.ANY,
     "args": Sort.LIST,
-    "assign": Sort.STRUCTURE,
+    "assign": Sort.STATE,
     "target": Sort.ANY,
     "value": Sort.ANY,
     "return_": Sort.ANY,
@@ -44,6 +44,15 @@ FIELD_SIGNATURES: Dict[str, Sort] = {
 def infer_sort(node: Node) -> Sort:
     match node.kind:
         case NodeKind.ENTITY:
+            label = node.label or ""
+            if label.startswith("code/"):
+                return Sort.CODE
+            if label.startswith("type::"):
+                return Sort.TYPE
+            if label.startswith("context::"):
+                return Sort.CONTEXT
+            if label.startswith("event::"):
+                return Sort.EVENT
             return Sort.THING
         case NodeKind.TEXT:
             return Sort.TEXT
