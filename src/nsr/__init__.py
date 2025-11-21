@@ -2,6 +2,7 @@
 
 from .runtime import (
     run_text,
+    run_text_with_explanation,
     run_struct,
     run_text_full,
     run_struct_full,
@@ -21,6 +22,7 @@ __all__ = [
     "run_text",
     "run_struct",
     "Trace",
+    "run_text_with_explanation",
     "run_text_full",
     "run_struct_full",
     "HaltReason",

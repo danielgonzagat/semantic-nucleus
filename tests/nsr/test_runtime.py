@@ -4,6 +4,7 @@ from liu import relation, entity, var, struct, list_node, text, number, operatio
 
 from nsr import (
     run_text,
+    run_text_with_explanation,
     run_struct,
     run_text_full,
     run_struct_full,
@@ -45,6 +46,7 @@ def test_explain_operator_outputs_detailed_report():
     assert "carro has roda" in text_value
     assert "Próximos Φ" in text_value
     assert "Relações novas" in text_value
+    assert "Relações removidas" in text_value
 
 
 def test_infer_rule_adds_relation():
@@ -127,6 +129,15 @@ def test_run_text_full_exposes_explanation():
     assert "Explicação determinística" in outcome.explanation
     assert "Relações" in outcome.explanation
     assert "Relações novas" in outcome.explanation
+    assert "Relações removidas" in outcome.explanation
+
+
+def test_run_text_with_explanation_returns_triple():
+    session = SessionCtx()
+    answer, trace, explanation = run_text_with_explanation("O carro tem roda", session)
+    assert answer
+    assert trace.steps
+    assert "Relações novas" in explanation
 
 
 def test_run_struct_full_exposes_isr_and_quality():

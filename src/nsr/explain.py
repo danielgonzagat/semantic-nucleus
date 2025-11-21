@@ -32,6 +32,12 @@ def render_explanation(
         if novel_relations
         else "nenhuma"
     )
+    removed_relations = _removed_relations(isr.relations, focus_node)
+    removed_summary = (
+        _relations_summary(tuple(removed_relations), relation_limit)
+        if removed_relations
+        else "nenhuma"
+    )
     context_preview = _context_summary(isr.context, context_limit)
     ops_preview = _ops_summary(isr.ops_queue, ops_limit)
     focus_desc = _focus_description(focus_node)
@@ -41,6 +47,7 @@ def render_explanation(
         f"- Qualidade: {isr.quality:.2f}",
         f"- Relações ({len(isr.relations)}): {relations_preview}",
         f"- Relações novas: {novel_summary}",
+        f"- Relações removidas: {removed_summary}",
         f"- Contexto ({len(isr.context)}): {context_preview}",
         f"- Próximos Φ: {ops_preview}",
     ]
@@ -115,6 +122,19 @@ def _baseline_relation_hashes(focus: Node) -> set[str]:
     if relations_node is None or relations_node.kind is not NodeKind.LIST:
         return set()
     return {fingerprint(rel) for rel in relations_node.args}
+
+
+def _removed_relations(relations: Tuple[Node, ...], focus: Node) -> list[Node]:
+    baseline_node = _field_node(focus, "relations")
+    if baseline_node is None or baseline_node.kind is not NodeKind.LIST:
+        return []
+    current_hashes = {fingerprint(rel) for rel in relations}
+    removed = []
+    for rel in baseline_node.args:
+        digest = fingerprint(rel)
+        if digest not in current_hashes:
+            removed.append(rel)
+    return removed
 
 
 def _context_summary(context: Tuple[Node, ...], limit: int) -> str:

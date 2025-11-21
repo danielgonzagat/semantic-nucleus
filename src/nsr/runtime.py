@@ -111,6 +111,17 @@ def run_text(text: str, session: SessionCtx | None = None) -> Tuple[str, Trace]:
     return outcome.answer, outcome.trace
 
 
+def run_text_with_explanation(
+    text: str, session: SessionCtx | None = None
+) -> Tuple[str, Trace, str]:
+    """
+    Variante determinística que retorna texto, trace e narrativa da equação.
+    """
+
+    outcome = run_text_full(text, session=session)
+    return outcome.answer, outcome.trace, outcome.explanation
+
+
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
     lexicon = session.lexicon
