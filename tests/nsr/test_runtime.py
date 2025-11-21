@@ -187,6 +187,17 @@ def test_equation_snapshot_stats():
 
 
 def test_invariant_failure_triggers_halt(monkeypatch):
+    session = SessionCtx()
+
+    def fake_validate(self, previous=None, quality_tolerance=1e-3):
+        return EquationInvariantStatus(ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5)
+
+    monkeypatch.setattr(EquationSnapshotStats, "validate", fake_validate)
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.halt_reason is HaltReason.INVARIANT_FAILURE
+    assert any("forced" in entry for entry in outcome.trace.invariant_failures)
+
+
 def test_tokenize_emits_rel_payload_for_relwords():
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
     rel_tokens = [token for token in tokens if token.tag == "RELWORD"]
@@ -212,12 +223,3 @@ def test_answer_renders_relation_summary():
     answer, _ = run_text("O carro tem roda", session)
     assert "Relações:" in answer
     assert "carro has roda" in answer.lower()
-    session = SessionCtx()
-
-    def fake_validate(self, previous=None, quality_tolerance=1e-3):
-        return EquationInvariantStatus(ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5)
-
-    monkeypatch.setattr(EquationSnapshotStats, "validate", fake_validate)
-    outcome = run_text_full("Um carro existe", session)
-    assert outcome.halt_reason is HaltReason.INVARIANT_FAILURE
-    assert any("forced" in entry for entry in outcome.trace.invariant_failures)
