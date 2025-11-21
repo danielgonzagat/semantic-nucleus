@@ -12,6 +12,9 @@ def compile_items(module: str, hir_items: List[Dict]) -> List:
     for item in hir_items:
         if item.get("kind") == "fn":
             relations.extend(_lower_fn(module, item))
+    module_entity = entity(f"code/mod::{module}")
+    module_struct = struct(name=entity(module), body=list_node(relations))
+    relations.append(relation("code/MODULE", module_entity, module_struct))
     return relations
 
 

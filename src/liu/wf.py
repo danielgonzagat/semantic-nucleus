@@ -4,11 +4,10 @@ Validação de bem-formação e tipagem simples para LIU.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Dict, Iterable, Tuple
+from typing import Dict, Tuple
 
 from .kinds import NodeKind, Sort
-from .nodes import Node, NIL
+from .nodes import Node
 from .signatures import OP_SIGNATURES, REL_SIGNATURES
 
 
@@ -18,19 +17,42 @@ class LIUError(Exception):
 
 FIELD_SIGNATURES: Dict[str, Sort] = {
     "subject": Sort.THING,
-    "action": Sort.THING,
+    "action": Sort.ANY,
     "object": Sort.THING,
     "context": Sort.CONTEXT,
     "modifier": Sort.LIST,
     "goal": Sort.GOAL,
     "state": Sort.STATE,
-    "answer": Sort.ANSWER,
+    "answer": Sort.TEXT,
+    "params": Sort.LIST,
+    "body": Sort.LIST,
+    "ret": Sort.TYPE,
+    "name": Sort.ANY,
+    "clauses": Sort.LIST,
+    "guard": Sort.ANY,
+    "pattern": Sort.ANY,
+    "args": Sort.LIST,
+    "assign": Sort.STATE,
+    "target": Sort.ANY,
+    "value": Sort.ANY,
+    "return_": Sort.ANY,
+    "binop": Sort.STRUCTURE,
+    "metadata": Sort.CONTEXT,
 }
 
 
 def infer_sort(node: Node) -> Sort:
     match node.kind:
         case NodeKind.ENTITY:
+            label = node.label or ""
+            if label.startswith("code/"):
+                return Sort.CODE
+            if label.startswith("type::"):
+                return Sort.TYPE
+            if label.startswith("context::"):
+                return Sort.CONTEXT
+            if label.startswith("event::"):
+                return Sort.EVENT
             return Sort.THING
         case NodeKind.TEXT:
             return Sort.TEXT
@@ -85,14 +107,16 @@ def _check(node: Node, path: Tuple[str, ...]) -> Sort:
         return sig.returns
 
     if kind is NodeKind.STRUCT:
-        seen = set()
+        seen = []
         for key, value in node.fields:
             if key in seen:
                 raise LIUError(f"Duplicate struct field {key}")
-            seen.add(key)
+            seen.append(key)
             expected = FIELD_SIGNATURES.get(key, Sort.ANY)
             got = _check(value, path + (key,))
             _ensure_sort(value, got, expected, key)
+        if seen != sorted(seen):
+            raise LIUError("Struct fields must be sorted lexicographically")
         return Sort.STATE
 
     if kind is NodeKind.LIST:
@@ -103,9 +127,8 @@ def _check(node: Node, path: Tuple[str, ...]) -> Sort:
     if kind is NodeKind.NIL:
         return Sort.ANY
 
-    # Literais e entidades
-    infer_sort(node)
-    return infer_sort(node)
+    got = infer_sort(node)
+    return got
 
 
 def _ensure_sort(node: Node, got: Sort, expected: Sort, label: str | None) -> None:

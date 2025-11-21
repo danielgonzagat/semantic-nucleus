@@ -14,7 +14,11 @@ def compile_source(source: str, module: str = "main") -> List[Node]:
     tree = ast.parse(source)
     lowerer = _Lowerer(module)
     lowerer.visit(tree)
-    return lowerer.relations
+    relations = list(lowerer.relations)
+    module_entity = entity(f"code/mod::{module}")
+    module_struct = struct(name=entity(module), body=list_node(relations))
+    relations.append(relation("code/MODULE", module_entity, module_struct))
+    return relations
 
 
 class _Lowerer(ast.NodeVisitor):

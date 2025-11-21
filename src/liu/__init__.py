@@ -17,6 +17,7 @@ from .nodes import (
     NIL,
 )
 from .normalizer import normalize, dedup_relations
+from .hash import fingerprint
 from .serialize import to_sexpr, parse_sexpr, to_json, from_json
 from .wf import check, LIUError
 
@@ -36,6 +37,7 @@ __all__ = [
     "NIL",
     "normalize",
     "dedup_relations",
+    "fingerprint",
     "to_sexpr",
     "parse_sexpr",
     "to_json",

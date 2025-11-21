@@ -8,7 +8,9 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Sequence, Tuple
 
-from liu import Node, relation, operation, struct, list_node, ontology
+from liu import Node, relation, operation, struct, list_node
+from ontology import core as core_ontology
+from ontology import code as code_ontology
 
 
 @dataclass(slots=True)
@@ -38,10 +40,13 @@ class Token:
     tag: str
 
 
+DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1
+
+
 @dataclass(slots=True)
 class SessionCtx:
     config: Config = field(default_factory=Config)
-    kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: ontology.BASE_ONTOLOGY)
+    kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: DEFAULT_ONTOLOGY)
     kb_rules: Tuple[Rule, ...] = field(default_factory=tuple)
     lexicon: Lexicon = field(default_factory=Lexicon)
 
@@ -56,10 +61,29 @@ class ISR:
     answer: Node
     quality: float
 
+    def snapshot(self) -> "ISR":
+        """Return a shallow snapshot with defensive copies of queues."""
+
+        return ISR(
+            ontology=self.ontology,
+            relations=self.relations,
+            context=self.context,
+            goals=deque(self.goals),
+            ops_queue=deque(self.ops_queue),
+            answer=self.answer,
+            quality=self.quality,
+        )
+
 
 def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
-    goals = deque([operation("ANSWER", struct_node)])
-    ops = deque([operation("NORMALIZE", struct_node)])
+    goals = deque([operation("ANSWER", struct_node), operation("EXPLAIN", struct_node)])
+    ops = deque(
+        [
+            operation("NORMALIZE", struct_node),
+            operation("ALIGN"),
+            operation("INFER"),
+        ]
+    )
     ctx = (struct_node,)
     return ISR(
         ontology=session.kb_ontology,

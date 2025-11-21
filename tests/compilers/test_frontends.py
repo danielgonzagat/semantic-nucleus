@@ -4,23 +4,26 @@ from frontend_rust.compiler import compile_items as compile_rust
 from frontend_logic.compiler import compile_logic
 
 
-def test_python_frontend_produces_defn():
+def test_python_frontend_produces_defn_and_module():
     code = """
 def soma(x, y):
     return x + y
 """
     rels = compile_py(code)
     assert any(rel.label == "code/DEFN" for rel in rels)
+    assert any(rel.label == "code/MODULE" for rel in rels)
 
 
 def test_elixir_frontend():
     rels = compile_ex("Math", {"functions": [{"name": "inc", "params": ["x"], "body": "x + 1"}]})
     assert rels and rels[0].label == "code/DEFN"
+    assert any(rel.label == "code/MODULE" for rel in rels)
 
 
 def test_rust_frontend():
     rels = compile_rust("core", [{"kind": "fn", "name": "add", "params": [{"name": "a"}, {"name": "b"}], "ret": "i32"}])
     assert any(rel.label == "code/RETURNS" for rel in rels)
+    assert any(rel.label == "code/MODULE" for rel in rels)
 
 
 def test_logic_compiler():
