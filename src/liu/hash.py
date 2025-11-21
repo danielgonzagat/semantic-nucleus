@@ -12,13 +12,19 @@ from .nodes import Node
 def _flatten(node: Node) -> str:
     parts: list[str] = [node.kind.value]
     if node.label is not None:
-        parts.append(f"L={node.label}")
+        # Escape delimiters to prevent collision attacks
+        escaped_label = node.label.replace("\\", "\\\\").replace("|", "\\|").replace("=", "\\=")
+        parts.append(f"L={escaped_label}")
     if node.value is not None:
-        parts.append(f"V={node.value!r}")
+        # Use repr for safe serialization, then escape delimiters
+        value_repr = repr(node.value).replace("\\", "\\\\").replace("|", "\\|").replace("=", "\\=")
+        parts.append(f"V={value_repr}")
     if node.fields:
         field_repr = []
         for key, value in node.fields:
-            field_repr.append(f"{key}:{_flatten(value)}")
+            # Escape field keys to prevent collision attacks
+            escaped_key = key.replace("\\", "\\\\").replace(":", "\\:").replace(";", "\\;")
+            field_repr.append(f"{escaped_key}:{_flatten(value)}")
         parts.append(f"F[{';'.join(field_repr)}]")
     if node.args:
         arg_repr = ",".join(_flatten(arg) for arg in node.args)
