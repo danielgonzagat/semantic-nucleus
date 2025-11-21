@@ -23,6 +23,16 @@ class Trace:
 
     def add(self, label: str, quality: float, rels: int, ctx: int) -> None:
         entry = f"{len(self.steps)+1}:{label} q={quality:.2f} rel={rels} ctx={ctx}"
+        self._record(entry)
+
+    def halt(self, reason: str, isr: ISR) -> None:
+        entry = (
+            f"{len(self.steps)+1}:HALT[{reason}] "
+            f"q={isr.quality:.2f} rel={len(isr.relations)} ctx={len(isr.context)}"
+        )
+        self._record(entry)
+
+    def _record(self, entry: str) -> None:
         self.steps.append(entry)
         self.digest = blake2b((self.digest + entry).encode("utf-8"), digest_size=16).hexdigest()
 
@@ -43,10 +53,14 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
     steps = 0
     seen_signatures = set()
     idle_loops = 0
+    halt_reason: str | None = None
     while steps < session.config.max_steps:
         steps += 1
         if not isr.ops_queue:
             if isr.answer.fields:
+                if isr.quality < session.config.min_quality:
+                    isr = _finalize_convergence(isr, session, trace)
+                halt_reason = "OPS_QUEUE_EMPTY"
                 break
             if isr.goals:
                 isr.ops_queue.append(isr.goals[0])
@@ -61,12 +75,19 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
             if idle_loops >= 2:
                 if not isr.answer.fields or isr.quality < session.config.min_quality:
                     isr = _finalize_convergence(isr, session, trace)
+                halt_reason = "SIGNATURE_REPEAT"
                 break
         else:
             seen_signatures.add(signature)
             idle_loops = 0
         if isr.answer.fields and isr.quality >= session.config.min_quality:
+            halt_reason = "QUALITY_THRESHOLD"
             break
+    if halt_reason is None:
+        halt_reason = "MAX_STEPS"
+        if not isr.answer.fields or isr.quality < session.config.min_quality:
+            isr = _finalize_convergence(isr, session, trace)
+    trace.halt(halt_reason, isr)
     answer_field = dict(isr.answer.fields).get("answer")
     text_answer = answer_field.label if answer_field else "Não encontrei resposta."
     return text_answer or "Não encontrei resposta.", trace

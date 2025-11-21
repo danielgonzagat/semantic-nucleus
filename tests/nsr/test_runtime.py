@@ -14,6 +14,7 @@ def test_run_text_simple():
     assert "Carro" in answer or "carro" in answer.lower()
     assert trace.steps[0].startswith("1:")
     assert trace.digest != "0" * 32
+    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[")
 
 
 def test_infer_rule_adds_relation():
@@ -66,3 +67,4 @@ def test_run_struct_converges_with_summary(monkeypatch):
     assert answer.startswith("Resumo")
     assert any("SUMMARIZE*" in step for step in trace.steps)
     assert any("STABILIZE*" in step for step in trace.steps)
+    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[SIGNATURE_REPEAT]")
