@@ -4,7 +4,7 @@ from liu import relation, entity, var, struct, list_node, text, number, operatio
 
 from nsr import run_text, run_struct, SessionCtx, Rule
 from nsr.operators import apply_operator
-from nsr.runtime import _state_signature
+from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
 
 
@@ -15,6 +15,9 @@ def test_run_text_simple():
     assert trace.steps[0].startswith("1:")
     assert trace.digest != "0" * 32
     assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[")
+    assert isinstance(trace.halt_reason, HaltReason)
+    if trace.halt_reason is HaltReason.QUALITY_THRESHOLD:
+        assert trace.finalized is False
 
 
 def test_infer_rule_adds_relation():
@@ -68,3 +71,5 @@ def test_run_struct_converges_with_summary(monkeypatch):
     assert any("SUMMARIZE*" in step for step in trace.steps)
     assert any("STABILIZE*" in step for step in trace.steps)
     assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[SIGNATURE_REPEAT]")
+    assert trace.halt_reason is HaltReason.SIGNATURE_REPEAT
+    assert trace.finalized is True

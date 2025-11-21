@@ -5,6 +5,7 @@ Orquestrador do NSR: LxU → PSE → loop Φ → resposta.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple
 
@@ -20,14 +21,18 @@ from .state import ISR, SessionCtx, initial_isr
 class Trace:
     steps: List[str]
     digest: str = "0" * 32
+    halt_reason: "HaltReason | None" = None
+    finalized: bool = False
 
     def add(self, label: str, quality: float, rels: int, ctx: int) -> None:
         entry = f"{len(self.steps)+1}:{label} q={quality:.2f} rel={rels} ctx={ctx}"
         self._record(entry)
 
-    def halt(self, reason: str, isr: ISR) -> None:
+    def halt(self, reason: "HaltReason", isr: ISR, finalized: bool) -> None:
+        self.halt_reason = reason
+        self.finalized = finalized
         entry = (
-            f"{len(self.steps)+1}:HALT[{reason}] "
+            f"{len(self.steps)+1}:HALT[{reason.value}] "
             f"q={isr.quality:.2f} rel={len(isr.relations)} ctx={len(isr.context)}"
         )
         self._record(entry)
@@ -35,6 +40,13 @@ class Trace:
     def _record(self, entry: str) -> None:
         self.steps.append(entry)
         self.digest = blake2b((self.digest + entry).encode("utf-8"), digest_size=16).hexdigest()
+
+
+class HaltReason(str, Enum):
+    QUALITY_THRESHOLD = "QUALITY_THRESHOLD"
+    SIGNATURE_REPEAT = "SIGNATURE_REPEAT"
+    OPS_QUEUE_EMPTY = "OPS_QUEUE_EMPTY"
+    MAX_STEPS = "MAX_STEPS"
 
 
 def run_text(text: str, session: SessionCtx | None = None) -> Tuple[str, Trace]:
@@ -53,14 +65,16 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
     steps = 0
     seen_signatures = set()
     idle_loops = 0
-    halt_reason: str | None = None
+    halt_reason: HaltReason | None = None
+    finalized = False
     while steps < session.config.max_steps:
         steps += 1
         if not isr.ops_queue:
             if isr.answer.fields:
                 if isr.quality < session.config.min_quality:
-                    isr = _finalize_convergence(isr, session, trace)
-                halt_reason = "OPS_QUEUE_EMPTY"
+                    isr, delta = _finalize_convergence(isr, session, trace)
+                    finalized = finalized or delta
+                halt_reason = HaltReason.OPS_QUEUE_EMPTY
                 break
             if isr.goals:
                 isr.ops_queue.append(isr.goals[0])
@@ -74,20 +88,22 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
             idle_loops += 1
             if idle_loops >= 2:
                 if not isr.answer.fields or isr.quality < session.config.min_quality:
-                    isr = _finalize_convergence(isr, session, trace)
-                halt_reason = "SIGNATURE_REPEAT"
+                    isr, delta = _finalize_convergence(isr, session, trace)
+                    finalized = finalized or delta
+                halt_reason = HaltReason.SIGNATURE_REPEAT
                 break
         else:
             seen_signatures.add(signature)
             idle_loops = 0
         if isr.answer.fields and isr.quality >= session.config.min_quality:
-            halt_reason = "QUALITY_THRESHOLD"
+            halt_reason = HaltReason.QUALITY_THRESHOLD
             break
     if halt_reason is None:
-        halt_reason = "MAX_STEPS"
+        halt_reason = HaltReason.MAX_STEPS
         if not isr.answer.fields or isr.quality < session.config.min_quality:
-            isr = _finalize_convergence(isr, session, trace)
-    trace.halt(halt_reason, isr)
+            isr, delta = _finalize_convergence(isr, session, trace)
+            finalized = finalized or delta
+    trace.halt(halt_reason, isr, finalized)
     answer_field = dict(isr.answer.fields).get("answer")
     text_answer = answer_field.label if answer_field else "Não encontrei resposta."
     return text_answer or "Não encontrei resposta.", trace
@@ -117,13 +133,16 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
     return hasher.hexdigest()
 
 
-def _finalize_convergence(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
-    finalized = isr
-    if not finalized.answer.fields:
-        finalized = _apply_and_trace(finalized, "SUMMARIZE", "SUMMARIZE*", session, trace)
-    if finalized.quality < session.config.min_quality:
-        finalized = _apply_and_trace(finalized, "STABILIZE", "STABILIZE*", session, trace)
-    return finalized
+def _finalize_convergence(isr: ISR, session: SessionCtx, trace: Trace) -> Tuple[ISR, bool]:
+    current = isr
+    applied = False
+    if not current.answer.fields:
+        current = _apply_and_trace(current, "SUMMARIZE", "SUMMARIZE*", session, trace)
+        applied = True
+    if current.quality < session.config.min_quality:
+        current = _apply_and_trace(current, "STABILIZE", "STABILIZE*", session, trace)
+        applied = True
+    return current, applied
 
 
 def _apply_and_trace(isr: ISR, op_name: str, label: str, session: SessionCtx, trace: Trace) -> ISR:
@@ -132,4 +151,4 @@ def _apply_and_trace(isr: ISR, op_name: str, label: str, session: SessionCtx, tr
     return updated
 
 
-__all__ = ["run_text", "run_struct", "Trace"]
+__all__ = ["run_text", "run_struct", "Trace", "HaltReason"]
