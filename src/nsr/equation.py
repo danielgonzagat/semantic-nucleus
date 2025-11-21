@@ -25,6 +25,139 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
     return ",".join(fingerprints) or "-"
 
 
+def _truncate(text: str, limit: int = 160) -> str:
+    if len(text) <= limit or limit < 4:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _format_section(label: str, nodes: Tuple[Node, ...], max_items: int) -> str:
+    total = len(nodes)
+    if total == 0:
+        return f"{label}[0]: —"
+    max_items = max(1, max_items)
+    preview = [_truncate(to_sexpr(node)) for node in nodes[:max_items]]
+    if total > max_items:
+        preview.append(f"...(+{total - max_items})")
+    joined = "; ".join(preview)
+    return f"{label}[{total}]: {joined}"
+
+
+@dataclass(slots=True)
+class SectionStats:
+    count: int
+    digest: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return {"count": self.count, "digest": self.digest}
+
+
+@dataclass(slots=True)
+class EquationSnapshotStats:
+    input_digest: str
+    ontology: SectionStats
+    relations: SectionStats
+    context: SectionStats
+    goals: SectionStats
+    ops_queue: SectionStats
+    answer_digest: str
+    quality: float
+    equation_digest: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "input_digest": self.input_digest,
+            "ontology": self.ontology.to_dict(),
+            "relations": self.relations.to_dict(),
+            "context": self.context.to_dict(),
+            "goals": self.goals.to_dict(),
+            "ops_queue": self.ops_queue.to_dict(),
+            "answer_digest": self.answer_digest,
+            "quality": self.quality,
+            "equation_digest": self.equation_digest,
+        }
+
+    def validate(
+        self,
+        previous: "EquationSnapshotStats | None" = None,
+        *,
+        quality_tolerance: float = 1e-3,
+    ) -> "EquationInvariantStatus":
+        failures: list[str] = []
+
+        if not 0.0 <= self.quality <= 1.0:
+            failures.append("quality_bounds")
+
+        fixed_digests = [
+            ("input_digest", self.input_digest),
+            ("answer_digest", self.answer_digest),
+            ("equation_digest", self.equation_digest),
+        ]
+        for label, digest in fixed_digests:
+            if len(digest) != 32:
+                failures.append(f"{label}_size")
+
+        section_digests = [
+            ("ontology.digest", self.ontology.digest),
+            ("relations.digest", self.relations.digest),
+            ("context.digest", self.context.digest),
+            ("goals.digest", self.goals.digest),
+            ("ops_queue.digest", self.ops_queue.digest),
+        ]
+        for label, digest in section_digests:
+            if digest == "-":
+                continue
+            parts = digest.split(",")
+            if any(len(part) != 32 for part in parts):
+                failures.append(f"{label}_size")
+
+        sections = [
+            ("ontology", self.ontology),
+            ("relations", self.relations),
+            ("context", self.context),
+            ("goals", self.goals),
+            ("ops_queue", self.ops_queue),
+        ]
+        for label, section in sections:
+            if section.count < 0:
+                failures.append(f"{label}_count_negative")
+
+        quality_delta = 0.0
+        quality_regression = False
+        if previous is not None:
+            quality_delta = self.quality - previous.quality
+            if quality_delta < -quality_tolerance:
+                failures.append("quality_regression")
+                quality_regression = True
+
+        return EquationInvariantStatus(
+            ok=not failures,
+            failures=tuple(failures),
+            quality_regression=quality_regression,
+            quality_delta=quality_delta,
+        )
+
+
+@dataclass(slots=True)
+class EquationInvariantStatus:
+    ok: bool
+    failures: Tuple[str, ...]
+    quality_regression: bool
+    quality_delta: float
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "ok": self.ok,
+            "failures": list(self.failures),
+            "quality_regression": self.quality_regression,
+            "quality_delta": self.quality_delta,
+        }
+
+
+def _section_stats(nodes: Tuple[Node, ...]) -> SectionStats:
+    return SectionStats(count=len(nodes), digest=_nodes_digest(nodes))
+
+
 @dataclass(slots=True)
 class EquationSnapshot:
     """
@@ -96,6 +229,45 @@ class EquationSnapshot:
             "quality": self.quality,
         }
 
+    def to_text_report(self, *, max_items: int = 6) -> str:
+        """
+        Converte a equação LIU em um relatório textual determinístico.
+
+        O relatório resume cada componente (ontologia, relações, fila Φ, etc.)
+        usando S-expr truncadas para inspeção humana rápida.
+        """
+
+        max_items = max(1, max_items)
+        lines = [
+            "Equação LIU — relatório determinístico",
+            f"Entrada: {to_sexpr(self.input_struct)}",
+            f"Resposta: {to_sexpr(self.answer)}",
+            f"Qualidade: {self.quality:.4f}",
+            _format_section("Ontologia", self.ontology, max_items),
+            _format_section("Relações", self.relations, max_items),
+            _format_section("Contexto", self.context, max_items),
+            _format_section("Goals", self.goals, max_items),
+            _format_section("FilaΦ", self.ops_queue, max_items),
+        ]
+        return "\n".join(lines)
+
+    def stats(self) -> EquationSnapshotStats:
+        """
+        Retorna contagens e digests determinísticos para auditoria estrutural.
+        """
+
+        return EquationSnapshotStats(
+            input_digest=fingerprint(self.input_struct),
+            ontology=_section_stats(self.ontology),
+            relations=_section_stats(self.relations),
+            context=_section_stats(self.context),
+            goals=_section_stats(self.goals),
+            ops_queue=_section_stats(self.ops_queue),
+            answer_digest=fingerprint(self.answer),
+            quality=self.quality,
+            equation_digest=self.digest(),
+        )
+
 
 def snapshot_equation(struct_node: Node | None, isr: ISR) -> EquationSnapshot:
     """
@@ -119,4 +291,9 @@ def snapshot_equation(struct_node: Node | None, isr: ISR) -> EquationSnapshot:
     )
 
 
-__all__ = ["EquationSnapshot", "snapshot_equation"]
+__all__ = [
+    "EquationSnapshot",
+    "EquationSnapshotStats",
+    "EquationInvariantStatus",
+    "snapshot_equation",
+]

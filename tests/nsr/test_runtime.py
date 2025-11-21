@@ -9,6 +9,8 @@ from nsr import (
     run_struct_full,
     SessionCtx,
     Rule,
+    EquationSnapshotStats,
+    EquationInvariantStatus,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
@@ -149,3 +151,45 @@ def test_equation_snapshot_available_for_run_text():
     assert bundle["answer"]["kind"] == "STRUCT"
     assert bundle["quality"] == snapshot.quality
     assert len(outcome.equation_digest) == 32
+
+
+def test_equation_snapshot_text_report():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    report = outcome.equation.to_text_report(max_items=2)
+    lines = report.splitlines()
+    assert lines[0].startswith("Equação LIU")
+    assert any(line.startswith("Ontologia[") for line in lines)
+    assert any(line.startswith("Relações[") for line in lines)
+    assert "Resposta:" in report
+    assert "FilaΦ" in report
+
+
+def test_equation_snapshot_stats():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    snapshot = outcome.equation
+    stats = snapshot.stats()
+    assert stats.ontology.count == len(snapshot.ontology)
+    assert stats.relations.count == len(snapshot.relations)
+    assert stats.context.count == len(snapshot.context)
+    assert stats.quality == snapshot.quality
+    assert stats.equation_digest == snapshot.digest()
+    stats_dict = stats.to_dict()
+    assert stats_dict["ontology"]["count"] == len(snapshot.ontology)
+    assert len(stats_dict["input_digest"]) == 32
+    assert len(stats_dict["answer_digest"]) == 32
+    status = stats.validate()
+    assert status.ok
+
+
+def test_invariant_failure_triggers_halt(monkeypatch):
+    session = SessionCtx()
+
+    def fake_validate(self, previous=None, quality_tolerance=1e-3):
+        return EquationInvariantStatus(ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5)
+
+    monkeypatch.setattr(EquationSnapshotStats, "validate", fake_validate)
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.halt_reason is HaltReason.INVARIANT_FAILURE
+    assert any("forced" in entry for entry in outcome.trace.invariant_failures)

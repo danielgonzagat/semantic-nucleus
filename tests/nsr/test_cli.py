@@ -16,6 +16,7 @@ def test_cli_outputs_equation_bundle(capsys):
     assert "ops_queue" in data["equation"]["json"]
     assert isinstance(data["equation"]["json"]["quality"], float)
     assert len(data["equation_hash"]) == 32
+    assert data["invariant_failures"] == []
 
 
 def test_cli_writes_file(tmp_path):
@@ -37,3 +38,23 @@ def test_cli_writes_file(tmp_path):
     assert payload["equation_hash"]
     assert payload["equation"]["json"]["goals"]
     assert "ops_queue" in payload["equation"]["json"]
+
+
+def test_cli_includes_text_report(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-report"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert "equation_report" in data
+    assert "FilaΦ" in data["equation_report"]
+
+
+def test_cli_includes_stats(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-stats"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert "equation_stats" in data
+    assert data["equation_stats"]["ontology"]["count"] >= 0
+    assert len(data["equation_stats"]["input_digest"]) == 32
+    assert "invariant_failures" in data
