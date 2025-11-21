@@ -19,6 +19,15 @@ from .genome import (
     summarize_genome,
     set_rule_disabled,
 )
+from .env_kb import (
+    EnvironmentKB,
+    load_env_kb,
+    make_session_for_env,
+    promote_kb_version,
+    rollback_kb_version,
+    rules_path_for_version,
+    write_current_version,
+)
 
 __all__ = [
     "run_text_learning",
@@ -45,4 +54,11 @@ __all__ = [
     "load_genome",
     "summarize_genome",
     "set_rule_disabled",
+    "EnvironmentKB",
+    "load_env_kb",
+    "make_session_for_env",
+    "promote_kb_version",
+    "rollback_kb_version",
+    "rules_path_for_version",
+    "write_current_version",
 ]

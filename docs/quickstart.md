@@ -98,7 +98,60 @@ PY
 - Gatilhos em `push` e `pull_request`.
 - Executa `pip install -e .[dev]`, `pre-commit run --all-files` e `pytest`.
 
-## 6. Aprendizado simbólico contínuo
+## 6. Ambientes e versões do aprendizado simbólico
+
+Estruture o diretório `.nsr_learning/` por ambiente para garantir promoção/rollback previsíveis:
+
+```
+.nsr_learning/
+  dev/
+    episodes.jsonl
+    learned_rules_v3.jsonl
+    current_kb.json   # {"version": 3}
+  staging/
+    episodes.jsonl
+    learned_rules_v2.jsonl
+    current_kb.json
+  prod/
+    episodes.jsonl    # log only
+    learned_rules_v2.jsonl
+    current_kb.json
+```
+
+- `current_kb.json` aponta qual `learned_rules_v{N}.jsonl` está ativo.
+- `nsr_evo.load_env_kb("staging")` retorna todas as regras (sistema + aprendidas) e a versão ativa.
+- `nsr_evo.make_session_for_env("prod")` entrega um `SessionCtx` pronto para uso naquele ambiente.
+
+```python
+from nsr_evo import load_env_kb, make_session_for_env
+
+kb = load_env_kb("staging")
+print(kb.env, kb.version, kb.rules_path)
+
+session = make_session_for_env("prod")
+answer = run_text_full("Explique o carro.", session)
+```
+
+Para promover regras aprovadas e atualizar ambientes:
+
+```bash
+PYTHONPATH=src python -m nsr_evo.cli_promote_kb \
+  --from-env dev \
+  --to-env staging \
+  --version 3
+
+PYTHONPATH=src python -m nsr_evo.cli_promote_kb \
+  --from-env staging \
+  --to-env prod \
+  --version 3
+
+# rollback rápido se necessário
+PYTHONPATH=src python -m nsr_evo.cli_rollback_kb --env prod --to-version 2
+```
+
+Esses scripts apenas copiam arquivos JSONL auditáveis e ajustam `current_kb.json`, permitindo fluxo dev → staging → prod com rollback determinístico.
+
+## 7. Aprendizado simbólico contínuo
 
 ```bash
 PYTHONPATH=src python - <<'PY'
@@ -116,7 +169,9 @@ PY
 
 Cada chamada loga um episódio (`episodes.jsonl`) e tenta induzir novas regras LIU→LIU; se aprovadas, vão para `learned_rules.jsonl` e passam a fazer parte do `SessionCtx(kb_rules=...)`.
 
-## 7. Ciclos offline guiados por energia
+> Em produção use caminhos dentro de `.nsr_learning/<env>/` (por exemplo `episodes_path=.nsr_learning/prod/episodes.jsonl`) para manter a separação entre ambientes.
+
+## 8. Ciclos offline guiados por energia
 
 ```bash
 PYTHONPATH=src python -m nsr_evo.cli_cycle \
@@ -130,7 +185,7 @@ PYTHONPATH=src python -m nsr_evo.cli_cycle \
 
 O ciclo reexecuta prompts recentes, mede energia simbólica (contradições, cobertura, qualidade) e só grava regras se a energia cair. Útil para evolução batch controlada.
 
-## 8. Inspeção do genoma simbólico
+## 9. Inspeção do genoma simbólico
 
 ```bash
 PYTHONPATH=src python -m nsr_evo.cli_genome list --rules .nsr_learning/learned_rules.jsonl
@@ -140,6 +195,6 @@ PYTHONPATH=src python -m nsr_evo.cli_genome toggle --rules .nsr_learning/learned
 
 Você pode auditar versões, suportes e energia de cada regra e desativar manualmente o que não fizer sentido.
 
-## 9. Contribuição
+## 10. Contribuição
 
 Leia `CONTRIBUTING.md`, siga o template de PR e respeite o `CODE_OF_CONDUCT.md`.
