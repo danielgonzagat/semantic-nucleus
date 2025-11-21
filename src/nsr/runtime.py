@@ -163,7 +163,7 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
         return "-"
     hasher = blake2b(digest_size=12)
     for node in items:
-        hasher.update(fingerprint(node).encode("ascii"))
+        hasher.update(fingerprint(node).encode("utf-8"))
     return hasher.hexdigest()
 
 
