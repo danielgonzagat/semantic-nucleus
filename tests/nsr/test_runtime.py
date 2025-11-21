@@ -303,7 +303,7 @@ def test_code_eval_pure_records_errors_deterministically():
         binop=struct(
             left=number(1),
             op=text("Div"),
-            right=number(0),
+            right=number(0.0),
         )
     )
     updated = apply_operator(isr, operation("code/EVAL_PURE", bad_expr), session)
