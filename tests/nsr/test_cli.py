@@ -1,0 +1,34 @@
+import json
+
+import nsr.cli as nsr_cli
+
+
+def test_cli_outputs_equation_bundle(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert data["answer"]
+    assert "equation" in data
+    assert "json" in data["equation"]
+    assert data["equation"]["json"]["answer"]["kind"] == "STRUCT"
+    assert len(data["equation_hash"]) == 32
+
+
+def test_cli_writes_file(tmp_path):
+    output_path = tmp_path / "bundle.json"
+    exit_code = nsr_cli.main(
+        [
+            "O carro tem roda",
+            "--enable-contradictions",
+            "--format",
+            "both",
+            "--output",
+            str(output_path),
+        ]
+    )
+    assert exit_code == 0
+    payload = json.loads(output_path.read_text())
+    assert payload["equation"]["sexpr"]["input"].startswith("(STRUCT")
+    assert payload["trace_digest"]
+    assert payload["equation_hash"]

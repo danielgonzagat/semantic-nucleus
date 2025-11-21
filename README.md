@@ -40,11 +40,19 @@ python3 -m pytest tests/cts
 
 # Rodar o NSR em modo textual
 PYTHONPATH=src python3 - <<'PY'
-from nsr import run_text
+from nsr import run_text, run_text_full
 answer, trace = run_text("O carro anda rapido")
 print(answer)
 print(trace.steps)
+
+# Obter a equação LIU (entrada → grafo → resposta)
+outcome = run_text_full("O carro anda rapido")
+print(outcome.equation.to_sexpr_bundle())
 PY
+
+# CLI determinístico (texto → equação → texto)
+PYTHONPATH=src python3 -m nsr.cli "O carro anda rapido" --format both --enable-contradictions
+# Saída inclui answer, trace, equation_hash (Blake2b-128) e bundles S-expr/JSON
 
 # Montar e rodar um programa ΣVM
 PYTHONPATH=src python3 - <<'PY'
