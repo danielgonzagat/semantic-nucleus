@@ -14,7 +14,7 @@ source → AST/HIR → UAST minimalista → lowering → LIU (REL/STRUCT/OP)
 
 - Baseado em `ast` da stdlib.
 - Abaixa `FunctionDef`, `Return`, `Assign`, `BinOp` em `STRUCT`s puros e `relation("code/DEFN", ...)`.
-- Expressões puras podem ser encapsuladas em `struct(binop=...)` para `OP:code/EVAL_PURE` futuro.
+- Expressões puras devem ser encapsuladas em `struct(binop=...)` para execução determinística via `OP:code/EVAL_PURE`.
 
 ## Frontend Elixir (`src/frontend_elixir/compiler.py`)
 
