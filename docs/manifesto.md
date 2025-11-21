@@ -14,7 +14,7 @@
 
 - **LIU**: S-expr/JSON canônicos, arenas imutáveis, tipagem estática (`liu.wf`).
 - **NSR**: operadores Φ puros (NORMALIZE, ANSWER, INFER, MAP, REDUCE, REWRITE, EXPAND, COMPARE, EXTRACT, EXPLAIN, SUMMARIZE).
-- **ΣVM**: bytecode SVMB, assembler/disassembler, VM com pilha + registradores (roadmap), opcodes de 1 byte + varint.
+- **ΣVM**: bytecode SVMB com opcodes para construir nós LIU, operar sobre o ISR (relações/fila/quality) e despachar Φ de forma auditável (`HASH_STATE`, `TRAP`, snapshots).
 - **Compiladores**: frontends multilíngue convergem para `code/*` relations, evitando execução dinâmica.
 - **Testes**: suites mínimas para WF/determinismo/inferência/micro-ops/compilers; novas features só entram com casos de ouro.
 
