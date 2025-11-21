@@ -227,7 +227,7 @@ def _format_relations(relations_node: Node | None) -> str | None:
 
 
 def _render_relation(node: Node) -> str | None:
-    if node.kind is not NodeKind.REL or not node.label:
+    if node.kind is not NodeKind.RELATION or not node.label:
         return None
     if len(node.args) < 2:
         return None
