@@ -49,17 +49,46 @@ class HaltReason(str, Enum):
     MAX_STEPS = "MAX_STEPS"
 
 
+@dataclass(slots=True)
+class RunOutcome:
+    answer: str
+    trace: Trace
+    isr: ISR
+    halt_reason: HaltReason
+    finalized: bool
+
+    @property
+    def quality(self) -> float:
+        return self.isr.quality
+
+    def has_answer(self) -> bool:
+        return _get_answer_field(self.isr) is not None
+
+    def meets_quality(self, min_quality: float) -> bool:
+        return self.has_answer() and self.quality >= min_quality
+
+
 def run_text(text: str, session: SessionCtx | None = None) -> Tuple[str, Trace]:
+    outcome = run_text_full(text, session=session)
+    return outcome.answer, outcome.trace
+
+
+def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
     lexicon = session.lexicon
     if not (lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words):
         lexicon = DEFAULT_LEXICON
     tokens = tokenize(text, lexicon)
     struct0 = build_struct(tokens)
-    return run_struct(struct0, session)
+    return run_struct_full(struct0, session)
 
 
 def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
+    outcome = run_struct_full(struct_node, session)
+    return outcome.answer, outcome.trace
+
+
+def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
     isr = initial_isr(struct_node, session)
     trace = Trace(steps=[])
     steps = 0
@@ -104,9 +133,14 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
             isr, delta = _finalize_convergence(isr, session, trace)
             finalized = finalized or delta
     trace.halt(halt_reason, isr, finalized)
-    answer_field = dict(isr.answer.fields).get("answer")
-    text_answer = answer_field.label if answer_field else "Não encontrei resposta."
-    return text_answer or "Não encontrei resposta.", trace
+    answer_text = _answer_text(isr)
+    return RunOutcome(
+        answer=answer_text,
+        trace=trace,
+        isr=isr,
+        halt_reason=halt_reason,
+        finalized=finalized,
+    )
 
 
 def _state_signature(isr: ISR) -> str:
@@ -151,4 +185,22 @@ def _apply_and_trace(isr: ISR, op_name: str, label: str, session: SessionCtx, tr
     return updated
 
 
-__all__ = ["run_text", "run_struct", "Trace", "HaltReason"]
+def _get_answer_field(isr: ISR) -> Node | None:
+    return dict(isr.answer.fields).get("answer")
+
+
+def _answer_text(isr: ISR) -> str:
+    field = _get_answer_field(isr)
+    label = field.label if field and field.label else None
+    return label or "Não encontrei resposta."
+
+
+__all__ = [
+    "run_text",
+    "run_struct",
+    "run_text_full",
+    "run_struct_full",
+    "Trace",
+    "HaltReason",
+    "RunOutcome",
+]

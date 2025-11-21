@@ -2,7 +2,7 @@ import nsr.runtime as nsr_runtime
 
 from liu import relation, entity, var, struct, list_node, text, number, operation, NodeKind
 
-from nsr import run_text, run_struct, SessionCtx, Rule
+from nsr import run_text, run_struct, run_text_full, run_struct_full, SessionCtx, Rule
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
@@ -73,3 +73,25 @@ def test_run_struct_converges_with_summary(monkeypatch):
     assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[SIGNATURE_REPEAT]")
     assert trace.halt_reason is HaltReason.SIGNATURE_REPEAT
     assert trace.finalized is True
+
+
+def test_run_text_full_matches_legacy_output():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    legacy_answer, legacy_trace = run_text("Um carro existe", session)
+    assert outcome.answer == legacy_answer
+    assert outcome.trace.steps == legacy_trace.steps
+    assert outcome.trace.digest == legacy_trace.digest
+    assert outcome.trace.halt_reason is outcome.halt_reason
+    assert outcome.trace.finalized == outcome.finalized
+
+
+def test_run_struct_full_exposes_isr_and_quality():
+    session = SessionCtx()
+    base = struct(subject=entity("carro"))
+    outcome = run_struct_full(base, session)
+    assert outcome.has_answer()
+    assert isinstance(outcome.quality, float)
+    assert isinstance(outcome.halt_reason, HaltReason)
+    assert len(outcome.isr.context) >= 1
+    assert isinstance(outcome.meets_quality(session.config.min_quality), bool)
