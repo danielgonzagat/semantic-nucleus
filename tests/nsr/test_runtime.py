@@ -263,3 +263,52 @@ def test_run_text_handles_french_relation_sentence():
     answer, _ = run_text("La voiture a une roue", session)
     assert "relações:" in answer.lower()
     assert "carro has roda" in answer.lower()
+
+
+def test_code_eval_pure_binop_enriches_context():
+    session = SessionCtx()
+    base = struct(subject=entity("carro"))
+    isr = initial_isr(base, session)
+    expr = struct(
+        binop=struct(
+            left=number(2),
+            op=text("Add"),
+            right=struct(
+                binop=struct(
+                    left=number(3),
+                    op=text("Mult"),
+                    right=number(4),
+                )
+            ),
+        )
+    )
+    updated = apply_operator(isr, operation("code/EVAL_PURE", expr), session)
+    assert len(updated.context) == len(isr.context) + 1
+    summary = updated.context[-1]
+    fields = dict(summary.fields)
+    assert "result" in fields and "operator" in fields and "expr" in fields
+    result_node = fields["result"]
+    assert result_node.kind is NodeKind.NUMBER
+    assert result_node.value == 14.0
+    assert (fields["operator"].label or "").lower() == "add"
+    assert fields["expr"] == expr
+    assert updated.quality >= 0.45
+
+
+def test_code_eval_pure_records_errors_deterministically():
+    session = SessionCtx()
+    base = struct(subject=entity("carro"))
+    isr = initial_isr(base, session)
+    bad_expr = struct(
+        binop=struct(
+            left=number(1),
+            op=text("Div"),
+            right=number(0),
+        )
+    )
+    updated = apply_operator(isr, operation("code/EVAL_PURE", bad_expr), session)
+    assert len(updated.context) == len(isr.context) + 1
+    error_entry = updated.context[-1]
+    fields = dict(error_entry.fields)
+    assert (fields["eval_error"].label or "") == "code/EVAL_PURE"
+    assert "Division by zero" in (fields["detail"].label or "")

@@ -4,6 +4,7 @@ Operadores Φ do NSR.
 
 from __future__ import annotations
 
+import math
 from collections import deque
 from typing import Callable, Dict, Iterable, Tuple
 
@@ -170,6 +171,22 @@ def _op_stabilize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     return _update(isr, quality=target)
 
 
+def _op_code_eval_pure(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    if not args:
+        return isr
+    expr = args[0]
+    try:
+        result, descriptor = _evaluate_pure_expr(expr)
+    except _PureEvalError as exc:
+        error_struct = struct(eval_error=text("code/EVAL_PURE"), detail=text(str(exc)))
+        context = isr.context + (error_struct,)
+        return _update(isr, context=context)
+    summary = struct(expr=expr, operator=text(descriptor), result=result)
+    quality = min(1.0, max(isr.quality, 0.45))
+    context = isr.context + (summary,)
+    return _update(isr, context=context, quality=quality)
+
+
 def _render_struct(node: Node) -> Node:
     subject = _field_label(node, "subject")
     action = _field_label(node, "action")
@@ -227,7 +244,7 @@ def _format_relations(relations_node: Node | None) -> str | None:
 
 
 def _render_relation(node: Node) -> str | None:
-    if node.kind is not NodeKind.RELATION or not node.label:
+    if node.kind is not NodeKind.REL or not node.label:
         return None
     if len(node.args) < 2:
         return None
@@ -245,6 +262,95 @@ def _node_token(node: Node) -> str:
     return ""
 
 
+class _PureEvalError(Exception):
+    """Erro determinístico durante a avaliação de uma expressão pura."""
+
+
+def _evaluate_pure_expr(node: Node) -> Tuple[Node, str]:
+    if node.kind in (NodeKind.NUMBER, NodeKind.TEXT, NodeKind.BOOL):
+        return node, "literal"
+    if node.kind is NodeKind.STRUCT:
+        binop = _field_node(node, "binop")
+        if binop is not None:
+            return _evaluate_binop(binop)
+    raise _PureEvalError(f"Unsupported expression kind '{node.kind.value}'")
+
+
+def _evaluate_binop(node: Node) -> Tuple[Node, str]:
+    if node.kind is not NodeKind.STRUCT:
+        raise _PureEvalError("binop payload must be a STRUCT")
+    op_node = _field_node(node, "op")
+    left_node = _field_node(node, "left")
+    right_node = _field_node(node, "right")
+    if op_node is None or left_node is None or right_node is None:
+        raise _PureEvalError("binop struct requires 'op', 'left' and 'right'")
+    op_label = (op_node.label or "").strip()
+    if not op_label:
+        raise _PureEvalError("binop op label cannot be empty")
+    left_result, _ = _evaluate_pure_expr(left_node)
+    right_result, _ = _evaluate_pure_expr(right_node)
+    result = _apply_binop(op_label, left_result, right_result)
+    return result, op_label
+
+
+def _apply_binop(op_label: str, left: Node, right: Node) -> Node:
+    op_key = op_label.upper()
+    if left.kind is NodeKind.NUMBER and right.kind is NodeKind.NUMBER:
+        return number(_apply_numeric_binop(op_key, left.value, right.value))
+    if op_key == "ADD" and left.kind is NodeKind.TEXT and right.kind is NodeKind.TEXT:
+        return text((left.label or "") + (right.label or ""))
+    if op_key == "MULT":
+        if left.kind is NodeKind.TEXT and right.kind is NodeKind.NUMBER:
+            return text(_repeat_text(left.label or "", right.value))
+        if left.kind is NodeKind.NUMBER and right.kind is NodeKind.TEXT:
+            return text(_repeat_text(right.label or "", left.value))
+    raise _PureEvalError(
+        f"Unsupported operands for {op_label}: {left.kind.value}, {right.kind.value}"
+    )
+
+
+def _apply_numeric_binop(op_key: str, left: float | None, right: float | None) -> float:
+    a = _ensure_number(left)
+    b = _ensure_number(right)
+    if op_key == "ADD":
+        return a + b
+    if op_key == "SUB":
+        return a - b
+    if op_key == "MULT":
+        return a * b
+    if op_key == "DIV":
+        if abs(b) < 1e-12:
+            raise _PureEvalError("Division by zero")
+        return a / b
+    if op_key == "FLOORDIV":
+        if abs(b) < 1e-12:
+            raise _PureEvalError("Division by zero")
+        return math.floor(a / b)
+    if op_key == "MOD":
+        if abs(b) < 1e-12:
+            raise _PureEvalError("Modulo by zero")
+        return a % b
+    if op_key == "POW":
+        return math.pow(a, b)
+    raise _PureEvalError(f"Unsupported numeric operator '{op_key}'")
+
+
+def _ensure_number(value: float | None) -> float:
+    if value is None:
+        raise _PureEvalError("Numeric operand is undefined")
+    return float(value)
+
+
+def _repeat_text(payload: str, multiplier: float | None) -> str:
+    count = _ensure_number(multiplier)
+    if not float(count).is_integer():
+        raise _PureEvalError("String multiplier must be an integer")
+    repeats = int(count)
+    if repeats < 0 or repeats > 1024:
+        raise _PureEvalError("String multiplier out of bounds")
+    return payload * repeats
+
+
 _HANDLERS: Dict[str, Handler] = {
     "NORMALIZE": _op_normalize,
     "ANSWER": _op_answer,
@@ -259,6 +365,7 @@ _HANDLERS: Dict[str, Handler] = {
     "REWRITE": _op_rewrite,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,
+    "CODE/EVAL_PURE": _op_code_eval_pure,
 }
 
 

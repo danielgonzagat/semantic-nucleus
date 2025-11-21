@@ -2,6 +2,11 @@
 
 Todas as mudanças relevantes neste repositório serão documentadas aqui.
 
+## [Unreleased]
+
+- Adicionado operador determinístico `code/EVAL_PURE` ao NSR para avaliar estruturas `binop` (somar, multiplicar, dividir, concatenar texto) e anexar os resultados/erros ao contexto com aumento garantido de qualidade.
+- Criados testes de runtime cobrindo avaliações numéricas/narrativas e a sinalização de erros determinística.
+
 ## [0.1.0] - 2025-11-21
 
 - Adicionado LICENSE (MIT) e políticas de governança (CODE_OF_CONDUCT, CONTRIBUTING).
