@@ -10,7 +10,7 @@ pip install -e .[dev]
 pre-commit install
 ```
 
-`blake3` é opcional, mas garante digests BLAKE3-256 para snapshots ΣVM.
+`blake3` é opcional, mas garante digests BLAKE3-256 para snapshots ΣVM. `cryptography` habilita assinaturas Ed25519.
 
 ## 2. Testes
 
@@ -32,8 +32,17 @@ Saída inclui `trace_digest`, `equation_hash` (Blake2b-128) e bundles JSON/S-exp
 
 ```bash
 PYTHONPATH=src python - <<'PY'
-from svm import SigmaVM, build_program_from_assembly
-from svm.snapshots import save_snapshot
+from svm import (
+    SigmaVM,
+    build_program_from_assembly,
+    save_snapshot,
+    load_snapshot,
+    restore_snapshot,
+    generate_ed25519_keypair,
+    sign_snapshot,
+    verify_snapshot_signature,
+    Ed25519Unavailable,
+)
 
 asm = """
 PUSH_CONST 1
@@ -46,7 +55,20 @@ program = build_program_from_assembly(asm, ["answer", "Hello from snapshot."])
 vm = SigmaVM()
 vm.load(program)
 vm.run()
-save_snapshot(vm, "hello.svms")
+snapshot = save_snapshot(vm, "hello.svms")
+print("digest:", snapshot.digest)
+
+restored = restore_snapshot(load_snapshot("hello.svms"))
+assert restored.answer == vm.answer
+
+try:
+    pub, priv = generate_ed25519_keypair()
+    signature = sign_snapshot(snapshot, priv)
+    assert verify_snapshot_signature(snapshot, signature)
+    snapshot = snapshot.with_signature(signature)
+    print("signature:", signature.signature[:16], "...")
+except Ed25519Unavailable:
+    print("ed25519 unavailable; skipping signature demo")
 PY
 ```
 

@@ -33,7 +33,8 @@ Núcleo Originário é a implementação de referência da inteligência simból
 - Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
 - Instalação: `pip install -e .[dev] && pre-commit install`.
 - Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both`.
-- Snapshots ΣVM: `from svm.snapshots import save_snapshot` (gera `.svms` com digest BLAKE3/Blake2b).
+- Snapshots ΣVM: `from svm.snapshots import save_snapshot` / `restore_snapshot`.
+- Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
 
 ## Testes & cobertura
 
@@ -50,7 +51,8 @@ CI (GitHub Actions) executa pre-commit + pytest para Python 3.11/3.12 (`.github/
 - Nenhum IO dentro de LIU/NSR/ΣVM; capacidades externas são wrappers auditáveis.
 - Arenas imutáveis e `EquationSnapshot.digest()` garantem reprodutibilidade total.
 - Operadores Φ permanecem puros e fechados sob transformação.
-- `svm.snapshots` exporta `{program, state}` em JSON determinístico com `digest`.
+- `svm.snapshots` exporta `{program, state}` em JSON determinístico com `digest` e suporte a restauração.
+- `svm.signing` aplica assinaturas Ed25519 determinísticas sobre o payload das snapshots `.svms`.
 
 ## Documentação & governança
 
