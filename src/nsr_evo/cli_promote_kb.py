@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import sys
 
 from nsr_evo.env_kb import promote_kb_version
 
