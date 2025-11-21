@@ -25,12 +25,16 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    dst = promote_kb_version(args.from_env, args.to_env, args.version)
-    print(
-        f"[nsr_evo] promoted KB v{args.version} "
-        f"from {args.from_env} -> {args.to_env} ({dst})"
-    )
-    return 0
+    try:
+        dst = promote_kb_version(args.from_env, args.to_env, args.version)
+        print(
+            f"[nsr_evo] promoted KB v{args.version} "
+            f"from {args.from_env} -> {args.to_env} ({dst})"
+        )
+        return 0
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        print(f"[nsr_evo] ERROR: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
