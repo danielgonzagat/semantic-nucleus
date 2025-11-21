@@ -205,6 +205,16 @@ def test_tokenize_emits_rel_payload_for_relwords():
     assert rel_tokens[0].payload == "HAS"
 
 
+def test_tokenize_skips_articles_and_handles_english_relations():
+    tokens = tokenize("The car has a wheel", DEFAULT_LEXICON)
+    lemmas = {token.lemma for token in tokens}
+    assert "the" not in lemmas
+    assert "a" not in lemmas
+    rel_tokens = [token for token in tokens if token.tag == "RELWORD"]
+    assert rel_tokens
+    assert rel_tokens[0].payload == "HAS"
+
+
 def test_build_struct_includes_relation_nodes():
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
     struct_node = build_struct(tokens)
@@ -232,3 +242,10 @@ def test_initial_isr_seeds_relations_into_state():
     outcome = run_struct_full(struct_node, session)
     assert any(rel.label == "HAS" for rel in outcome.isr.relations)
     assert any(rel.label == "HAS" for rel in outcome.equation.relations)
+
+
+def test_run_text_handles_english_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("The car has a wheel", session)
+    assert "relações:" in answer.lower()
+    assert "carro has wheel" in answer.lower()
