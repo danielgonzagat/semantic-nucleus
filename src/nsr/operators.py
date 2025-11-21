@@ -327,7 +327,7 @@ def _apply_numeric_binop(op_key: str, left: float | None, right: float | None) -
             raise _PureEvalError("Division by zero")
         return math.floor(a / b)
     if op_key == "MOD":
-        if abs(b) < 1e-12:
+        if b == 0.0:
             raise _PureEvalError("Modulo by zero")
         return a % b
     if op_key == "POW":
