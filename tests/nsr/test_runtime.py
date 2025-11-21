@@ -11,10 +11,13 @@ from nsr import (
     Rule,
     EquationSnapshotStats,
     EquationInvariantStatus,
+    tokenize,
+    build_struct,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
+from nsr.lex import DEFAULT_LEXICON
 
 
 def test_run_text_simple():
@@ -193,3 +196,70 @@ def test_invariant_failure_triggers_halt(monkeypatch):
     outcome = run_text_full("Um carro existe", session)
     assert outcome.halt_reason is HaltReason.INVARIANT_FAILURE
     assert any("forced" in entry for entry in outcome.trace.invariant_failures)
+
+
+def test_tokenize_emits_rel_payload_for_relwords():
+    tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
+    rel_tokens = [token for token in tokens if token.tag == "RELWORD"]
+    assert rel_tokens
+    assert rel_tokens[0].payload == "HAS"
+
+
+def test_tokenize_skips_articles_and_handles_english_relations():
+    tokens = tokenize("The car has a wheel", DEFAULT_LEXICON)
+    lemmas = {token.lemma for token in tokens}
+    assert "the" not in lemmas
+    rel_tokens = [token for token in tokens if token.tag == "RELWORD"]
+    assert rel_tokens
+    assert rel_tokens[0].payload == "HAS"
+    assert all(token.tag == "RELWORD" for token in tokens if token.lemma == "a")
+
+
+def test_build_struct_includes_relation_nodes():
+    tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
+    struct_node = build_struct(tokens)
+    relations_field = dict(struct_node.fields).get("relations")
+    assert relations_field is not None
+    assert relations_field.kind is NodeKind.LIST
+    assert relations_field.args
+    relation_node = relations_field.args[0]
+    assert relation_node.label == "HAS"
+    assert relation_node.args[0].label == "carro"
+    assert relation_node.args[1].label == "roda"
+
+
+def test_answer_renders_relation_summary():
+    session = SessionCtx()
+    answer, _ = run_text("O carro tem roda", session)
+    assert "Relações:" in answer
+    assert "carro has roda" in answer.lower()
+
+
+def test_initial_isr_seeds_relations_into_state():
+    session = SessionCtx()
+    tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
+    struct_node = build_struct(tokens)
+    outcome = run_struct_full(struct_node, session)
+    assert any(rel.label == "HAS" for rel in outcome.isr.relations)
+    assert any(rel.label == "HAS" for rel in outcome.equation.relations)
+
+
+def test_run_text_handles_english_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("The car has a wheel", session)
+    assert "relações:" in answer.lower()
+    assert "carro has wheel" in answer.lower()
+
+
+def test_run_text_handles_spanish_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("El coche tiene una rueda", session)
+    assert "relações:" in answer.lower()
+    assert "carro has roda" in answer.lower()
+
+
+def test_run_text_handles_french_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("La voiture a une roue", session)
+    assert "relações:" in answer.lower()
+    assert "carro has roda" in answer.lower()

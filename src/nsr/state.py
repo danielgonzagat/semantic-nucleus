@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, List, Sequence, Tuple
+from typing import Deque, List, Mapping, Sequence, Tuple
 
-from liu import Node, relation, operation, struct, list_node
+from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
 from ontology import code as code_ontology
 
@@ -33,11 +33,49 @@ class Lexicon:
     qualifiers: set[str] = field(default_factory=set)
     rel_words: dict[str, str] = field(default_factory=dict)
 
+    def merge(self, other: "Lexicon") -> "Lexicon":
+        return Lexicon(
+            synonyms={**self.synonyms, **other.synonyms},
+            pos_hint={**self.pos_hint, **other.pos_hint},
+            qualifiers=set(self.qualifiers) | set(other.qualifiers),
+            rel_words={**self.rel_words, **other.rel_words},
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "synonyms": dict(self.synonyms),
+            "pos_hint": dict(self.pos_hint),
+            "qualifiers": sorted(self.qualifiers),
+            "rel_words": dict(self.rel_words),
+        }
+
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, object]) -> "Lexicon":
+        def _as_dict(key: str) -> dict[str, str]:
+            raw = data.get(key, {})
+            return dict(raw) if isinstance(raw, Mapping) else {}
+
+        def _as_set(key: str) -> set[str]:
+            raw = data.get(key, [])
+            if isinstance(raw, Mapping):
+                return set(raw.keys())
+            if isinstance(raw, (list, tuple, set)):
+                return {str(item) for item in raw}
+            return set()
+
+        return cls(
+            synonyms=_as_dict("synonyms"),
+            pos_hint=_as_dict("pos_hint"),
+            qualifiers=_as_set("qualifiers"),
+            rel_words=_as_dict("rel_words"),
+        )
+
 
 @dataclass(slots=True)
 class Token:
     lemma: str
     tag: str
+    payload: str | None = None
 
 
 DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1
@@ -85,15 +123,23 @@ def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
         ]
     )
     ctx = (struct_node,)
+    base_relations = _relations_from_struct(struct_node)
     return ISR(
         ontology=session.kb_ontology,
-        relations=tuple(),
+        relations=base_relations,
         context=ctx,
         goals=goals,
         ops_queue=ops,
         answer=struct(),
         quality=0.0,
     )
+
+
+def _relations_from_struct(struct_node: Node) -> Tuple[Node, ...]:
+    relations_field = dict(struct_node.fields).get("relations")
+    if not relations_field or relations_field.kind is not NodeKind.LIST:
+        return tuple()
+    return tuple(node for node in relations_field.args if node.kind is NodeKind.REL)
 
 
 __all__ = [

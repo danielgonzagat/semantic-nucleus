@@ -33,6 +33,7 @@ Núcleo Originário é a implementação de referência da inteligência simból
 - Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
 - Instalação: `pip install -e .[dev] && pre-commit install`.
 - Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both --include-report --include-stats`.
+- Léxicos multilíngues: `from nsr.lex import compose_lexicon, load_lexicon_file`. Combine pacotes (`compose_lexicon(("pt","en","es","fr"))`) ou carregue JSON customizado para estender sinônimos/relações determinísticas.
 - Payload JSON inclui `trace_digest`, `equation_hash`, `invariant_failures` (vazio em execuções saudáveis) e, quando habilitado, bundles texto←equação e estatísticas determinísticas.
 - Snapshots ΣVM: `from svm.snapshots import save_snapshot` / `restore_snapshot`.
 - Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
