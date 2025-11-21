@@ -32,7 +32,7 @@ Núcleo Originário é a implementação de referência da inteligência simból
 
 - Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
 - Instalação: `pip install -e .[dev] && pre-commit install`.
-- Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both --include-report`.
+- Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both --include-report --include-stats`.
 - Snapshots ΣVM: `from svm.snapshots import save_snapshot` / `restore_snapshot`.
 - Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
 - Aprendizado simbólico: `from nsr_evo.api import run_text_learning`.

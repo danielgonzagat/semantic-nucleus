@@ -44,6 +44,45 @@ def _format_section(label: str, nodes: Tuple[Node, ...], max_items: int) -> str:
 
 
 @dataclass(slots=True)
+class SectionStats:
+    count: int
+    digest: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return {"count": self.count, "digest": self.digest}
+
+
+@dataclass(slots=True)
+class EquationSnapshotStats:
+    input_digest: str
+    ontology: SectionStats
+    relations: SectionStats
+    context: SectionStats
+    goals: SectionStats
+    ops_queue: SectionStats
+    answer_digest: str
+    quality: float
+    equation_digest: str
+
+    def to_dict(self) -> Dict[str, object]:
+        return {
+            "input_digest": self.input_digest,
+            "ontology": self.ontology.to_dict(),
+            "relations": self.relations.to_dict(),
+            "context": self.context.to_dict(),
+            "goals": self.goals.to_dict(),
+            "ops_queue": self.ops_queue.to_dict(),
+            "answer_digest": self.answer_digest,
+            "quality": self.quality,
+            "equation_digest": self.equation_digest,
+        }
+
+
+def _section_stats(nodes: Tuple[Node, ...]) -> SectionStats:
+    return SectionStats(count=len(nodes), digest=_nodes_digest(nodes))
+
+
+@dataclass(slots=True)
 class EquationSnapshot:
     """
     Representa a “equação semântica” corrente do NSR.
@@ -136,6 +175,23 @@ class EquationSnapshot:
         ]
         return "\n".join(lines)
 
+    def stats(self) -> EquationSnapshotStats:
+        """
+        Retorna contagens e digests determinísticos para auditoria estrutural.
+        """
+
+        return EquationSnapshotStats(
+            input_digest=fingerprint(self.input_struct),
+            ontology=_section_stats(self.ontology),
+            relations=_section_stats(self.relations),
+            context=_section_stats(self.context),
+            goals=_section_stats(self.goals),
+            ops_queue=_section_stats(self.ops_queue),
+            answer_digest=fingerprint(self.answer),
+            quality=self.quality,
+            equation_digest=self.digest(),
+        )
+
 
 def snapshot_equation(struct_node: Node | None, isr: ISR) -> EquationSnapshot:
     """
@@ -159,4 +215,4 @@ def snapshot_equation(struct_node: Node | None, isr: ISR) -> EquationSnapshot:
     )
 
 
-__all__ = ["EquationSnapshot", "snapshot_equation"]
+__all__ = ["EquationSnapshot", "EquationSnapshotStats", "snapshot_equation"]

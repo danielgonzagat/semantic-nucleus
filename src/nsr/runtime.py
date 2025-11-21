@@ -12,7 +12,7 @@ from typing import Iterable, List, Tuple
 from liu import Node, operation, fingerprint
 
 from .consistency import Contradiction, detect_contradictions
-from .equation import EquationSnapshot, snapshot_equation
+from .equation import EquationSnapshot, EquationSnapshotStats, snapshot_equation
 from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
 from .parser import build_struct
@@ -229,4 +229,5 @@ __all__ = [
     "HaltReason",
     "RunOutcome",
     "EquationSnapshot",
+    "EquationSnapshotStats",
 ]

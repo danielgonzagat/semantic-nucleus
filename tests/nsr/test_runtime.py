@@ -160,3 +160,20 @@ def test_equation_snapshot_text_report():
     assert any(line.startswith("Ontologia[") for line in lines)
     assert any(line.startswith("Relações[") for line in lines)
     assert "Resposta:" in report
+    assert "FilaΦ" in report
+
+
+def test_equation_snapshot_stats():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    snapshot = outcome.equation
+    stats = snapshot.stats()
+    assert stats.ontology.count == len(snapshot.ontology)
+    assert stats.relations.count == len(snapshot.relations)
+    assert stats.context.count == len(snapshot.context)
+    assert stats.quality == snapshot.quality
+    assert stats.equation_digest == snapshot.digest()
+    stats_dict = stats.to_dict()
+    assert stats_dict["ontology"]["count"] == len(snapshot.ontology)
+    assert len(stats_dict["input_digest"]) == 32
+    assert len(stats_dict["answer_digest"]) == 32

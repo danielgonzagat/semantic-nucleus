@@ -23,11 +23,11 @@ coverage run -m pytest && coverage report
 ## 3. Pipeline texto → equação → texto
 
 ```bash
-PYTHONPATH=src python -m nsr.cli "O carro anda rápido" --format both --include-report
+PYTHONPATH=src python -m nsr.cli "O carro anda rápido" --format both --include-report --include-stats
 ```
 
-Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), bundles JSON/S-expr
-e um relatório texto←equação determinístico para auditoria humana.
+Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), bundles JSON/S-expr,
+relatório texto←equação determinístico e estatísticas (contagens/digests) para auditoria estrutural.
 
 ## 4. ΣVM snapshots
 

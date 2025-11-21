@@ -9,6 +9,7 @@ from .runtime import (
     HaltReason,
     RunOutcome,
     EquationSnapshot,
+    EquationSnapshotStats,
 )
 from .state import SessionCtx, Config, Rule, Lexicon
 from .lex import tokenize
@@ -23,6 +24,7 @@ __all__ = [
     "HaltReason",
     "RunOutcome",
     "EquationSnapshot",
+    "EquationSnapshotStats",
     "SessionCtx",
     "Config",
     "Rule",

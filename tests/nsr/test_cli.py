@@ -46,3 +46,13 @@ def test_cli_includes_text_report(capsys):
     data = json.loads(captured)
     assert "equation_report" in data
     assert "FilaΦ" in data["equation_report"]
+
+
+def test_cli_includes_stats(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-stats"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert "equation_stats" in data
+    assert data["equation_stats"]["ontology"]["count"] >= 0
+    assert len(data["equation_stats"]["input_digest"]) == 32
