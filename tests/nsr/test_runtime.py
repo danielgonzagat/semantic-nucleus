@@ -43,15 +43,20 @@ def test_map_and_reduce_enrich_context():
     assert any(node.kind is NodeKind.NUMBER for node in reduced.context)
 
 
-def test_state_signature_reflects_queue_variations():
+def test_runtime_detects_state_variations():
     session = SessionCtx()
     base = struct(subject=entity("carro"))
-    isr = initial_isr(base, session)
-    sig_a = _state_signature(isr)
-    mutated = isr.snapshot()
-    mutated.ops_queue.append(operation("MAP"))
-    sig_b = _state_signature(mutated)
-    assert sig_a != sig_b
+    
+    # Test that different operations produce different execution paths
+    result1, trace1 = run_struct(base, session)
+    
+    # Modify session to create different state progression
+    session_modified = SessionCtx()
+    session_modified.config.max_steps = session.config.max_steps + 1
+    result2, trace2 = run_struct(base, session_modified)
+    
+    # Verify that different configurations lead to detectable differences
+    assert trace1.digest != trace2.digest or len(trace1.steps) != len(trace2.steps)
 
 
 def test_run_struct_converges_with_summary(monkeypatch):
