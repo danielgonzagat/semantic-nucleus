@@ -115,10 +115,6 @@ def test_run_struct_full_exposes_isr_and_quality():
     assert "input" in sexpr_bundle and sexpr_bundle["input"].startswith("(STRUCT")
     json_bundle = outcome.equation.to_json_bundle()
     assert isinstance(json_bundle["relations"], list)
-    assert isinstance(json_bundle["ontology"], list)
-    assert isinstance(json_bundle["goals"], list)
-    assert isinstance(json_bundle["ops_queue"], list)
-    assert isinstance(json_bundle["quality"], float)
     assert outcome.equation_digest == outcome.equation.digest()
 
 
@@ -141,11 +137,5 @@ def test_equation_snapshot_available_for_run_text():
     outcome = run_text_full("Um carro existe", session)
     snapshot = outcome.equation
     assert snapshot.context
-    assert snapshot.ontology
-    assert snapshot.goals
-    assert isinstance(snapshot.ops_queue, tuple)
-    assert 0.0 <= snapshot.quality <= 1.0
-    bundle = snapshot.to_json_bundle()
-    assert bundle["answer"]["kind"] == "STRUCT"
-    assert bundle["quality"] == snapshot.quality
+    assert snapshot.to_json_bundle()["answer"]["kind"] == "STRUCT"
     assert len(outcome.equation_digest) == 32

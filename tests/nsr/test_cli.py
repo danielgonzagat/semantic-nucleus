@@ -12,9 +12,6 @@ def test_cli_outputs_equation_bundle(capsys):
     assert "equation" in data
     assert "json" in data["equation"]
     assert data["equation"]["json"]["answer"]["kind"] == "STRUCT"
-    assert data["equation"]["json"]["ontology"]
-    assert "ops_queue" in data["equation"]["json"]
-    assert isinstance(data["equation"]["json"]["quality"], float)
     assert len(data["equation_hash"]) == 32
 
 
@@ -35,5 +32,3 @@ def test_cli_writes_file(tmp_path):
     assert payload["equation"]["sexpr"]["input"].startswith("(STRUCT")
     assert payload["trace_digest"]
     assert payload["equation_hash"]
-    assert payload["equation"]["json"]["goals"]
-    assert "ops_queue" in payload["equation"]["json"]

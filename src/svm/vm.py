@@ -55,13 +55,7 @@ class SigmaVM:
     # ---------------------------------------------------------------------
     # Lifecycle
     # ---------------------------------------------------------------------
-    def load(
-        self,
-        program: Program,
-        initial_struct: Node | None = None,
-        session: SessionCtx | None = None,
-        isr_state: ISR | None = None,
-    ) -> None:
+    def load(self, program: Program, initial_struct: Node | None = None, session: SessionCtx | None = None) -> None:
         self.program = program
         if session is not None:
             self.session = session
@@ -70,10 +64,7 @@ class SigmaVM:
         self.answer = None
         self.pc = 0
         self.call_stack.clear()
-        if isr_state is not None:
-            self.isr = isr_state.snapshot()
-        else:
-            self.isr = initial_isr(initial_struct or struct(), self.session)
+        self.isr = initial_isr(initial_struct or struct(), self.session)
 
     # ---------------------------------------------------------------------
     def run(self) -> Node:
@@ -377,10 +368,7 @@ class SigmaVM:
         return {
             "pc": self.pc,
             "stack_depth": len(self.stack),
-            "stack": list(self.stack),
             "registers": [node.kind.value if node else None for node in self.registers],
-            "register_values": list(self.registers),
-            "call_stack": list(self.call_stack),
             "isr_digest": _state_signature(self.isr) if self.isr else None,
             "answer": self.answer,
         }

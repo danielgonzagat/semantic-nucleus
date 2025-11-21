@@ -1,18 +1,14 @@
 # Núcleo Originário — LIU / NSR / ΣVM
 
-[![CI](https://github.com/nucleo-originario/nucleo-originario/actions/workflows/tests.yml/badge.svg)](https://github.com/nucleo-originario/nucleo-originario/actions/workflows/tests.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![Coverage](https://img.shields.io/badge/coverage-manual-lightgrey.svg)](docs/quickstart.md#2-testes)
-
-Núcleo Originário é a implementação de referência da inteligência simbólica LIU/NSR/ΣVM: entrada textual → equação LIU → cálculo determinístico → resposta auditável. Nenhum componente usa pesos ou ML; apenas lógica estrutural, bytecode e matemática.
+Núcleo Originário é a implementação de referência de uma arquitetura simbólica CPU-first composta pela **Linguagem Interna Universal (LIU)**, pelo **Núcleo Semântico Reativo (NSR)** e pela **Máquina Virtual Semântica (ΣVM / Ω-VM)**. Tudo é determinístico, auditável e livre de dependências de GPU ou modelos estatísticos.
 
 ## Camadas principais
 
-1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
-2. **NSR/ISR** – Motor reativo com operadores Φ, detecção de contradições e `EquationSnapshot` completo (ontologia, relações, goals, fila de ops e qualidade).
-3. **ΣVM / Ω-VM** – VM determinística com SVMB, operadores Φ embarcados e snapshots `.svms`.
-4. **Compiladores multilíngue** – Frontends estáticos para Python, Elixir, Rust e lógica.
-5. **Manifesto / Governança** – Diretrizes éticas, roadmap e provas públicas.
+1. **LIU** – IR semântico tipado com S-expressions/json equivalentes, arena imutável de nós e verificações de bem-formação.
+2. **NSR/ISR** – Motor reativo com LxU, PSE, operadores Φ (NORMALIZE/EXTRACT/COMPARE/INFER/etc.), mecanismo de convergência e renderização textual.
+3. **ΣVM / Ω-VM** – Bytecode SVMB com opcodes para construir nós LIU, manipular o estado ISR e despachar operadores Φ de forma determinística/auditável.
+4. **Compiladores multilíngue** – Frontends para Python, Elixir, Rust e lógica Prolog-like que abaixam construtos para LIU.
+5. **Manifesto e governança** – Diretrizes públicas de ética, segurança, versionamento e roadmap.
 
 ## Estrutura do repositório
 
@@ -22,56 +18,66 @@ Núcleo Originário é a implementação de referência da inteligência simból
   ├── liu            # Tipos, serialização, normalização e ontologia base
   ├── ontology       # Pacotes core/code para o NSR
   ├── nsr            # Estado ISR, operadores Φ, LxU/PSE e orquestrador
-  ├── svm            # Bytecode, assembler, VM, snapshots
+  ├── svm            # Bytecode, assembler, opcodes e VM de referência
   ├── frontend_*     # Frontends determinísticos (python/elixir/rust/logic)
 /tests               # Suites de conformidade (WF, runtime, VM, compilers)
-/docs                # Manifesto, roadmap, quickstart e documentação pública
+/docs                # Manifesto, roadmap e documentação pública
 ```
 
-## Quickstart
+## Requisitos & instalação
 
-- Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
-- Instalação: `pip install -e .[dev] && pre-commit install`.
-- Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both`.
-- Snapshots ΣVM: `from svm.snapshots import save_snapshot` / `restore_snapshot`.
-- Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
-- Aprendizado simbólico: `from nsr_evo.api import run_text_learning`.
+- Python 3.11+ (CPU comum).
+- Dependências de runtime: apenas biblioteca padrão.
+- Testes: `pytest>=9` (instale via `python3 -m pip install pytest`).
 
-## Testes & cobertura
+## Como executar
 
 ```bash
-python -m pytest           # suíte completa
-python -m pytest tests/cts # CTS rápido
-coverage run -m pytest && coverage report
-```
+# Executar testes de conformidade
+python3 -m pytest
+# Suite rápida (CTS)
+python3 -m pytest tests/cts
 
-CI (GitHub Actions) executa pre-commit + pytest para Python 3.11/3.12 (`.github/workflows/tests.yml`). Adicione novos testes sempre que tocar operadores Φ, ΣVM ou frontends.
+# Rodar o NSR em modo textual
+PYTHONPATH=src python3 - <<'PY'
+from nsr import run_text, run_text_full
+answer, trace = run_text("O carro anda rapido")
+print(answer)
+print(trace.steps)
+
+# Obter a equação LIU (entrada → grafo → resposta)
+outcome = run_text_full("O carro anda rapido")
+print(outcome.equation.to_sexpr_bundle())
+PY
+
+# CLI determinístico (texto → equação → texto)
+PYTHONPATH=src python3 -m nsr.cli "O carro anda rapido" --format both --enable-contradictions
+# Saída inclui answer, trace, equation_hash (Blake2b-128) e bundles S-expr/JSON
+
+# Montar e rodar um programa ΣVM
+PYTHONPATH=src python3 - <<'PY'
+from svm import build_program_from_assembly, SigmaVM
+asm = """
+PUSH_CONST 1
+PUSH_TEXT 0
+NEW_STRUCT 1
+STORE_ANSWER
+HALT
+"""
+program = build_program_from_assembly(asm, ["answer", "O carro anda rápido."])
+vm = SigmaVM()
+vm.load(program)
+print(vm.run())
+PY
+```
 
 ## Determinismo e segurança
 
-- Nenhum IO dentro de LIU/NSR/ΣVM; capacidades externas são wrappers auditáveis.
-- Arenas imutáveis e `EquationSnapshot.digest()` garantem reprodutibilidade total.
-- Operadores Φ permanecem puros e fechados sob transformação.
-- `svm.snapshots` exporta `{program, state}` em JSON determinístico com `digest` e suporte a restauração.
-- `svm.signing` aplica assinaturas Ed25519 determinísticas sobre o payload das snapshots `.svms`.
-- `nsr_evo` registra episódios (`.nsr_learning/`) e induz regras LIU → LIU apenas se a energia simbólica (contradições/qualidade) melhora.
-
-## Documentação & governança
-
-- Manifesto ético em [`docs/manifesto.md`](docs/manifesto.md).
-- Roadmap 2025–2030 em [`docs/roadmap.md`](docs/roadmap.md).
-- Quickstart e exemplos em [`docs/quickstart.md`](docs/quickstart.md).
-- Guia de contribuição: [`CONTRIBUTING.md`](CONTRIBUTING.md).
-- Código de conduta: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
-- Mudanças registradas em [`CHANGELOG.md`](CHANGELOG.md).
-
-## Auto-evolução simbólica
-
-- **Durante o atendimento**: `run_text_learning()` roda o NSR, grava episódio (`episodes.jsonl`) e tenta induzir regras `REL_A(?X,?Y) -> REL_B(?X,?Y)` determinísticas.
-- **Offline**: `python -m nsr_evo.cli_cycle --episodes .nsr_learning/episodes.jsonl --rules .nsr_learning/learned_rules.jsonl` reexecuta prompts recentes, mede energia semântica e só aceita novas regras se o campo de prova melhorar.
-- KB aprendido fica em `.nsr_learning/learned_rules.jsonl` (JSONL auditável). Cada nova `SessionCtx` pode carregar essas regras para expandir o operador `INFER`.
-- CLI extra `python -m nsr_evo.cli_genome list|toggle` permite inspecionar versões, energia, suporte e habilitar/desabilitar regras simbolicamente.
+- Sem IO dentro de LIU/NSR/ΣVM; qualquer capacidade externa deve ser encapsulada e auditada antes de ativar.
+- Estruturas imutáveis e arenas canônicas garantem hashes de estado reprodutíveis.
+- Operadores Φ são puros, tipados e fechados sob transformação.
+- Testes cobrem bem-formação, normalização, inferência, compiladores, ΣVM e CTS.
 
 ## Licença
 
-Código sob [MIT](LICENSE) e especificações públicas sob CC-BY-SA (ver Manifesto). Contribuições implicam concordância com o LICENSE e com o Código de Conduta.
+Código e especificações sob MIT/CC-BY-SA (ver Manifesto em `/docs/manifesto.md`).
