@@ -1,6 +1,6 @@
 """Pacote NSR - Núcleo Semântico Reativo."""
 
-from .runtime import run_text, run_struct, Trace
+from .runtime import run_text, run_struct, run_text_full, run_struct_full, Trace, HaltReason, RunOutcome
 from .state import SessionCtx, Config, Rule, Lexicon
 from .lex import tokenize
 from .parser import build_struct
@@ -9,6 +9,10 @@ __all__ = [
     "run_text",
     "run_struct",
     "Trace",
+    "run_text_full",
+    "run_struct_full",
+    "HaltReason",
+    "RunOutcome",
     "SessionCtx",
     "Config",
     "Rule",
