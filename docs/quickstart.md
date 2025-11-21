@@ -26,8 +26,9 @@ coverage run -m pytest && coverage report
 PYTHONPATH=src python -m nsr.cli "O carro anda rápido" --format both --include-report --include-stats
 ```
 
-Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), bundles JSON/S-expr,
-relatório texto←equação determinístico e estatísticas (contagens/digests) para auditoria estrutural.
+Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), lista determinística `invariant_failures`
+(vazia quando todas as invariantes passam), bundles JSON/S-expr, relatório texto←equação e estatísticas
+de contagens/digests para auditoria estrutural.
 
 ## 4. ΣVM snapshots
 

@@ -9,6 +9,8 @@ from nsr import (
     run_struct_full,
     SessionCtx,
     Rule,
+    EquationSnapshotStats,
+    EquationInvariantStatus,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
@@ -177,3 +179,17 @@ def test_equation_snapshot_stats():
     assert stats_dict["ontology"]["count"] == len(snapshot.ontology)
     assert len(stats_dict["input_digest"]) == 32
     assert len(stats_dict["answer_digest"]) == 32
+    status = stats.validate()
+    assert status.ok
+
+
+def test_invariant_failure_triggers_halt(monkeypatch):
+    session = SessionCtx()
+
+    def fake_validate(self, previous=None, quality_tolerance=1e-3):
+        return EquationInvariantStatus(ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5)
+
+    monkeypatch.setattr(EquationSnapshotStats, "validate", fake_validate)
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.halt_reason is HaltReason.INVARIANT_FAILURE
+    assert any("forced" in entry for entry in outcome.trace.invariant_failures)

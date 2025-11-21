@@ -16,6 +16,7 @@ def test_cli_outputs_equation_bundle(capsys):
     assert "ops_queue" in data["equation"]["json"]
     assert isinstance(data["equation"]["json"]["quality"], float)
     assert len(data["equation_hash"]) == 32
+    assert data["invariant_failures"] == []
 
 
 def test_cli_writes_file(tmp_path):
@@ -56,3 +57,4 @@ def test_cli_includes_stats(capsys):
     assert "equation_stats" in data
     assert data["equation_stats"]["ontology"]["count"] >= 0
     assert len(data["equation_stats"]["input_digest"]) == 32
+    assert "invariant_failures" in data

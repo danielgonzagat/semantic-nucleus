@@ -78,6 +78,7 @@ def main(argv: list[str] | None = None) -> int:
         "trace_digest": outcome.trace.digest,
         "equation_hash": outcome.equation_digest,
         "steps": outcome.trace.steps,
+        "invariant_failures": outcome.trace.invariant_failures,
         "contradictions": [
             {
                 "label": contradiction.base_label,
