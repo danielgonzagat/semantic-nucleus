@@ -133,7 +133,7 @@ def _tokenize(source: str) -> List[str]:
                 if current == "\\":
                     j += 1
                     if j >= length:
-                        break
+                        raise ParseError("Incomplete escape sequence at end of string")
                     lit.append(source[j])
                 elif current == '"':
                     break
