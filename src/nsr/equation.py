@@ -26,7 +26,7 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
 
 
 def _truncate(text: str, limit: int = 160) -> str:
-    if len(text) <= limit:
+    if len(text) <= limit or limit < 4:
         return text
     return text[: limit - 3] + "..."
 
