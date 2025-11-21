@@ -50,6 +50,9 @@ outcome = run_text_full("O carro anda rapido")
 print(outcome.equation.to_sexpr_bundle())
 PY
 
+# CLI determinístico (texto → equação → texto)
+PYTHONPATH=src python3 -m nsr.cli "O carro anda rapido" --format both --enable-contradictions
+
 # Montar e rodar um programa ΣVM
 PYTHONPATH=src python3 - <<'PY'
 from svm import build_program_from_assembly, SigmaVM
