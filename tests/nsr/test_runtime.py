@@ -209,10 +209,10 @@ def test_tokenize_skips_articles_and_handles_english_relations():
     tokens = tokenize("The car has a wheel", DEFAULT_LEXICON)
     lemmas = {token.lemma for token in tokens}
     assert "the" not in lemmas
-    assert "a" not in lemmas
     rel_tokens = [token for token in tokens if token.tag == "RELWORD"]
     assert rel_tokens
     assert rel_tokens[0].payload == "HAS"
+    assert all(token.tag == "RELWORD" for token in tokens if token.lemma == "a")
 
 
 def test_build_struct_includes_relation_nodes():
@@ -249,3 +249,17 @@ def test_run_text_handles_english_relation_sentence():
     answer, _ = run_text("The car has a wheel", session)
     assert "relações:" in answer.lower()
     assert "carro has wheel" in answer.lower()
+
+
+def test_run_text_handles_spanish_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("El coche tiene una rueda", session)
+    assert "relações:" in answer.lower()
+    assert "carro has roda" in answer.lower()
+
+
+def test_run_text_handles_french_relation_sentence():
+    session = SessionCtx()
+    answer, _ = run_text("La voiture a une roue", session)
+    assert "relações:" in answer.lower()
+    assert "carro has roda" in answer.lower()

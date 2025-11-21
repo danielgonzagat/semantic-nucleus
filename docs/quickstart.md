@@ -30,6 +30,24 @@ Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), lista determinísti
 (vazia quando todas as invariantes passam), bundles JSON/S-expr, relatório texto←equação e estatísticas
 de contagens/digests para auditoria estrutural.
 
+### 3.1 Léxicos multilíngues
+
+```python
+from nsr.lex import compose_lexicon, load_lexicon_file, LANGUAGE_PACKS
+from nsr import SessionCtx
+
+# Combina pacotes embutidos (pt/en/es/fr) e injeta no SessionCtx
+session = SessionCtx()
+session.lexicon = compose_lexicon(("pt", "en", "es", "fr"))
+
+# Sobrescreve/expande via JSON auditável
+custom = load_lexicon_file("lexicon_extra.json")
+session.lexicon = session.lexicon.merge(custom)
+```
+
+Os pacotes embutidos fornecem sinônimos/qualificadores/palavras-rel para português, inglês, espanhol e francês.
+Arquivos JSON seguem o formato `{"synonyms": {...}, "pos_hint": {...}, "qualifiers": [...], "rel_words": {...}}`.
+
 ## 4. ΣVM snapshots
 
 ```bash

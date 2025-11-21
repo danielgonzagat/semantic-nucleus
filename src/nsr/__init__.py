@@ -13,7 +13,7 @@ from .runtime import (
     EquationInvariantStatus,
 )
 from .state import SessionCtx, Config, Rule, Lexicon
-from .lex import tokenize
+from .lex import tokenize, compose_lexicon, load_lexicon_file
 from .parser import build_struct
 
 __all__ = [
@@ -32,5 +32,7 @@ __all__ = [
     "Rule",
     "Lexicon",
     "tokenize",
+    "compose_lexicon",
+    "load_lexicon_file",
     "build_struct",
 ]

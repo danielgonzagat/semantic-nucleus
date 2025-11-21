@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, List, Sequence, Tuple
+from typing import Deque, List, Mapping, Sequence, Tuple
 
 from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
@@ -32,6 +32,43 @@ class Lexicon:
     pos_hint: dict[str, str] = field(default_factory=dict)
     qualifiers: set[str] = field(default_factory=set)
     rel_words: dict[str, str] = field(default_factory=dict)
+
+    def merge(self, other: "Lexicon") -> "Lexicon":
+        return Lexicon(
+            synonyms={**self.synonyms, **other.synonyms},
+            pos_hint={**self.pos_hint, **other.pos_hint},
+            qualifiers=set(self.qualifiers) | set(other.qualifiers),
+            rel_words={**self.rel_words, **other.rel_words},
+        )
+
+    def to_dict(self) -> dict[str, object]:
+        return {
+            "synonyms": dict(self.synonyms),
+            "pos_hint": dict(self.pos_hint),
+            "qualifiers": sorted(self.qualifiers),
+            "rel_words": dict(self.rel_words),
+        }
+
+    @classmethod
+    def from_mapping(cls, data: Mapping[str, object]) -> "Lexicon":
+        def _as_dict(key: str) -> dict[str, str]:
+            raw = data.get(key, {})
+            return dict(raw) if isinstance(raw, Mapping) else {}
+
+        def _as_set(key: str) -> set[str]:
+            raw = data.get(key, [])
+            if isinstance(raw, Mapping):
+                return set(raw.keys())
+            if isinstance(raw, (list, tuple, set)):
+                return {str(item) for item in raw}
+            return set()
+
+        return cls(
+            synonyms=_as_dict("synonyms"),
+            pos_hint=_as_dict("pos_hint"),
+            qualifiers=_as_set("qualifiers"),
+            rel_words=_as_dict("rel_words"),
+        )
 
 
 @dataclass(slots=True)
