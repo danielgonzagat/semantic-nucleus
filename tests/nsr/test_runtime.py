@@ -149,3 +149,14 @@ def test_equation_snapshot_available_for_run_text():
     assert bundle["answer"]["kind"] == "STRUCT"
     assert bundle["quality"] == snapshot.quality
     assert len(outcome.equation_digest) == 32
+
+
+def test_equation_snapshot_text_report():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    report = outcome.equation.to_text_report(max_items=2)
+    lines = report.splitlines()
+    assert lines[0].startswith("Equação LIU")
+    assert any(line.startswith("Ontologia[") for line in lines)
+    assert any(line.startswith("Relações[") for line in lines)
+    assert "Resposta:" in report

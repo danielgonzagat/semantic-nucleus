@@ -25,6 +25,24 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
     return ",".join(fingerprints) or "-"
 
 
+def _truncate(text: str, limit: int = 160) -> str:
+    if len(text) <= limit:
+        return text
+    return text[: limit - 3] + "..."
+
+
+def _format_section(label: str, nodes: Tuple[Node, ...], max_items: int) -> str:
+    total = len(nodes)
+    if total == 0:
+        return f"{label}[0]: —"
+    max_items = max(1, max_items)
+    preview = [_truncate(to_sexpr(node)) for node in nodes[:max_items]]
+    if total > max_items:
+        preview.append(f"...(+{total - max_items})")
+    joined = "; ".join(preview)
+    return f"{label}[{total}]: {joined}"
+
+
 @dataclass(slots=True)
 class EquationSnapshot:
     """
@@ -95,6 +113,28 @@ class EquationSnapshot:
             "answer": _node_json(self.answer),
             "quality": self.quality,
         }
+
+    def to_text_report(self, *, max_items: int = 6) -> str:
+        """
+        Converte a equação LIU em um relatório textual determinístico.
+
+        O relatório resume cada componente (ontologia, relações, fila Φ, etc.)
+        usando S-expr truncadas para inspeção humana rápida.
+        """
+
+        max_items = max(1, max_items)
+        lines = [
+            "Equação LIU — relatório determinístico",
+            f"Entrada: {to_sexpr(self.input_struct)}",
+            f"Resposta: {to_sexpr(self.answer)}",
+            f"Qualidade: {self.quality:.4f}",
+            _format_section("Ontologia", self.ontology, max_items),
+            _format_section("Relações", self.relations, max_items),
+            _format_section("Contexto", self.context, max_items),
+            _format_section("Goals", self.goals, max_items),
+            _format_section("FilaΦ", self.ops_queue, max_items),
+        ]
+        return "\n".join(lines)
 
 
 def snapshot_equation(struct_node: Node | None, isr: ISR) -> EquationSnapshot:

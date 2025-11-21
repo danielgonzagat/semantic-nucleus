@@ -37,3 +37,12 @@ def test_cli_writes_file(tmp_path):
     assert payload["equation_hash"]
     assert payload["equation"]["json"]["goals"]
     assert "ops_queue" in payload["equation"]["json"]
+
+
+def test_cli_includes_text_report(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-report"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert "equation_report" in data
+    assert "FilaΦ" in data["equation_report"]

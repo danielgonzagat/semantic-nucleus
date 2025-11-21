@@ -36,6 +36,11 @@ def _build_parser() -> argparse.ArgumentParser:
     )
     parser.add_argument("--max-steps", type=int, help="Sobrescreve Config.max_steps.")
     parser.add_argument("--min-quality", type=float, help="Sobrescreve Config.min_quality.")
+    parser.add_argument(
+        "--include-report",
+        action="store_true",
+        help="Inclui relatório determinístico texto←equação no payload final.",
+    )
     return parser
 
 
@@ -78,6 +83,8 @@ def main(argv: list[str] | None = None) -> int:
         ],
         "equation": _build_equation_bundle(outcome, args.format),
     }
+    if args.include_report:
+        payload["equation_report"] = outcome.equation.to_text_report()
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
