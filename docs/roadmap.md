@@ -14,7 +14,7 @@
 
 - **CTS**: ampliar cobertura para >95% dos operadores, incluindo casos negativos e aleatoriedade controlada.
 - **Ontologias**: publicar pacotes `core@1`, `code@1`, `domain/*` versionados.
-- **Ferramentas**: CLI `nsr-run`, `svm-asm`, visualizador de `Trace`, gerador de snapshots com hashing BLAKE3.
+- **Ferramentas**: CLI `nsr-run`, `svm-asm`, visualizador de `Trace`, gerador de snapshots (`HASH_STATE`/BLAKE3) e inspeção do ISR.
 - **Formalização**: iniciar prova Coq/Lean para preservation da LIU e terminologia do NSR.
 
 ## Métricas de sucesso

@@ -24,13 +24,13 @@ def test_end_to_end_components():
     assert trace.digest != "0" * 32
 
     asm = """
-    PUSH_CONST 0
-    PUSH_KEY 1
-    BEGIN_STRUCT 1
+    PUSH_CONST 1
+    PUSH_TEXT 0
+    NEW_STRUCT 1
     STORE_ANSWER
     HALT
     """
-    program = build_program_from_assembly(asm, ["Carro anda rápido.", "answer"])
+    program = build_program_from_assembly(asm, ["answer", "Carro anda rápido."])
     vm = SigmaVM()
     vm.load(program)
     result = vm.run()

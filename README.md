@@ -6,7 +6,7 @@ Núcleo Originário é a implementação de referência de uma arquitetura simb�
 
 1. **LIU** – IR semântico tipado com S-expressions/json equivalentes, arena imutável de nós e verificações de bem-formação.
 2. **NSR/ISR** – Motor reativo com LxU, PSE, operadores Φ (NORMALIZE/EXTRACT/COMPARE/INFER/etc.), mecanismo de convergência e renderização textual.
-3. **ΣVM / Ω-VM** – Bytecode estável (SVMB), assembler/disassembler, execução determinística em pilha e snapshots conceituais.
+3. **ΣVM / Ω-VM** – Bytecode SVMB com opcodes para construir nós LIU, manipular o estado ISR e despachar operadores Φ de forma determinística/auditável.
 4. **Compiladores multilíngue** – Frontends para Python, Elixir, Rust e lógica Prolog-like que abaixam construtos para LIU.
 5. **Manifesto e governança** – Diretrizes públicas de ética, segurança, versionamento e roadmap.
 
@@ -50,13 +50,13 @@ PY
 PYTHONPATH=src python3 - <<'PY'
 from svm import build_program_from_assembly, SigmaVM
 asm = """
-PUSH_CONST 0
-PUSH_KEY 1
-BEGIN_STRUCT 1
+PUSH_CONST 1
+PUSH_TEXT 0
+NEW_STRUCT 1
 STORE_ANSWER
 HALT
 """
-program = build_program_from_assembly(asm, ["O carro anda rápido.", "answer"])
+program = build_program_from_assembly(asm, ["answer", "O carro anda rápido."])
 vm = SigmaVM()
 vm.load(program)
 print(vm.run())
