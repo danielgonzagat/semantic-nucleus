@@ -38,6 +38,7 @@ class Lexicon:
 class Token:
     lemma: str
     tag: str
+    payload: str | None = None
 
 
 DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1

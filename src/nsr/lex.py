@@ -19,17 +19,19 @@ def tokenize(text: str, lexicon: Lexicon) -> List[Token]:
         if word in {"o", "a", "os", "as"}:
             continue
         lemma = lexicon.synonyms.get(word, word)
-        tag = infer_tag(lemma, lexicon)
-        tokens.append(Token(lemma=lemma, tag=tag))
+        tag, payload = infer_tag(word, lemma, lexicon)
+        tokens.append(Token(lemma=lemma, tag=tag, payload=payload))
     return tokens
 
 
-def infer_tag(word: str, lexicon: Lexicon) -> str:
-    if word in lexicon.qualifiers or word.endswith("mente"):
-        return "QUALIFIER"
-    if word in lexicon.rel_words:
-        return "RELWORD"
-    return lexicon.pos_hint.get(word, "ENTITY")
+def infer_tag(word: str, lemma: str, lexicon: Lexicon) -> tuple[str, str | None]:
+    rel_label = lexicon.rel_words.get(word) or lexicon.rel_words.get(lemma)
+    if rel_label:
+        return "RELWORD", rel_label
+    if lemma in lexicon.qualifiers or lemma.endswith("mente"):
+        return "QUALIFIER", None
+    tag = lexicon.pos_hint.get(lemma, "ENTITY")
+    return tag, None
 
 
 DEFAULT_LEXICON = Lexicon(
