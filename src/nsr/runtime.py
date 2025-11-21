@@ -6,9 +6,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from hashlib import blake2b
-from typing import List, Tuple
+from typing import Iterable, List, Tuple
 
-from liu import Node, operation
+from liu import Node, operation, fingerprint
 
 from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
@@ -76,12 +76,27 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
 
 
 def _state_signature(isr: ISR) -> str:
-    answer_text = ""
-    answer_field = dict(isr.answer.fields).get("answer")
-    if answer_field and answer_field.label:
-        answer_text = answer_field.label
-    payload = f"{len(isr.relations)}|{len(isr.context)}|{answer_text}|{isr.quality:.2f}"
+    payload = "|".join(
+        (
+            f"rels:{_nodes_digest(isr.relations)}",
+            f"ctx:{_nodes_digest(isr.context)}",
+            f"goals:{_nodes_digest(isr.goals)}",
+            f"ops:{_nodes_digest(isr.ops_queue)}",
+            f"ans:{fingerprint(isr.answer)}",
+            f"q:{isr.quality:.4f}",
+        )
+    )
     return blake2b(payload.encode("utf-8"), digest_size=12).hexdigest()
+
+
+def _nodes_digest(nodes: Iterable[Node]) -> str:
+    items = tuple(nodes)
+    if not items:
+        return "-"
+    hasher = blake2b(digest_size=12)
+    for node in items:
+        hasher.update(fingerprint(node).encode("ascii"))
+    return hasher.hexdigest()
 
 
 __all__ = ["run_text", "run_struct", "Trace"]

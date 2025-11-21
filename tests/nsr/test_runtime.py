@@ -2,6 +2,7 @@ from liu import relation, entity, var, struct, list_node, text, number, operatio
 
 from nsr import run_text, SessionCtx, Rule
 from nsr.operators import apply_operator
+from nsr.runtime import _state_signature
 from nsr.state import initial_isr
 
 
@@ -34,3 +35,14 @@ def test_map_and_reduce_enrich_context():
     assert len(mapped.context) > len(isr.context)
     reduced = apply_operator(mapped, operation("REDUCE", list_node([number(1), number(3)])), session)
     assert any(node.kind is NodeKind.NUMBER for node in reduced.context)
+
+
+def test_state_signature_reflects_queue_variations():
+    session = SessionCtx()
+    base = struct(subject=entity("carro"))
+    isr = initial_isr(base, session)
+    sig_a = _state_signature(isr)
+    mutated = isr.snapshot()
+    mutated.ops_queue.append(operation("MAP"))
+    sig_b = _state_signature(mutated)
+    assert sig_a != sig_b
