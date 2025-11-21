@@ -23,8 +23,12 @@ class NodeKind(str, Enum):
 
 
 class Sort(str, Enum):
+    """Semantic sorts used to type LIU nodes."""
+
     THING = "Thing"
     TYPE = "Type"
+    ACTION = "Action"
+    EVENT = "Event"
     PROP = "Prop"
     RELATION = "Relation"
     OPERATOR = "Operator"
@@ -36,6 +40,8 @@ class Sort(str, Enum):
     NUMBER = "Number"
     BOOL = "Bool"
     LIST = "List"
+    STRUCTURE = "Structure"
+    CODE = "Code"
     ANY = "Any"
 
 
