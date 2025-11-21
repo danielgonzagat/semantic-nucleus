@@ -29,10 +29,16 @@ def _build_parser() -> argparse.ArgumentParser:
         "--output",
         help="Arquivo de saída (JSON). Quando omitido, imprime no stdout.",
     )
-    parser.add_argument(
+    contradiction_group = parser.add_mutually_exclusive_group()
+    contradiction_group.add_argument(
         "--enable-contradictions",
         action="store_true",
-        help="Ativa a checagem determinística de contradições.",
+        help="Mantém compatibilidade e força a checagem determinística de contradições (já habilitada por padrão).",
+    )
+    contradiction_group.add_argument(
+        "--disable-contradictions",
+        action="store_true",
+        help="Desativa explicitamente a checagem determinística de contradições.",
     )
     parser.add_argument("--max-steps", type=int, help="Sobrescreve Config.max_steps.")
     parser.add_argument("--min-quality", type=float, help="Sobrescreve Config.min_quality.")
@@ -68,7 +74,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     session = SessionCtx()
-    if args.enable_contradictions:
+    if args.disable_contradictions:
+        session.config.enable_contradiction_check = False
+    elif args.enable_contradictions:
         session.config.enable_contradiction_check = True
     if args.max_steps is not None:
         session.config.max_steps = args.max_steps

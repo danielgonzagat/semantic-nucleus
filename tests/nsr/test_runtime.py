@@ -168,11 +168,23 @@ def test_runtime_halts_on_contradiction():
             relation("NOT_HAS", entity("carro"), entity("roda")),
         )
     )
-    session.config.enable_contradiction_check = True
     outcome = run_text_full("O carro tem roda", session)
     assert outcome.halt_reason is HaltReason.CONTRADICTION
     assert outcome.trace.contradictions
     assert any("CONTRADICTION" in step for step in outcome.trace.steps)
+
+
+def test_runtime_can_disable_contradiction_check():
+    session = SessionCtx(
+        kb_ontology=(
+            relation("HAS", entity("carro"), entity("roda")),
+            relation("NOT_HAS", entity("carro"), entity("roda")),
+        )
+    )
+    session.config.enable_contradiction_check = False
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.halt_reason is not HaltReason.CONTRADICTION
+    assert outcome.trace.contradictions == []
 
 
 def test_equation_snapshot_available_for_run_text():

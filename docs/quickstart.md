@@ -30,6 +30,8 @@ Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), lista determinísti
 (vazia quando todas as invariantes passam), bundles JSON/S-expr, relatório texto←equação e estatísticas
 de contagens/digests para auditoria estrutural.
 
+> A checagem de contradições LIU/NSR agora é padrão. Desative somente quando precisar inspecionar execuções exploratórias com `--disable-contradictions` ou ajustando `SessionCtx().config.enable_contradiction_check = False`.
+
 ### 3.1 Léxicos multilíngues
 
 ```python

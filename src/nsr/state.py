@@ -17,7 +17,7 @@ from ontology import code as code_ontology
 class Config:
     max_steps: int = 32
     min_quality: float = 0.6
-    enable_contradiction_check: bool = False
+    enable_contradiction_check: bool = True
 
 
 @dataclass(slots=True)
