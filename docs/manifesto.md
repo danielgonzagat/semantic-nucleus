@@ -23,6 +23,7 @@
 - Sem side-effects em operadores; todos retornam novos estados.
 - Cotas (passos, novos fatos, profundidade de unificação) configuráveis em `SessionCtx.Config`.
 - Detecção de contradições habilitável (`Config.enable_contradiction_check` + `nsr.consistency.detect_contradictions`).
+- Conversão texto → equação → texto auditável via `nsr.equation.EquationSnapshot` (bundles S-expr/JSON determinísticos).
 - snapshots `.svms` devem ser assinados quando usados em produção.
 
 ## Versionamento & ABI

@@ -2,7 +2,14 @@ import nsr.runtime as nsr_runtime
 
 from liu import relation, entity, var, struct, list_node, text, number, operation, NodeKind
 
-from nsr import run_text, run_struct, run_text_full, run_struct_full, SessionCtx, Rule
+from nsr import (
+    run_text,
+    run_struct,
+    run_text_full,
+    run_struct_full,
+    SessionCtx,
+    Rule,
+)
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
@@ -103,6 +110,11 @@ def test_run_struct_full_exposes_isr_and_quality():
     assert isinstance(outcome.halt_reason, HaltReason)
     assert len(outcome.isr.context) >= 1
     assert isinstance(outcome.meets_quality(session.config.min_quality), bool)
+    assert outcome.equation.input_struct.kind is NodeKind.STRUCT
+    sexpr_bundle = outcome.equation.to_sexpr_bundle()
+    assert "input" in sexpr_bundle and sexpr_bundle["input"].startswith("(STRUCT")
+    json_bundle = outcome.equation.to_json_bundle()
+    assert isinstance(json_bundle["relations"], list)
 
 
 def test_runtime_halts_on_contradiction():
@@ -117,3 +129,11 @@ def test_runtime_halts_on_contradiction():
     assert outcome.halt_reason is HaltReason.CONTRADICTION
     assert outcome.trace.contradictions
     assert any("CONTRADICTION" in step for step in outcome.trace.steps)
+
+
+def test_equation_snapshot_available_for_run_text():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    snapshot = outcome.equation
+    assert snapshot.context
+    assert snapshot.to_json_bundle()["answer"]["kind"] == "STRUCT"

@@ -12,6 +12,7 @@ from typing import Iterable, List, Tuple
 from liu import Node, operation, fingerprint
 
 from .consistency import Contradiction, detect_contradictions
+from .equation import EquationSnapshot, snapshot_equation
 from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
 from .parser import build_struct
@@ -68,6 +69,7 @@ class RunOutcome:
     isr: ISR
     halt_reason: HaltReason
     finalized: bool
+    equation: EquationSnapshot
 
     @property
     def quality(self) -> float:
@@ -159,6 +161,7 @@ def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
         isr=isr,
         halt_reason=halt_reason,
         finalized=finalized,
+        equation=snapshot_equation(struct_node, isr),
     )
 
 
@@ -222,4 +225,5 @@ __all__ = [
     "Trace",
     "HaltReason",
     "RunOutcome",
+    "EquationSnapshot",
 ]

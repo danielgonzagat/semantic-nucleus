@@ -40,10 +40,14 @@ python3 -m pytest tests/cts
 
 # Rodar o NSR em modo textual
 PYTHONPATH=src python3 - <<'PY'
-from nsr import run_text
+from nsr import run_text, run_text_full
 answer, trace = run_text("O carro anda rapido")
 print(answer)
 print(trace.steps)
+
+# Obter a equação LIU (entrada → grafo → resposta)
+outcome = run_text_full("O carro anda rapido")
+print(outcome.equation.to_sexpr_bundle())
 PY
 
 # Montar e rodar um programa ΣVM
