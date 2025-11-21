@@ -24,9 +24,13 @@ def main(argv: list[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
 
-    target = rollback_kb_version(args.env, args.to_version)
-    print(f"[nsr_evo] {args.env} now points to {target}")
-    return 0
+    try:
+        target = rollback_kb_version(args.env, args.to_version)
+        print(f"[nsr_evo] {args.env} now points to {target}")
+        return 0
+    except (FileNotFoundError, PermissionError, OSError) as e:
+        print(f"[nsr_evo] ERROR: {e}", file=sys.stderr)
+        return 1
 
 
 if __name__ == "__main__":
