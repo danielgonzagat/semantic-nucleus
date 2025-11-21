@@ -8,7 +8,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Sequence, Tuple
 
-from liu import Node, relation, operation, struct, list_node
+from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
 from ontology import code as code_ontology
 
@@ -86,15 +86,23 @@ def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
         ]
     )
     ctx = (struct_node,)
+    base_relations = _relations_from_struct(struct_node)
     return ISR(
         ontology=session.kb_ontology,
-        relations=tuple(),
+        relations=base_relations,
         context=ctx,
         goals=goals,
         ops_queue=ops,
         answer=struct(),
         quality=0.0,
     )
+
+
+def _relations_from_struct(struct_node: Node) -> Tuple[Node, ...]:
+    relations_field = dict(struct_node.fields).get("relations")
+    if not relations_field or relations_field.kind is not NodeKind.LIST:
+        return tuple()
+    return tuple(node for node in relations_field.args if node.kind is NodeKind.REL)
 
 
 __all__ = [

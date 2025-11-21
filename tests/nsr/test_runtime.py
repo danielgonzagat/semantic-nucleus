@@ -223,3 +223,12 @@ def test_answer_renders_relation_summary():
     answer, _ = run_text("O carro tem roda", session)
     assert "Relações:" in answer
     assert "carro has roda" in answer.lower()
+
+
+def test_initial_isr_seeds_relations_into_state():
+    session = SessionCtx()
+    tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
+    struct_node = build_struct(tokens)
+    outcome = run_struct_full(struct_node, session)
+    assert any(rel.label == "HAS" for rel in outcome.isr.relations)
+    assert any(rel.label == "HAS" for rel in outcome.equation.relations)

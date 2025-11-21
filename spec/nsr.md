@@ -41,7 +41,8 @@ Todos são puros, sem IO, e sempre retornam novo `ISR`.
 ## 4. LxU / PSE
 
 - `nsr.lex` usa `DEFAULT_LEXICON` com sinônimos (“automóvel”→“carro”), heurística para advérbios (-mente) e mapeia palavras-rel (`tem`, `possui`, `parte`).
-- `nsr.parser.build_struct` produz `STRUCT` com campos `subject/action/object/modifier`, prontos para WF.
+- `nsr.parser.build_struct` produz `STRUCT` com campos `subject/action/object/modifier` e lista `relations` (REL entre entidades extraídas do texto).
+- `nsr.state.initial_isr` injeta essas relações diretamente em `ISR.relations`, garantindo que o grafo semântico inicial reflita imediatamente os vínculos textuais antes do loop Φ.
 
 ## 5. Loop de execução
 
