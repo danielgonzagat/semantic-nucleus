@@ -191,6 +191,13 @@ def _render_struct(node: Node) -> Node:
     return text(render_struct_sentence(node))
 
 
+def _field_node(node: Node, field: str) -> Node | None:
+    for key, value in node.fields:
+        if key == field:
+            return value
+    return None
+
+
 class _PureEvalError(Exception):
     """Erro determinístico durante a avaliação de uma expressão pura."""
 

@@ -22,6 +22,7 @@ from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
 from .parser import build_struct
 from .state import ISR, SessionCtx, initial_isr
+from .explain import render_explanation
 
 
 @dataclass(slots=True)
@@ -92,6 +93,7 @@ class RunOutcome:
     finalized: bool
     equation: EquationSnapshot
     equation_digest: str
+    explanation: str
 
     @property
     def quality(self) -> float:
@@ -223,6 +225,7 @@ def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
         finalized=finalized,
         equation=snapshot,
         equation_digest=snapshot.digest(),
+        explanation=render_explanation(isr, struct_node),
     )
 
 

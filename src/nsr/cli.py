@@ -11,7 +11,6 @@ from pathlib import Path
 from typing import Any, Dict
 
 from . import SessionCtx, run_text_full
-from .explain import render_explanation
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -100,7 +99,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.include_stats:
         payload["equation_stats"] = outcome.equation.stats().to_dict()
     if args.include_explanation:
-        payload["explanation"] = render_explanation(outcome.isr, outcome.equation.input_struct)
+        payload["explanation"] = outcome.explanation
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:

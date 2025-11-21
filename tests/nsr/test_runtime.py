@@ -120,6 +120,13 @@ def test_run_text_full_matches_legacy_output():
     assert outcome.trace.finalized == outcome.finalized
 
 
+def test_run_text_full_exposes_explanation():
+    session = SessionCtx()
+    outcome = run_text_full("O carro tem roda", session)
+    assert "Explicação determinística" in outcome.explanation
+    assert "Relações" in outcome.explanation
+
+
 def test_run_struct_full_exposes_isr_and_quality():
     session = SessionCtx()
     base = struct(subject=entity("carro"))
