@@ -115,6 +115,7 @@ def test_run_struct_full_exposes_isr_and_quality():
     assert "input" in sexpr_bundle and sexpr_bundle["input"].startswith("(STRUCT")
     json_bundle = outcome.equation.to_json_bundle()
     assert isinstance(json_bundle["relations"], list)
+    assert outcome.equation_digest == outcome.equation.digest()
 
 
 def test_runtime_halts_on_contradiction():
@@ -137,3 +138,4 @@ def test_equation_snapshot_available_for_run_text():
     snapshot = outcome.equation
     assert snapshot.context
     assert snapshot.to_json_bundle()["answer"]["kind"] == "STRUCT"
+    assert len(outcome.equation_digest) == 32

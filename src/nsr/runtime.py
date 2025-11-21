@@ -70,6 +70,7 @@ class RunOutcome:
     halt_reason: HaltReason
     finalized: bool
     equation: EquationSnapshot
+    equation_digest: str
 
     @property
     def quality(self) -> float:
@@ -155,13 +156,15 @@ def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
             finalized = finalized or delta
     trace.halt(halt_reason, isr, finalized)
     answer_text = _answer_text(isr)
+    snapshot = snapshot_equation(struct_node, isr)
     return RunOutcome(
         answer=answer_text,
         trace=trace,
         isr=isr,
         halt_reason=halt_reason,
         finalized=finalized,
-        equation=snapshot_equation(struct_node, isr),
+        equation=snapshot,
+        equation_digest=snapshot.digest(),
     )
 
 

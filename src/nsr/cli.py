@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
         "quality": outcome.quality,
         "halt_reason": outcome.halt_reason.value,
         "trace_digest": outcome.trace.digest,
+        "equation_hash": outcome.equation_digest,
         "steps": outcome.trace.steps,
         "contradictions": [
             {

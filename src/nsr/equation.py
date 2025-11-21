@@ -6,9 +6,11 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from hashlib import blake2b
 from typing import Dict, Tuple
 
 from liu import Node, struct
+from liu.hash import fingerprint
 from liu.serialize import to_json, to_sexpr
 
 from .state import ISR
@@ -33,6 +35,21 @@ class EquationSnapshot:
     relations: Tuple[Node, ...]
     context: Tuple[Node, ...]
     answer: Node
+
+    def digest(self) -> str:
+        """
+        Retorna o hash determinístico dos componentes (128 bits, Blake2b).
+        """
+
+        payload = "|".join(
+            (
+                f"in:{fingerprint(self.input_struct)}",
+                f"rels:{','.join(fingerprint(node) for node in self.relations) or '-'}",
+                f"ctx:{','.join(fingerprint(node) for node in self.context) or '-'}",
+                f"ans:{fingerprint(self.answer)}",
+            )
+        )
+        return blake2b(payload.encode("utf-8"), digest_size=16).hexdigest()
 
     def to_sexpr_bundle(self) -> Dict[str, object]:
         """Serializa cada componente em S-expr para auditoria humana."""

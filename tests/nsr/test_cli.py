@@ -12,6 +12,7 @@ def test_cli_outputs_equation_bundle(capsys):
     assert "equation" in data
     assert "json" in data["equation"]
     assert data["equation"]["json"]["answer"]["kind"] == "STRUCT"
+    assert len(data["equation_hash"]) == 32
 
 
 def test_cli_writes_file(tmp_path):
@@ -30,3 +31,4 @@ def test_cli_writes_file(tmp_path):
     payload = json.loads(output_path.read_text())
     assert payload["equation"]["sexpr"]["input"].startswith("(STRUCT")
     assert payload["trace_digest"]
+    assert payload["equation_hash"]
