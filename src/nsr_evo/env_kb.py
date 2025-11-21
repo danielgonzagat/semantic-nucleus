@@ -56,7 +56,10 @@ def _read_current_version(env: str) -> int:
         data = json.loads(cfg_path.read_text(encoding="utf-8"))
     except json.JSONDecodeError:
         return 0
-    version = int(data.get("version", 0))
+    try:
+        version = int(data.get("version", 0))
+    except (ValueError, TypeError):
+        return 0
     return max(version, 0)
 
 
