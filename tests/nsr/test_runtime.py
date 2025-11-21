@@ -50,9 +50,12 @@ def test_runtime_detects_state_variations():
     # Test that different operations produce different execution paths
     result1, trace1 = run_struct(base, session)
     
-    # Modify session to create different state progression
-    session_modified = SessionCtx()
-    session_modified.config.max_steps = session.config.max_steps + 1
+    # Modify session to create different state progression (extra inference rule)
+    rule = Rule(
+        if_all=(relation("IS_A", var("?X"), entity("type::veiculo")),),
+        then=relation("TAGGED", var("?X")),
+    )
+    session_modified = SessionCtx(kb_rules=(rule,))
     result2, trace2 = run_struct(base, session_modified)
     
     # Verify that different configurations lead to detectable differences
@@ -100,3 +103,17 @@ def test_run_struct_full_exposes_isr_and_quality():
     assert isinstance(outcome.halt_reason, HaltReason)
     assert len(outcome.isr.context) >= 1
     assert isinstance(outcome.meets_quality(session.config.min_quality), bool)
+
+
+def test_runtime_halts_on_contradiction():
+    session = SessionCtx(
+        kb_ontology=(
+            relation("HAS", entity("carro"), entity("roda")),
+            relation("NOT_HAS", entity("carro"), entity("roda")),
+        )
+    )
+    session.config.enable_contradiction_check = True
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.halt_reason is HaltReason.CONTRADICTION
+    assert outcome.trace.contradictions
+    assert any("CONTRADICTION" in step for step in outcome.trace.steps)

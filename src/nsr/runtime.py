@@ -4,13 +4,14 @@ Orquestrador do NSR: LxU → PSE → loop Φ → resposta.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple
 
 from liu import Node, operation, fingerprint
 
+from .consistency import Contradiction, detect_contradictions
 from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
 from .parser import build_struct
@@ -23,9 +24,19 @@ class Trace:
     digest: str = "0" * 32
     halt_reason: "HaltReason | None" = None
     finalized: bool = False
+    contradictions: List[Contradiction] = field(default_factory=list)
 
     def add(self, label: str, quality: float, rels: int, ctx: int) -> None:
         entry = f"{len(self.steps)+1}:{label} q={quality:.2f} rel={rels} ctx={ctx}"
+        self._record(entry)
+
+    def add_contradiction(self, contradiction: Contradiction, isr: ISR) -> None:
+        base = contradiction.base_label or "UNKNOWN"
+        entry = (
+            f"{len(self.steps)+1}:CONTRADICTION[{base}] "
+            f"q={isr.quality:.2f} rel={len(isr.relations)} ctx={len(isr.context)}"
+        )
+        self.contradictions.append(contradiction)
         self._record(entry)
 
     def halt(self, reason: "HaltReason", isr: ISR, finalized: bool) -> None:
@@ -47,6 +58,7 @@ class HaltReason(str, Enum):
     SIGNATURE_REPEAT = "SIGNATURE_REPEAT"
     OPS_QUEUE_EMPTY = "OPS_QUEUE_EMPTY"
     MAX_STEPS = "MAX_STEPS"
+    CONTRADICTION = "CONTRADICTION"
 
 
 @dataclass(slots=True)
@@ -112,6 +124,13 @@ def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
         op = isr.ops_queue.popleft()
         isr = apply_operator(isr, op, session)
         trace.add(op.label or "NOOP", isr.quality, len(isr.relations), len(isr.context))
+        if session.config.enable_contradiction_check:
+            contradictions = detect_contradictions((*isr.ontology, *isr.relations, *isr.context))
+            if contradictions:
+                for contradiction in contradictions:
+                    trace.add_contradiction(contradiction, isr)
+                halt_reason = HaltReason.CONTRADICTION
+                break
         signature = _state_signature(isr)
         if signature in seen_signatures:
             idle_loops += 1
