@@ -345,7 +345,7 @@ def _ensure_number(value: float | None) -> float:
 
 def _repeat_text(payload: str, multiplier: float | None) -> str:
     count = _ensure_number(multiplier)
-    if not float(count).is_integer():
+    if not count.is_integer():
         raise _PureEvalError("String multiplier must be an integer")
     repeats = int(count)
     if repeats < 0 or repeats > 1024:
