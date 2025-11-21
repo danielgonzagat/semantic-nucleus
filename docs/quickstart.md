@@ -110,6 +110,16 @@ PYTHONPATH=src python -m nsr_evo.cli_cycle \
 
 O ciclo reexecuta prompts recentes, mede energia simbólica (contradições, cobertura, qualidade) e só grava regras se a energia cair. Útil para evolução batch controlada.
 
-## 8. Contribuição
+## 8. Inspeção do genoma simbólico
+
+```bash
+PYTHONPATH=src python -m nsr_evo.cli_genome list --rules .nsr_learning/learned_rules.jsonl
+# desativar regra 0
+PYTHONPATH=src python -m nsr_evo.cli_genome toggle --rules .nsr_learning/learned_rules.jsonl --index 0 --disable
+```
+
+Você pode auditar versões, suportes e energia de cada regra e desativar manualmente o que não fizer sentido.
+
+## 9. Contribuição
 
 Leia `CONTRIBUTING.md`, siga o template de PR e respeite o `CODE_OF_CONDUCT.md`.

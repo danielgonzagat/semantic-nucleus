@@ -17,6 +17,10 @@ class RuleSpec:
     then: dict
     source: str = "auto_evo"
     support: int = 1
+    energy_gain: float = 0.0
+    accepted_at: float | None = None
+    version: int | None = None
+    disabled: bool = False
 
 
 def _node_from_pattern(pattern: dict):
@@ -53,6 +57,10 @@ def load_rule_specs(path: Path) -> list[RuleSpec]:
                         then=dict(data["then"]),
                         source=str(data.get("source", "auto_evo")),
                         support=int(data.get("support", 1)),
+                        energy_gain=float(data.get("energy_gain", 0.0)),
+                        accepted_at=data.get("accepted_at"),
+                        version=data.get("version"),
+                        disabled=bool(data.get("disabled", False)),
                     )
                 )
             except Exception:
@@ -72,6 +80,34 @@ def append_rule_specs(path: Path, specs: Iterable[RuleSpec]) -> None:
                 "then": spec.then,
                 "source": spec.source,
                 "support": spec.support,
+                "energy_gain": spec.energy_gain,
+                "accepted_at": spec.accepted_at,
+                "version": spec.version,
+                "disabled": spec.disabled,
             }
             json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
             handle.write("\n")
+
+
+def write_rule_specs(path: Path, specs: Iterable[RuleSpec]) -> None:
+    specs = list(specs)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for spec in specs:
+            payload = {
+                "if_all": spec.if_all,
+                "then": spec.then,
+                "source": spec.source,
+                "support": spec.support,
+                "energy_gain": spec.energy_gain,
+                "accepted_at": spec.accepted_at,
+                "version": spec.version,
+                "disabled": spec.disabled,
+            }
+            json.dump(payload, handle, ensure_ascii=False, separators=(",", ":"))
+            handle.write("\n")
+
+
+def next_rule_version(specs: Iterable[RuleSpec]) -> int:
+    versions = [spec.version or 0 for spec in specs]
+    return (max(versions) if versions else 0) + 1

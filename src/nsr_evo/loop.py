@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Iterable, List, Sequence
@@ -8,7 +9,13 @@ from nsr import SessionCtx, run_text_full
 from nsr.state import Rule
 from nsr_evo.episodes import Episode, append_episode, iter_episodes
 from nsr_evo.induction import EpisodeView, InductionConfig, induce_rules
-from nsr_evo.kb_store import RuleSpec, load_rule_specs, rule_from_spec, append_rule_specs
+from nsr_evo.kb_store import (
+    RuleSpec,
+    load_rule_specs,
+    rule_from_spec,
+    append_rule_specs,
+    next_rule_version,
+)
 from nsr_evo.policy import filter_novel_rules, sort_by_energy
 from nsr_evo.energy import compute_energy, EnergyConfig
 
@@ -29,7 +36,8 @@ def _load_system_rules() -> tuple[Rule, ...]:
 
 def _load_learned_rules(path: Path) -> tuple[Rule, ...]:
     specs = load_rule_specs(path)
-    return tuple(rule_from_spec(spec) for spec in specs)
+    active_specs = [spec for spec in specs if not spec.disabled]
+    return tuple(rule_from_spec(spec) for spec in active_specs)
 
 
 def _recent_prompts(path: Path, limit: int) -> list[str]:
@@ -84,6 +92,14 @@ def register_and_evolve(
     novel = filter_novel_rules(proposed, existing_specs)
     ordered = sort_by_energy(novel)
     accepted = ordered[: cfg.max_rules_per_cycle]
+    if not accepted:
+        return []
+    base_version = next_rule_version(existing_specs)
+    now = time.time()
+    for idx, spec in enumerate(accepted):
+        spec.version = base_version + idx
+        spec.accepted_at = now
+        spec.disabled = False
     append_rule_specs(cfg.rules_path, accepted)
     return accepted
 
@@ -159,6 +175,16 @@ def energy_based_evolution_cycle(
     improved = new_metrics.value < base_metrics.value
     accepted = len(candidate_rules) if improved else 0
     if improved:
+        existing_specs = load_rule_specs(rules_path)
+        base_version = next_rule_version(existing_specs)
+        now = time.time()
+        delta = base_metrics.value - new_metrics.value
+        per_rule_gain = delta / max(1, len(candidate_rules))
+        for idx, spec in enumerate(candidate_rules):
+            spec.version = base_version + idx
+            spec.accepted_at = now
+            spec.disabled = False
+            spec.energy_gain = per_rule_gain
         append_rule_specs(rules_path, candidate_rules)
 
     return EnergyEvolutionReport(

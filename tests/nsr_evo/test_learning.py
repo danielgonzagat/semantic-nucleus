@@ -1,3 +1,4 @@
+import json
 import os
 from pathlib import Path
 import subprocess
@@ -6,6 +7,7 @@ import sys
 from nsr import run_text_full, SessionCtx
 from nsr_evo.episodes import Episode, append_episode, iter_episodes
 from nsr_evo.api import run_text_learning
+from nsr_evo.kb_store import load_rule_specs
 
 
 def test_episode_log_roundtrip(tmp_path):
@@ -64,3 +66,46 @@ def test_cli_cycle_runs(tmp_path):
     env["PYTHONPATH"] = str(Path.cwd() / "src")
     result = subprocess.run(cmd, capture_output=True, text=True, check=True, env=env)
     assert "[nsr_evo]" in result.stdout
+
+
+def test_cli_genome_toggle(tmp_path):
+    rules_path = tmp_path / "rules.jsonl"
+    payload = {
+        "if_all": [{"rel": "REL_A", "args": ["?X", "?Y"]}],
+        "then": {"rel": "REL_B", "args": ["?X", "?Y"]},
+        "source": "test",
+        "support": 1,
+        "energy_gain": 0.5,
+        "accepted_at": 123.0,
+        "version": 1,
+        "disabled": False,
+    }
+    rules_path.write_text(json.dumps(payload) + "\n", encoding="utf-8")
+
+    env = os.environ.copy()
+    env["PYTHONPATH"] = str(Path.cwd() / "src")
+    list_cmd = [
+        sys.executable,
+        "-m",
+        "nsr_evo.cli_genome",
+        "list",
+        "--rules",
+        str(rules_path),
+    ]
+    result = subprocess.run(list_cmd, capture_output=True, text=True, check=True, env=env)
+    assert "rules total=1" in result.stdout
+
+    toggle_cmd = [
+        sys.executable,
+        "-m",
+        "nsr_evo.cli_genome",
+        "toggle",
+        "--rules",
+        str(rules_path),
+        "--index",
+        "0",
+        "--disable",
+    ]
+    subprocess.run(toggle_cmd, capture_output=True, text=True, check=True, env=env)
+    specs = load_rule_specs(rules_path)
+    assert specs[0].disabled is True
