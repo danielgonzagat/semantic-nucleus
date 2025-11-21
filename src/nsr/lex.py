@@ -25,7 +25,7 @@ def tokenize(text: str, lexicon: Lexicon) -> List[Token]:
 
 
 def infer_tag(word: str, lexicon: Lexicon) -> str:
-    if word in lexicon.qualifiers:
+    if word in lexicon.qualifiers or word.endswith("mente"):
         return "QUALIFIER"
     if word in lexicon.rel_words:
         return "RELWORD"
@@ -33,10 +33,21 @@ def infer_tag(word: str, lexicon: Lexicon) -> str:
 
 
 DEFAULT_LEXICON = Lexicon(
-    synonyms={"automovel": "carro"},
-    pos_hint={"andar": "ACTION", "anda": "ACTION", "correr": "ACTION"},
-    qualifiers={"rapido", "devagar"},
-    rel_words={"de": "HAS", "tem": "HAS"},
+    synonyms={
+        "automovel": "carro",
+        "automóvel": "carro",
+        "veículo": "veiculo",
+        "car": "carro",
+    },
+    pos_hint={
+        "andar": "ACTION",
+        "anda": "ACTION",
+        "correr": "ACTION",
+        "mover": "ACTION",
+        "parar": "ACTION",
+    },
+    qualifiers={"rapido", "rápido", "devagar", "lento", "forte"},
+    rel_words={"de": "HAS", "tem": "HAS", "possui": "HAS", "parte": "PART_OF"},
 )
 
 

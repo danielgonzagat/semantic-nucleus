@@ -56,10 +56,29 @@ class ISR:
     answer: Node
     quality: float
 
+    def snapshot(self) -> "ISR":
+        """Return a shallow snapshot with defensive copies of queues."""
+
+        return ISR(
+            ontology=self.ontology,
+            relations=self.relations,
+            context=self.context,
+            goals=deque(self.goals),
+            ops_queue=deque(self.ops_queue),
+            answer=self.answer,
+            quality=self.quality,
+        )
+
 
 def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
-    goals = deque([operation("ANSWER", struct_node)])
-    ops = deque([operation("NORMALIZE", struct_node)])
+    goals = deque([operation("ANSWER", struct_node), operation("EXPLAIN", struct_node)])
+    ops = deque(
+        [
+            operation("NORMALIZE", struct_node),
+            operation("ALIGN"),
+            operation("INFER"),
+        ]
+    )
     ctx = (struct_node,)
     return ISR(
         ontology=session.kb_ontology,
