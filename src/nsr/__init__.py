@@ -15,6 +15,7 @@ from .runtime import (
 from .state import SessionCtx, Config, Rule, Lexicon
 from .lex import tokenize, compose_lexicon, load_lexicon_file
 from .parser import build_struct
+from .explain import render_explanation, render_struct_sentence, render_struct_node
 
 __all__ = [
     "run_text",
@@ -35,4 +36,7 @@ __all__ = [
     "compose_lexicon",
     "load_lexicon_file",
     "build_struct",
+    "render_explanation",
+    "render_struct_sentence",
+    "render_struct_node",
 ]

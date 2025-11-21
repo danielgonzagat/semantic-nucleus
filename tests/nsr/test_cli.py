@@ -58,3 +58,13 @@ def test_cli_includes_stats(capsys):
     assert data["equation_stats"]["ontology"]["count"] >= 0
     assert len(data["equation_stats"]["input_digest"]) == 32
     assert "invariant_failures" in data
+
+
+def test_cli_includes_explanation(capsys):
+    exit_code = nsr_cli.main(["O carro tem roda", "--format", "json", "--include-explanation"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert "explanation" in data
+    assert "Explicação determinística" in data["explanation"]
+    assert "Relações" in data["explanation"]

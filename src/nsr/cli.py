@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from . import SessionCtx, run_text_full
+from .explain import render_explanation
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -45,6 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--include-stats",
         action="store_true",
         help="Inclui contagens/digests determinísticos (auditoria estrutural).",
+    )
+    parser.add_argument(
+        "--include-explanation",
+        action="store_true",
+        help="Inclui narrativa determinística Equação→Texto baseada no estado final.",
     )
     return parser
 
@@ -93,6 +99,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["equation_report"] = outcome.equation.to_text_report()
     if args.include_stats:
         payload["equation_stats"] = outcome.equation.stats().to_dict()
+    if args.include_explanation:
+        payload["explanation"] = render_explanation(outcome.isr, outcome.equation.input_struct)
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
