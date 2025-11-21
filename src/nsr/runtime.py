@@ -59,11 +59,8 @@ def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
         if signature in seen_signatures:
             idle_loops += 1
             if idle_loops >= 2:
-                if not isr.answer.fields:
-                    fallback = isr.goals[0] if isr.goals else operation("SUMMARIZE")
-                    isr.ops_queue.append(fallback)
-                    idle_loops = 0
-                    continue
+                if not isr.answer.fields or isr.quality < session.config.min_quality:
+                    isr = _finalize_convergence(isr, session, trace)
                 break
         else:
             seen_signatures.add(signature)
@@ -97,6 +94,21 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
     for node in items:
         hasher.update(fingerprint(node).encode("ascii"))
     return hasher.hexdigest()
+
+
+def _finalize_convergence(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
+    finalized = isr
+    if not finalized.answer.fields:
+        finalized = _apply_and_trace(finalized, "SUMMARIZE", "SUMMARIZE*", session, trace)
+    if finalized.quality < session.config.min_quality:
+        finalized = _apply_and_trace(finalized, "STABILIZE", "STABILIZE*", session, trace)
+    return finalized
+
+
+def _apply_and_trace(isr: ISR, op_name: str, label: str, session: SessionCtx, trace: Trace) -> ISR:
+    updated = apply_operator(isr, operation(op_name), session)
+    trace.add(label, updated.quality, len(updated.relations), len(updated.context))
+    return updated
 
 
 __all__ = ["run_text", "run_struct", "Trace"]

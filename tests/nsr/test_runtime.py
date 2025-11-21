@@ -1,6 +1,8 @@
+import nsr.runtime as nsr_runtime
+
 from liu import relation, entity, var, struct, list_node, text, number, operation, NodeKind
 
-from nsr import run_text, SessionCtx, Rule
+from nsr import run_text, run_struct, SessionCtx, Rule
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature
 from nsr.state import initial_isr
@@ -46,3 +48,21 @@ def test_state_signature_reflects_queue_variations():
     mutated.ops_queue.append(operation("MAP"))
     sig_b = _state_signature(mutated)
     assert sig_a != sig_b
+
+
+def test_run_struct_converges_with_summary(monkeypatch):
+    session = SessionCtx()
+    base = struct(subject=entity("carro"))
+    monkeypatch.setattr(nsr_runtime, "_state_signature", lambda _: "STATIC")
+    original_apply = nsr_runtime.apply_operator
+
+    def stub_apply(isr, op, sess):
+        if (op.label or "").upper() == "ANSWER":
+            return isr.snapshot()
+        return original_apply(isr, op, sess)
+
+    monkeypatch.setattr(nsr_runtime, "apply_operator", stub_apply)
+    answer, trace = run_struct(base, session)
+    assert answer.startswith("Resumo")
+    assert any("SUMMARIZE*" in step for step in trace.steps)
+    assert any("STABILIZE*" in step for step in trace.steps)
