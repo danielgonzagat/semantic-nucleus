@@ -31,7 +31,7 @@ class EnvironmentKB:
 
 
 def _env_dir(env: str) -> Path:
-    if not env:
+    if not env or not env.strip():
         raise ValueError("env name must be provided")
     return ENV_ROOT / env
 
