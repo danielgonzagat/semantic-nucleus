@@ -7,6 +7,7 @@ from __future__ import annotations
 from typing import Iterable, Tuple
 
 from liu import Node, NodeKind, struct, text
+from liu.hash import fingerprint
 
 from .state import ISR
 
@@ -25,6 +26,12 @@ def render_explanation(
 
     focus_node = focus if focus is not None else struct()
     relations_preview = _relations_summary(isr.relations, relation_limit)
+    novel_relations = _novel_relations(isr.relations, focus_node)
+    novel_summary = (
+        _relations_summary(tuple(novel_relations), relation_limit)
+        if novel_relations
+        else "nenhuma"
+    )
     context_preview = _context_summary(isr.context, context_limit)
     ops_preview = _ops_summary(isr.ops_queue, ops_limit)
     focus_desc = _focus_description(focus_node)
@@ -33,6 +40,7 @@ def render_explanation(
         f"- Foco: {focus_desc}",
         f"- Qualidade: {isr.quality:.2f}",
         f"- Relações ({len(isr.relations)}): {relations_preview}",
+        f"- Relações novas: {novel_summary}",
         f"- Contexto ({len(isr.context)}): {context_preview}",
         f"- Próximos Φ: {ops_preview}",
     ]
@@ -88,6 +96,25 @@ def _relations_summary(relations: Tuple[Node, ...], limit: int) -> str:
     if len(relations) > limit:
         summary += f"; ...(+{len(relations) - limit})"
     return summary
+
+
+def _novel_relations(relations: Tuple[Node, ...], focus: Node) -> list[Node]:
+    baseline_hashes = _baseline_relation_hashes(focus)
+    seen: set[str] = set()
+    novel: list[Node] = []
+    for rel in relations:
+        digest = fingerprint(rel)
+        if digest not in baseline_hashes and digest not in seen:
+            novel.append(rel)
+            seen.add(digest)
+    return novel
+
+
+def _baseline_relation_hashes(focus: Node) -> set[str]:
+    relations_node = _field_node(focus, "relations")
+    if relations_node is None or relations_node.kind is not NodeKind.LIST:
+        return set()
+    return {fingerprint(rel) for rel in relations_node.args}
 
 
 def _context_summary(context: Tuple[Node, ...], limit: int) -> str:

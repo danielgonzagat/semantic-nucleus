@@ -44,6 +44,7 @@ def test_explain_operator_outputs_detailed_report():
     assert "Relações (1)" in text_value
     assert "carro has roda" in text_value
     assert "Próximos Φ" in text_value
+    assert "Relações novas" in text_value
 
 
 def test_infer_rule_adds_relation():
@@ -125,6 +126,7 @@ def test_run_text_full_exposes_explanation():
     outcome = run_text_full("O carro tem roda", session)
     assert "Explicação determinística" in outcome.explanation
     assert "Relações" in outcome.explanation
+    assert "Relações novas" in outcome.explanation
 
 
 def test_run_struct_full_exposes_isr_and_quality():

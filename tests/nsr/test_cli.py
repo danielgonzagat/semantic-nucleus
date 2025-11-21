@@ -68,3 +68,4 @@ def test_cli_includes_explanation(capsys):
     assert "explanation" in data
     assert "Explicação determinística" in data["explanation"]
     assert "Relações" in data["explanation"]
+    assert "Relações novas" in data["explanation"]
