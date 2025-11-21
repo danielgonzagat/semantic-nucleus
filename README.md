@@ -35,6 +35,7 @@ Núcleo Originário é a implementação de referência da inteligência simból
 - Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both`.
 - Snapshots ΣVM: `from svm.snapshots import save_snapshot` / `restore_snapshot`.
 - Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
+- Aprendizado simbólico: `from nsr_evo.api import run_text_learning`.
 
 ## Testes & cobertura
 
@@ -53,6 +54,7 @@ CI (GitHub Actions) executa pre-commit + pytest para Python 3.11/3.12 (`.github/
 - Operadores Φ permanecem puros e fechados sob transformação.
 - `svm.snapshots` exporta `{program, state}` em JSON determinístico com `digest` e suporte a restauração.
 - `svm.signing` aplica assinaturas Ed25519 determinísticas sobre o payload das snapshots `.svms`.
+- `nsr_evo` registra episódios (`.nsr_learning/`) e induz regras LIU → LIU apenas se a energia simbólica (contradições/qualidade) melhora.
 
 ## Documentação & governança
 
@@ -62,6 +64,12 @@ CI (GitHub Actions) executa pre-commit + pytest para Python 3.11/3.12 (`.github/
 - Guia de contribuição: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - Código de conduta: [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md).
 - Mudanças registradas em [`CHANGELOG.md`](CHANGELOG.md).
+
+## Auto-evolução simbólica
+
+- **Durante o atendimento**: `run_text_learning()` roda o NSR, grava episódio (`episodes.jsonl`) e tenta induzir regras `REL_A(?X,?Y) -> REL_B(?X,?Y)` determinísticas.
+- **Offline**: `python -m nsr_evo.cli_cycle --episodes .nsr_learning/episodes.jsonl --rules .nsr_learning/learned_rules.jsonl` reexecuta prompts recentes, mede energia semântica e só aceita novas regras se o campo de prova melhorar.
+- KB aprendido fica em `.nsr_learning/learned_rules.jsonl` (JSONL auditável). Cada nova `SessionCtx` pode carregar essas regras para expandir o operador `INFER`.
 
 ## Licença
 

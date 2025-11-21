@@ -78,6 +78,38 @@ PY
 - Gatilhos em `push` e `pull_request`.
 - Executa `pip install -e .[dev]`, `pre-commit run --all-files` e `pytest`.
 
-## 6. Contribuição
+## 6. Aprendizado simbólico contínuo
+
+```bash
+PYTHONPATH=src python - <<'PY'
+from pathlib import Path
+from nsr_evo.api import run_text_learning
+
+episodes = Path(".nsr_learning/episodes.jsonl")
+rules = Path(".nsr_learning/learned_rules.jsonl")
+
+for prompt in ("O carro tem roda", "O carro anda rápido"):
+    answer, outcome = run_text_learning(prompt, episodes_path=episodes, rules_path=rules)
+    print(prompt, "->", answer, outcome.quality)
+PY
+```
+
+Cada chamada loga um episódio (`episodes.jsonl`) e tenta induzir novas regras LIU→LIU; se aprovadas, vão para `learned_rules.jsonl` e passam a fazer parte do `SessionCtx(kb_rules=...)`.
+
+## 7. Ciclos offline guiados por energia
+
+```bash
+PYTHONPATH=src python -m nsr_evo.cli_cycle \
+  --episodes .nsr_learning/episodes.jsonl \
+  --rules .nsr_learning/learned_rules.jsonl \
+  --max-prompts 32 \
+  --max-rules 8 \
+  --min-quality 0.6 \
+  --min-support 3
+```
+
+O ciclo reexecuta prompts recentes, mede energia simbólica (contradições, cobertura, qualidade) e só grava regras se a energia cair. Útil para evolução batch controlada.
+
+## 8. Contribuição
 
 Leia `CONTRIBUTING.md`, siga o template de PR e respeite o `CODE_OF_CONDUCT.md`.
