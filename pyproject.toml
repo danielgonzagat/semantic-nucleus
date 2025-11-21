@@ -8,7 +8,14 @@ requires-python = ">=3.11"
 dependencies = []
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0"]
+dev = [
+    "pytest>=8.0",
+    "coverage[toml]>=7.6",
+    "pre-commit>=3.8",
+    "ruff>=0.6",
+    "black>=24.10",
+    "blake3>=0.4.1",
+]
 
 [build-system]
 requires = ["setuptools>=68.0"]

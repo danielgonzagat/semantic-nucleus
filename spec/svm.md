@@ -82,8 +82,20 @@ HALT
 2. `test_vm_phi_pipeline_and_hash` – executa operadores Φ diretamente e valida `HASH_STATE`.
 3. `test_encoding_roundtrip` – garante que `encode`/`decode` preservam instruções (incluindo `TRAP`/`HALT`).
 
-## 7. Roadmap imediato
+## 7. Snapshots `.svms`
 
-- Serializar snapshots `.svms` (bytecode + estado ISR + digest BLAKE3).
+- `svm.snapshots` expõe `build_snapshot`, `save_snapshot`, `load_snapshot` e `SNAPSHOT_VERSION`.
+- Snapshot = JSON determinístico com:
+  - `version`: `"svms/1"`.
+  - `program.bytecode`: SVMB codificado em base64 (`svm.bytecode.encode`).
+  - `program.constants`: constantes serializadas (`Node` ⇒ objeto `{type:"node", value:<LIU-JSON>}`).
+  - `state.isr`: ontologia/relações/contexto/goals/ops/answer/quality em JSON LIU.
+  - `state.vm`: metadados (`pc`, `stack_depth`, `registers`, `isr_digest`, answer renderizado).
+- `digest`: BLAKE3-256 quando disponível (fallback Blake2b-256) calculado sobre a carga ordenada.
+- Extensão recomendada `.svms`; arquivos terminam com newline para compatibilidade com ferramentas Unix.
+
+## 8. Roadmap imediato
+
+- Assinaturas determinísticas das snapshots `.svms` (ed25519) e restauração incremental no VM.
 - Verificador offline (fluxo, operandos, `HALT` obrigatório, cotas de fila/ops).
 - Seções nomeadas (.CONST/.OPS/.KB) e tooling CLI para inspeção de traces/dumps.
