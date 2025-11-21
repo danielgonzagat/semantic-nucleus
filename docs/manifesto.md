@@ -22,7 +22,7 @@
 
 - Sem side-effects em operadores; todos retornam novos estados.
 - Cotas (passos, novos fatos, profundidade de unificação) configuráveis em `SessionCtx.Config`.
-- Detecção de contradições habilitável (`Config.enable_contradiction_check` + `nsr.consistency.detect_contradictions`).
+- Detecção de contradições ativa por padrão e configurável (`Config.enable_contradiction_check`, `nsr.consistency.detect_contradictions`, flag CLI `--disable-contradictions`).
 - Conversão texto → equação → texto auditável via `nsr.equation.EquationSnapshot` (bundles S-expr/JSON determinísticos).
 - Cada equação exportada recebe `EquationSnapshot.digest()`/`equation_hash` (Blake2b-128) para comparar execuções.
 - snapshots `.svms` devem ser assinados quando usados em produção.

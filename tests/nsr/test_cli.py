@@ -4,7 +4,7 @@ import nsr.cli as nsr_cli
 
 
 def test_cli_outputs_equation_bundle(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json"])
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--enable-contradictions"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -24,7 +24,7 @@ def test_cli_writes_file(tmp_path):
     exit_code = nsr_cli.main(
         [
             "O carro tem roda",
-            "--enable-contradictions",
+            "--disable-contradictions",
             "--format",
             "both",
             "--output",
