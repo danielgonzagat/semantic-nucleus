@@ -13,14 +13,25 @@ from .opcodes import Opcode
 
 def assemble(source: str) -> List[Instruction]:
     instructions: List[Instruction] = []
-    for line in source.strip().splitlines():
-        line = line.strip()
-        if not line or line.startswith(";"):
+    for raw_line in source.strip().splitlines():
+        line = raw_line.split(";", 1)[0].strip()
+        if not line:
             continue
         parts = shlex.split(line)
         mnemonic = parts[0].upper()
-        operand = int(parts[1]) if len(parts) > 1 else 0
         opcode = Opcode[mnemonic]
+        if opcode in {Opcode.LOAD_REG, Opcode.STORE_REG}:
+            if len(parts) != 2:
+                raise ValueError(f"{mnemonic} requires register index operand")
+            operand = int(parts[1])
+            if not 0 <= operand <= 7:
+                raise ValueError("register index must be between 0 and 7")
+        elif opcode in {Opcode.PUSH_TEXT, Opcode.PUSH_CONST, Opcode.PUSH_KEY, Opcode.BUILD_STRUCT, Opcode.BEGIN_STRUCT}:
+            if len(parts) != 2:
+                raise ValueError(f"{mnemonic} requires operand")
+            operand = int(parts[1])
+        else:
+            operand = int(parts[1]) if len(parts) > 1 else 0
         instructions.append(Instruction(opcode=opcode, operand=operand))
     return instructions
 

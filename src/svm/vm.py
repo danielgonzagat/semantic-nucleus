@@ -26,12 +26,14 @@ class SigmaVM:
         self.stack: List[Node] = []
         self.answer: Node | None = None
         self.pc: int = 0
+        self.registers: List[Node | None] = [None] * 8
 
     def load(self, program: Program) -> None:
         self.program = program
         self.stack.clear()
         self.answer = None
         self.pc = 0
+        self.registers = [None] * 8
 
     def run(self) -> Node:
         if self.program is None:
@@ -42,20 +44,31 @@ class SigmaVM:
             inst = instructions[self.pc]
             self.pc += 1
             if inst.opcode is Opcode.PUSH_TEXT:
-                literal = consts[inst.operand]
-                self.stack.append(text(literal))
-            elif inst.opcode is Opcode.BUILD_STRUCT:
+                self._push(text(consts[inst.operand]))
+            elif inst.opcode is Opcode.PUSH_CONST:
+                self._push(text(consts[inst.operand]))
+            elif inst.opcode is Opcode.PUSH_KEY:
+                self._push(text(consts[inst.operand]))
+            elif inst.opcode in {Opcode.BUILD_STRUCT, Opcode.BEGIN_STRUCT}:
                 fields = []
-                for _ in range(inst.operand):
-                    value = self.stack.pop()
-                    key_node = self.stack.pop()
-                    if key_node.kind is not NodeKind.TEXT:
-                        raise ValueError("STRUCT keys must be TEXT nodes")
-                    fields.append((key_node.label or "", value))
+                count = inst.operand
+                for _ in range(count):
+                    key_label = self._pop_text()
+                    value = self._pop()
+                    fields.append((key_label, value))
                 constructed = struct(**{k: v for k, v in fields})
-                self.stack.append(constructed)
+                self._push(constructed)
+            elif inst.opcode is Opcode.LOAD_REG:
+                reg_value = self.registers[inst.operand]
+                if reg_value is None:
+                    raise RuntimeError(f"register R{inst.operand} is empty")
+                self._push(reg_value)
+            elif inst.opcode is Opcode.STORE_REG:
+                self.registers[inst.operand] = self._pop()
+            elif inst.opcode is Opcode.NOOP:
+                continue
             elif inst.opcode is Opcode.STORE_ANSWER:
-                self.answer = self.stack.pop()
+                self.answer = self._pop()
             elif inst.opcode is Opcode.HALT:
                 break
             else:
@@ -63,6 +76,20 @@ class SigmaVM:
         if self.answer is None:
             raise RuntimeError("program halted without answer")
         return self.answer
+
+    def _pop(self) -> Node:
+        if not self.stack:
+            raise RuntimeError("stack underflow")
+        return self.stack.pop()
+
+    def _push(self, node: Node) -> None:
+        self.stack.append(node)
+
+    def _pop_text(self) -> str:
+        node = self._pop()
+        if node.kind is not NodeKind.TEXT:
+            raise RuntimeError("STRUCT keys must be TEXT nodes")
+        return node.label or ""
 
 
 def build_program_from_assembly(asm: str, constants: List[str]) -> Program:
