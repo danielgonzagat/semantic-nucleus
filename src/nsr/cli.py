@@ -46,6 +46,11 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Inclui contagens/digests determinísticos (auditoria estrutural).",
     )
+    parser.add_argument(
+        "--include-explanation",
+        action="store_true",
+        help="Inclui narrativa determinística Equação→Texto baseada no estado final.",
+    )
     return parser
 
 
@@ -93,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["equation_report"] = outcome.equation.to_text_report()
     if args.include_stats:
         payload["equation_stats"] = outcome.equation.stats().to_dict()
+    if args.include_explanation:
+        payload["explanation"] = outcome.explanation
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:

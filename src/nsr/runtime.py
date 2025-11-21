@@ -22,6 +22,7 @@ from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
 from .parser import build_struct
 from .state import ISR, SessionCtx, initial_isr
+from .explain import render_explanation
 
 
 @dataclass(slots=True)
@@ -92,6 +93,7 @@ class RunOutcome:
     finalized: bool
     equation: EquationSnapshot
     equation_digest: str
+    explanation: str
 
     @property
     def quality(self) -> float:
@@ -107,6 +109,17 @@ class RunOutcome:
 def run_text(text: str, session: SessionCtx | None = None) -> Tuple[str, Trace]:
     outcome = run_text_full(text, session=session)
     return outcome.answer, outcome.trace
+
+
+def run_text_with_explanation(
+    text: str, session: SessionCtx | None = None
+) -> Tuple[str, Trace, str]:
+    """
+    Variante determinística que retorna texto, trace e narrativa da equação.
+    """
+
+    outcome = run_text_full(text, session=session)
+    return outcome.answer, outcome.trace, outcome.explanation
 
 
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
@@ -223,6 +236,7 @@ def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
         finalized=finalized,
         equation=snapshot,
         equation_digest=snapshot.digest(),
+        explanation=render_explanation(isr, struct_node),
     )
 
 

@@ -4,6 +4,7 @@ from liu import relation, entity, var, struct, list_node, text, number, operatio
 
 from nsr import (
     run_text,
+    run_text_with_explanation,
     run_struct,
     run_text_full,
     run_struct_full,
@@ -30,6 +31,22 @@ def test_run_text_simple():
     assert isinstance(trace.halt_reason, HaltReason)
     if trace.halt_reason is HaltReason.QUALITY_THRESHOLD:
         assert trace.finalized is False
+
+
+def test_explain_operator_outputs_detailed_report():
+    session = SessionCtx()
+    tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
+    struct_node = build_struct(tokens)
+    isr = initial_isr(struct_node, session)
+    explained = apply_operator(isr, operation("EXPLAIN", struct_node), session)
+    answer_node = dict(explained.answer.fields)["answer"]
+    text_value = answer_node.label or ""
+    assert "Explicação determinística" in text_value
+    assert "Relações (1)" in text_value
+    assert "carro has roda" in text_value
+    assert "Próximos Φ" in text_value
+    assert "Relações novas" in text_value
+    assert "Relações removidas" in text_value
 
 
 def test_infer_rule_adds_relation():
@@ -104,6 +121,23 @@ def test_run_text_full_matches_legacy_output():
     assert outcome.trace.digest == legacy_trace.digest
     assert outcome.trace.halt_reason is outcome.halt_reason
     assert outcome.trace.finalized == outcome.finalized
+
+
+def test_run_text_full_exposes_explanation():
+    session = SessionCtx()
+    outcome = run_text_full("O carro tem roda", session)
+    assert "Explicação determinística" in outcome.explanation
+    assert "Relações" in outcome.explanation
+    assert "Relações novas" in outcome.explanation
+    assert "Relações removidas" in outcome.explanation
+
+
+def test_run_text_with_explanation_returns_triple():
+    session = SessionCtx()
+    answer, trace, explanation = run_text_with_explanation("O carro tem roda", session)
+    assert answer
+    assert trace.steps
+    assert "Relações novas" in explanation
 
 
 def test_run_struct_full_exposes_isr_and_quality():

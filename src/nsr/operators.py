@@ -21,6 +21,7 @@ from liu import (
     normalize,
 )
 
+from .explain import render_explanation, render_struct_sentence
 from .rules import apply_rules
 from .state import ISR, SessionCtx
 
@@ -70,10 +71,9 @@ def _op_answer(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
 
 def _op_explain(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     focus = args[0] if args else struct()
-    explanation = text(
-        f"Explicação: {len(isr.relations)} relações, contexto {len(isr.context)}, foco={focus.kind.value}."
-    )
-    return _update(isr, answer=struct(answer=explanation))
+    report = render_explanation(isr, focus)
+    answer_node = struct(answer=text(report))
+    return _update(isr, answer=answer_node, quality=max(isr.quality, 0.4))
 
 
 def _op_summarize(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
@@ -188,39 +188,7 @@ def _op_code_eval_pure(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
 
 
 def _render_struct(node: Node) -> Node:
-    subject = _field_label(node, "subject")
-    action = _field_label(node, "action")
-    obj = _field_label(node, "object")
-    modifier = _field_label(node, "modifier")
-    relations_summary = _format_relations(_field_node(node, "relations"))
-    pieces = [subject, action]
-    if obj:
-        pieces.append(obj)
-    if modifier:
-        pieces.append(modifier)
-    sent = " ".join(filter(None, pieces)).strip()
-    clauses = []
-    if not sent:
-        clauses.append("Resposta não determinada")
-    else:
-        clauses.append(sent[0].upper() + sent[1:])
-    if relations_summary:
-        clauses.append(f"Relações: {relations_summary}")
-    final = ". ".join(clauses) + "."
-    return text(final)
-
-
-def _field_label(node: Node, field: str) -> str:
-    target = _field_node(node, field)
-    if target is None:
-        return ""
-    if target.kind is NodeKind.ENTITY:
-        return target.label or ""
-    if target.kind is NodeKind.LIST:
-        return " ".join(item.label or "" for item in target.args if item.label)
-    if target.kind is NodeKind.TEXT:
-        return target.label or ""
-    return ""
+    return text(render_struct_sentence(node))
 
 
 def _field_node(node: Node, field: str) -> Node | None:
@@ -228,38 +196,6 @@ def _field_node(node: Node, field: str) -> Node | None:
         if key == field:
             return value
     return None
-
-
-def _format_relations(relations_node: Node | None) -> str | None:
-    if relations_node is None or relations_node.kind is not NodeKind.LIST:
-        return None
-    phrases = []
-    for candidate in relations_node.args:
-        phrase = _render_relation(candidate)
-        if phrase:
-            phrases.append(phrase)
-    if not phrases:
-        return None
-    return "; ".join(phrases)
-
-
-def _render_relation(node: Node) -> str | None:
-    if node.kind is not NodeKind.REL or not node.label:
-        return None
-    if len(node.args) < 2:
-        return None
-    source = _node_token(node.args[0])
-    target = _node_token(node.args[1])
-    if not source or not target:
-        return None
-    rel_label = node.label.replace("_", " ").lower()
-    return f"{source} {rel_label} {target}"
-
-
-def _node_token(node: Node) -> str:
-    if node.kind in (NodeKind.ENTITY, NodeKind.TEXT):
-        return (node.label or "").strip()
-    return ""
 
 
 class _PureEvalError(Exception):
