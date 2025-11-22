@@ -43,6 +43,19 @@ def test_italian_greeting_and_health_responses():
     assert respond("come stai?") == "sto bene, e tu?"
 
 
+def test_thanks_and_command_responses():
+    assert respond("obrigado!") == "de nada!"
+    assert respond("thanks") == "you're welcome!"
+    assert respond("faça isso") == "certo, encaminhando para o núcleo."
+    assert respond("please compute 1+1") == "acknowledged, dispatching to NSR."
+
+
+def test_fact_question_plan():
+    plan = plan_reply("o que é NSR?", DEFAULT_INSTINCT)
+    assert plan.role == "FACT_ROUTE_PT"
+    assert respond("what is NSR?") == "let me check that."
+
+
 def test_maybe_route_text_builds_struct_and_answer():
     hook = maybe_route_text("tudo bem?")
     assert hook is not None

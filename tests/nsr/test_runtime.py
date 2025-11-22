@@ -433,6 +433,30 @@ def test_ian_reply_language_italian():
     assert (reply_fields["plan_language"].label or "") == "it"
 
 
+def test_run_text_handles_thanks_and_commands():
+    session = SessionCtx()
+    answer, trace = run_text("obrigado!", session)
+    assert answer == "de nada!"
+    assert any("IAN[THANKS_PT" in step for step in trace.steps)
+    answer_cmd, trace_cmd = run_text("faça isso agora", session)
+    assert answer_cmd == "certo, encaminhando para o núcleo."
+    assert any("IAN[COMMAND_PT" in step for step in trace_cmd.steps)
+
+
+def test_run_text_handles_fact_question_en():
+    session = SessionCtx()
+    answer, trace = run_text("what is NSR?", session)
+    assert answer == "let me check that."
+    assert any("IAN[QUESTION_FACT_EN" in step for step in trace.steps)
+
+
+def test_run_text_handles_math_expression():
+    session = SessionCtx()
+    answer, trace = run_text("2 + 2", session)
+    assert answer == "4"
+    assert trace.steps[0].startswith("1:MATH[")
+
+
 def test_language_hint_controls_non_ian_renderer():
     session = SessionCtx()
     session.language_hint = "en"

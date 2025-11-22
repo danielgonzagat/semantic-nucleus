@@ -24,6 +24,7 @@ from .parser import build_struct
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .ian_bridge import maybe_route_text
+from .math_bridge import maybe_route_math
 
 
 @dataclass(slots=True)
@@ -128,22 +129,31 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     lexicon = session.lexicon
     if not (lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words):
         lexicon = DEFAULT_LEXICON
-    instinct_hook = maybe_route_text(text)
-    if instinct_hook:
-        struct0 = instinct_hook.struct_node
-        preseed_answer = instinct_hook.answer_node
-        trace_hint = f"IAN[{instinct_hook.utterance.role}]"
-        preseed_context = instinct_hook.context_nodes
-        preseed_quality = instinct_hook.quality
-        session.language_hint = instinct_hook.reply_plan.language
+    math_hook = maybe_route_math(text)
+    if math_hook:
+        struct0 = math_hook.struct_node
+        preseed_answer = math_hook.answer_node
+        trace_hint = f"MATH[{math_hook.utterance.role}]"
+        preseed_context = math_hook.context_nodes
+        preseed_quality = math_hook.quality
+        session.language_hint = math_hook.reply.language
     else:
-        tokens = tokenize(text, lexicon)
-        struct0 = build_struct(tokens)
-        struct0 = _attach_language_field(struct0, session.language_hint or "pt")
-        preseed_answer = None
-        trace_hint = None
-        preseed_context = None
-        preseed_quality = None
+        instinct_hook = maybe_route_text(text)
+        if instinct_hook:
+            struct0 = instinct_hook.struct_node
+            preseed_answer = instinct_hook.answer_node
+            trace_hint = f"IAN[{instinct_hook.utterance.role}]"
+            preseed_context = instinct_hook.context_nodes
+            preseed_quality = instinct_hook.quality
+            session.language_hint = instinct_hook.reply_plan.language
+        else:
+            tokens = tokenize(text, lexicon)
+            struct0 = build_struct(tokens)
+            struct0 = _attach_language_field(struct0, session.language_hint or "pt")
+            preseed_answer = None
+            trace_hint = None
+            preseed_context = None
+            preseed_quality = None
     return run_struct_full(
         struct0,
         session,

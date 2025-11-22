@@ -32,8 +32,7 @@ def _iter_utterances() -> Iterable[Tuple[str, str]]:
             yield lang, text
 
 
-def benchmark(iterations: int, warmup: int) -> Tuple[List[float], int]:
-    instinct = IANInstinct.default()
+def benchmark(instinct: IANInstinct, iterations: int, warmup: int) -> Tuple[List[float], int]:
     utterances = tuple(_iter_utterances())
     if not utterances:
         raise RuntimeError("Nenhuma frase de benchmark configurada.")
@@ -53,6 +52,22 @@ def benchmark(iterations: int, warmup: int) -> Tuple[List[float], int]:
     return samples, peak
 
 
+def benchmark_long_text(instinct: IANInstinct, length: int, runs: int) -> List[float]:
+    if length <= 0 or runs <= 0:
+        return []
+    base = " ".join(text for _, text in _iter_utterances())
+    builder = []
+    while len(" ".join(builder)) < length:
+        builder.append(base)
+    long_text = " ".join(builder)[:length]
+    samples: List[float] = []
+    for _ in range(runs):
+        t0 = time.perf_counter()
+        instinct.tokenize(long_text)
+        samples.append(time.perf_counter() - t0)
+    return samples
+
+
 def render_report(samples: List[float], peak_bytes: int) -> str:
     if not samples:
         return "Nenhuma amostra registrada."
@@ -70,17 +85,31 @@ def render_report(samples: List[float], peak_bytes: int) -> str:
     )
 
 
+def render_long_report(samples: List[float], length: int) -> str:
+    if not samples:
+        return ""
+    mean_ms = statistics.fmean(samples) * 1_000
+    p95_ms = statistics.quantiles(samples, n=100)[94] * 1_000 if len(samples) >= 20 else max(samples) * 1_000
+    return f"tokenize(len={length}) mean={mean_ms:.3f}ms p95={p95_ms:.3f}ms"
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Benchmark determinístico do IAN-Ω.")
     parser.add_argument("--iterations", type=int, default=2000, help="Número de amostras coletadas após o aquecimento (default: 2000).")
     parser.add_argument("--warmup", type=int, default=200, help="Chamadas descartadas para aquecimento (default: 200).")
+    parser.add_argument("--long-length", type=int, default=0, help="Quando >0, mede tokenização de um texto longo com o tamanho indicado.")
+    parser.add_argument("--long-runs", type=int, default=20, help="Número de execuções ao medir textos longos (default: 20).")
     return parser.parse_args()
 
 
 def main() -> None:
     args = parse_args()
-    samples, peak = benchmark(iterations=args.iterations, warmup=args.warmup)
+    instinct = IANInstinct.default()
+    samples, peak = benchmark(instinct, iterations=args.iterations, warmup=args.warmup)
     print(render_report(samples, peak))
+    long_samples = benchmark_long_text(instinct, args.long_length, args.long_runs)
+    if long_samples:
+        print(render_long_report(long_samples, args.long_length))
 
 
 if __name__ == "__main__":

@@ -8,8 +8,6 @@ from __future__ import annotations
 import argparse
 import json
 from pathlib import Path
-from typing import Dict
-
 from nsr.langpacks import (
     build_language_pack_from_dict,
     get_language_pack,
