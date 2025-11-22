@@ -71,6 +71,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inclui descrição e snapshot do MetaCalculationPlan executado (se existir).",
     )
     parser.add_argument(
+        "--include-lc-meta",
+        action="store_true",
+        help="Inclui o pacote `lc_meta` serializado quando o MetaTransformer produzir cálculo LC-Ω.",
+    )
+    parser.add_argument(
         "--calc-mode",
         choices=("hybrid", "plan_only", "skip"),
         default=None,
@@ -142,6 +147,8 @@ def main(argv: list[str] | None = None) -> int:
         if outcome.calc_result.snapshot is not None:
             calc_payload["snapshot"] = outcome.calc_result.snapshot
         payload["meta_calc"] = calc_payload
+    if args.include_lc_meta and outcome.lc_meta is not None:
+        payload["lc_meta"] = to_json(outcome.lc_meta)
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:

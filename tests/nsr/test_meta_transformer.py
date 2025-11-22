@@ -56,6 +56,7 @@ def test_meta_transformer_falls_back_to_text_route():
     assert (language_field.label or "").startswith("pt")
     lc_meta = dict(result.struct_node.fields).get("lc_meta")
     assert lc_meta is not None
+    assert result.lc_meta is lc_meta
     lc_fields = dict(lc_meta.fields)
     assert lc_fields["tag"].label == "lc_meta"
     assert lc_fields["language"].label == "pt"

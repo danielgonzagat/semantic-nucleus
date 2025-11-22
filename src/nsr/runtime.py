@@ -105,6 +105,7 @@ class RunOutcome:
     meta_summary: Tuple[Node, ...] | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
+    lc_meta: Node | None = None
 
     @property
     def quality(self) -> float:
@@ -218,6 +219,7 @@ def run_struct_full(
             meta_summary=summary,
             calc_plan=calc_plan,
             calc_result=calc_result,
+            lc_meta=meta_info.lc_meta if meta_info else None,
         )
     steps = 0
     seen_signatures = set()
@@ -334,6 +336,7 @@ def run_struct_full(
         meta_summary=meta_summary,
         calc_plan=calc_plan,
         calc_result=calc_result,
+        lc_meta=meta_info.lc_meta if meta_info else None,
     )
 
 
@@ -419,6 +422,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_summary=meta_summary,
         calc_plan=plan,
         calc_result=calc_result,
+        lc_meta=meta.lc_meta,
     )
 
 

@@ -47,6 +47,7 @@ class MetaTransformResult:
     preseed_quality: float | None = None
     language_hint: str | None = None
     calc_plan: "MetaCalculationPlan | None" = None
+    lc_meta: Node | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,6 +182,7 @@ class MetaTransformer:
             preseed_context=meta_context,
             language_hint=language,
             calc_plan=text_plan,
+            lc_meta=lc_meta_node,
         )
 
     def _effective_lexicon(self):
