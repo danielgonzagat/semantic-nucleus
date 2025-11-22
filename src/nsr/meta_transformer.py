@@ -160,6 +160,7 @@ class MetaTransformer:
         tokens = tokenize(text_value, lexicon)
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
+        text_plan = _text_phi_plan()
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
@@ -171,6 +172,7 @@ class MetaTransformer:
                 text_value,
             ),
             language_hint=language,
+            calc_plan=text_plan,
         )
 
     def _effective_lexicon(self):
@@ -305,3 +307,13 @@ def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculatio
     )
     description = f"{route.value}_direct_answer"
     return MetaCalculationPlan(route=route, program=program, description=description)
+
+
+def _text_phi_plan() -> MetaCalculationPlan:
+    instructions = [
+        Instruction(Opcode.PHI_NORMALIZE, 0),
+        Instruction(Opcode.PHI_SUMMARIZE, 0),
+        Instruction(Opcode.HALT, 0),
+    ]
+    program = Program(instructions=instructions, constants=[])
+    return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description="text_phi_pipeline")

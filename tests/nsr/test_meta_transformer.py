@@ -52,7 +52,12 @@ def test_meta_transformer_falls_back_to_text_route():
     language_field = dict(result.struct_node.fields).get("language")
     assert language_field is not None
     assert (language_field.label or "").startswith("pt")
-    assert result.calc_plan is None
+    assert result.calc_plan is not None
+    assert [inst.opcode for inst in result.calc_plan.program.instructions] == [
+        Opcode.PHI_NORMALIZE,
+        Opcode.PHI_SUMMARIZE,
+        Opcode.HALT,
+    ]
 
 
 def test_meta_transformer_routes_code_snippet():

@@ -15,6 +15,7 @@ from nsr import (
     tokenize,
     build_struct,
     meta_summary_to_dict,
+    MetaRoute,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
@@ -337,6 +338,11 @@ def test_run_text_handles_english_relation_sentence():
     answer, _ = run_text("The car has a wheel", session)
     assert "relações:" in answer.lower()
     assert "carro has wheel" in answer.lower()
+    outcome = run_text_full("The car has a wheel", session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route is MetaRoute.TEXT
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
 
 
 def test_run_text_handles_spanish_relation_sentence():
