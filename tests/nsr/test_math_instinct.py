@@ -27,6 +27,14 @@ def test_math_bridge_preseeds_runtime():
     assert trace.steps[0].startswith("1:MATH[")
 
 
+def test_math_bridge_uses_math_core_for_phrase():
+    hook = maybe_route_math("Qual é a raiz quadrada de 9?")
+    assert hook is not None
+    assert hook.instruction is not None
+    assert hook.instruction.operation == "sqrt"
+    assert hook.reply.text == "3"
+
+
 def test_math_instinct_functions():
     instinct = MathInstinct()
     assert instinct.evaluate("abs(-5)").text == "5"

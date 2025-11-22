@@ -25,6 +25,14 @@ from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .ian_bridge import maybe_route_text
 from .math_bridge import maybe_route_math
+from .logic_bridge import maybe_route_logic
+from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
+
+
+def _ensure_logic_engine(session: SessionCtx):
+    if session.logic_engine is None and session.logic_serialized:
+        session.logic_engine = deserialize_logic_engine(session.logic_serialized)
+    return session.logic_engine
 
 
 @dataclass(slots=True)
@@ -126,6 +134,7 @@ def run_text_with_explanation(
 
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
+    _ensure_logic_engine(session)
     lexicon = session.lexicon
     if not (lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words):
         lexicon = DEFAULT_LEXICON
@@ -138,23 +147,34 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         preseed_quality = math_hook.quality
         session.language_hint = math_hook.reply.language
     else:
-        instinct_hook = maybe_route_text(text)
-        if instinct_hook:
-            struct0 = instinct_hook.struct_node
-            preseed_answer = instinct_hook.answer_node
-            trace_hint = f"IAN[{instinct_hook.utterance.role}]"
-            preseed_context = instinct_hook.context_nodes
-            preseed_quality = instinct_hook.quality
-            session.language_hint = instinct_hook.reply_plan.language
+        engine = session.logic_engine
+        logic_hook = maybe_route_logic(text, engine=engine)
+        if logic_hook:
+            struct0 = logic_hook.struct_node
+            preseed_answer = logic_hook.answer_node
+            trace_hint = logic_hook.trace_label
+            preseed_context = logic_hook.context_nodes
+            preseed_quality = logic_hook.quality
+            session.logic_engine = logic_hook.result.engine
+            session.logic_serialized = logic_hook.snapshot
         else:
-            tokens = tokenize(text, lexicon)
-            language = (session.language_hint or "pt").lower()
-            struct0 = build_struct(tokens, language=language, text_input=text)
-            struct0 = _attach_language_field(struct0, language)
-            preseed_answer = None
-            trace_hint = None
-            preseed_context = None
-            preseed_quality = None
+            instinct_hook = maybe_route_text(text)
+            if instinct_hook:
+                struct0 = instinct_hook.struct_node
+                preseed_answer = instinct_hook.answer_node
+                trace_hint = f"IAN[{instinct_hook.utterance.role}]"
+                preseed_context = instinct_hook.context_nodes
+                preseed_quality = instinct_hook.quality
+                session.language_hint = instinct_hook.reply_plan.language
+            else:
+                tokens = tokenize(text, lexicon)
+                language = (session.language_hint or "pt").lower()
+                struct0 = build_struct(tokens, language=language, text_input=text)
+                struct0 = _attach_language_field(struct0, language)
+                preseed_answer = None
+                trace_hint = None
+                preseed_context = None
+                preseed_quality = None
     return run_struct_full(
         struct0,
         session,
@@ -301,6 +321,8 @@ def run_struct_full(
     trace.halt(halt_reason, isr, finalized)
     answer_text = _answer_text(isr)
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
+    if session.logic_engine:
+        session.logic_serialized = serialize_logic_engine(session.logic_engine)
     return RunOutcome(
         answer=answer_text,
         trace=trace,
