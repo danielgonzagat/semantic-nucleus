@@ -45,13 +45,16 @@ class MetaRuntime:
         isr.ops_queue.append(op("ANSWER", msg))
 
     def _handle_control(self, command: str) -> str:
-        if command == "/facts":
-            relations = sorted(
-                f"{name}{args}" for name, args in self.state.isr.relations
-            )
-            if not relations:
+        if command.startswith("/facts"):
+            relations = self.state.isr.relations
+            parts = command.split(maxsplit=1)
+            if len(parts) == 2:
+                filter_tag = parts[1].upper()
+                relations = {rel for rel in relations if rel[0].upper() == filter_tag}
+            relations_sorted = sorted(f"{name}{args}" for name, args in relations)
+            if not relations_sorted:
                 return "[META] Nenhum fato registrado."
-            return "[META] Fatos: " + "; ".join(relations)
+            return "[META] Fatos: " + "; ".join(relations_sorted)
         if command == "/state":
             return self._format_state()
         if command == "/context":

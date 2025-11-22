@@ -46,6 +46,9 @@ def test_facts_command_reports_relations(runtime):
     runtime.handle_request("Quanto é 7 * 3?")
     facts_output = runtime.handle_request("/facts")
     assert "EQUALS" in facts_output
+    filtered = runtime.handle_request("/facts EQUALS")
+    assert "SAID" not in filtered
+    assert "EQUALS" in filtered
 
 
 def test_state_command_shows_context(runtime):
