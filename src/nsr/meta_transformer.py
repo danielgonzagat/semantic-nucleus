@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-from liu import Node, struct as liu_struct, entity, text as liu_text, number, to_json
+from liu import Node, struct as liu_struct, entity, text as liu_text, number, to_json, list_node
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -19,6 +19,7 @@ from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .lc_omega import MetaCalculation
+from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -48,6 +49,8 @@ class MetaTransformResult:
     language_hint: str | None = None
     calc_plan: "MetaCalculationPlan | None" = None
     lc_meta: Node | None = None
+    meta_calculation: MetaCalculation | None = None
+    phi_plan_ops: Tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -175,6 +178,15 @@ class MetaTransformer:
         )
         if lc_meta_node is not None:
             meta_context = tuple((*meta_context, lc_meta_node))
+        phi_plan_ops: Tuple[str, ...] | None = None
+        if lc_parsed and lc_parsed.calculus:
+            ops = text_operation_pipeline(lc_parsed.calculus, None)
+            filtered = tuple((op.label or "") for op in ops if (op.label or ""))
+            if filtered:
+                phi_plan_ops = filtered
+        plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops)
+        if plan_context is not None:
+            meta_context = tuple((*meta_context, plan_context))
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
@@ -183,6 +195,8 @@ class MetaTransformer:
             language_hint=language,
             calc_plan=text_plan,
             lc_meta=lc_meta_node,
+            meta_calculation=lc_parsed.calculus if lc_parsed else None,
+            phi_plan_ops=phi_plan_ops,
         )
 
     def _effective_lexicon(self):
@@ -268,6 +282,21 @@ def _meta_calc_node(calc_node: Node) -> Node:
     )
 
 
+def _meta_plan_node(route: MetaRoute, plan_ops: Tuple[str, ...] | None) -> Node | None:
+    if not plan_ops:
+        return None
+    ops_nodes = [entity(label) for label in plan_ops if label]
+    if not ops_nodes:
+        return None
+    chain = "→".join(plan_ops)
+    return liu_struct(
+        tag=entity("meta_plan"),
+        route=entity(route.value),
+        chain=liu_text(chain),
+        ops=list_node(ops_nodes),
+    )
+
+
 def build_meta_summary(
     meta: MetaTransformResult,
     answer_text: str,
@@ -282,6 +311,9 @@ def build_meta_summary(
     calc_node = _extract_meta_calculation(meta)
     if calc_node is not None:
         nodes.append(calc_node)
+    plan_node = _meta_plan_node(meta.route, meta.phi_plan_ops)
+    if plan_node is not None:
+        nodes.append(plan_node)
     return tuple(nodes)
 
 
@@ -305,6 +337,14 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         payload = calc_fields.get("payload")
         if payload is not None:
             result["meta_calculation"] = to_json(payload)
+    plan_node = nodes.get("meta_plan")
+    if plan_node is not None:
+        plan_fields = _fields(plan_node)
+        result["phi_plan_route"] = _label(plan_fields.get("route"))
+        result["phi_plan_chain"] = _label(plan_fields.get("chain"))
+        ops_node = plan_fields.get("ops")
+        if ops_node is not None and ops_node.kind.name == "LIST":
+            result["phi_plan_ops"] = [(arg.label or "") for arg in ops_node.args]
     return result
 
 
@@ -351,31 +391,17 @@ def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculatio
     return MetaCalculationPlan(route=route, program=program, description=description)
 
 
-_TEXT_PIPELINES: dict[str, Tuple[Opcode, ...]] = {
-    "STATE_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "STATE_ASSERT": (Opcode.PHI_NORMALIZE, Opcode.PHI_ANSWER, Opcode.PHI_EXPLAIN, Opcode.PHI_SUMMARIZE),
-    "FACT_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "COMMAND_ROUTE": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "EMIT_GREETING": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_THANKS": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_FAREWELL": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_CONFIRM": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-}
-_DEFAULT_TEXT_PIPELINE: Tuple[Opcode, ...] = (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE)
-
-
 def _text_phi_plan(calculus: MetaCalculation | None = None) -> MetaCalculationPlan:
-    operator = (calculus.operator if calculus else "").upper()
-    pipeline = _TEXT_PIPELINES.get(operator, _DEFAULT_TEXT_PIPELINE)
-    opcodes: list[Opcode] = list(pipeline)
+    opcodes: list[Opcode] = list(text_opcode_pipeline(calculus))
     constants: list[Node] = []
     if calculus is not None:
         opcodes.extend((Opcode.PUSH_CONST, Opcode.STORE_ANSWER))
         constants.append(_calculus_answer_node(calculus))
     opcodes.append(Opcode.HALT)
     instructions = [Instruction(opcode, 0) for opcode in opcodes]
+    operator_label = (calculus.operator if calculus else "").lower()
     description = (
-        "text_phi_pipeline" if not operator else f"text_phi_{operator.lower()}"
+        "text_phi_pipeline" if not operator_label else f"text_phi_{operator_label}"
     )
     program = Program(instructions=instructions, constants=constants)
     return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description=description)

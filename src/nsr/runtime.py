@@ -24,6 +24,7 @@ from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, MetaRoute, build_meta_summary
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
+from .meta_calculus_router import text_operation_pipeline
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -189,9 +190,12 @@ def run_struct_full(
         isr.context = tuple((*isr.context, *preseed_context))
     if preseed_quality is not None:
         isr.quality = preseed_quality
+    plan_label = _prime_ops_from_meta_calc(isr, struct_node, meta_info)
     trace = Trace(steps=[])
     if trace_hint:
         trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
+    if plan_label:
+        trace.add(plan_label, isr.quality, len(isr.relations), len(isr.context))
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
@@ -409,6 +413,25 @@ def _maybe_attach_calc_answer(
         return False
     isr.context = tuple((*isr.context, answer))
     return True
+
+
+def _prime_ops_from_meta_calc(
+    isr: ISR,
+    struct_node: Node,
+    meta_info: MetaTransformResult | None,
+) -> str | None:
+    if meta_info is None or meta_info.meta_calculation is None:
+        return None
+    pipeline_ops = text_operation_pipeline(meta_info.meta_calculation, struct_node)
+    if not pipeline_ops:
+        return None
+    original_ops = tuple(isr.ops_queue)
+    isr.ops_queue.clear()
+    isr.ops_queue.extend(pipeline_ops)
+    isr.ops_queue.extend(original_ops)
+    operator = (meta_info.meta_calculation.operator or "text").upper()
+    chain = "→".join(filter(None, (op.label or "" for op in pipeline_ops)))
+    return f"Φ_PLAN[{operator}:{chain}]"
 
 
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:

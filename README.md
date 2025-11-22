@@ -67,15 +67,12 @@ flowchart LR
 - Quando o `lc_meta` inclui um `meta_calculation`, o plano ΣVM do fallback textual se adapta automaticamente (ex.: `STATE_QUERY` → `Φ_NORMALIZE · Φ_INFER · Φ_SUMMARIZE`, `STATE_ASSERT` → `Φ_NORMALIZE · Φ_ANSWER · Φ_EXPLAIN · Φ_SUMMARIZE`) **e** grava um snapshot `lc_meta_calc` no `answer` da ΣVM via `PUSH_CONST → STORE_ANSWER`, permitindo auditar no hardware qual cálculo LC-Ω foi detectado.
 - `python -m nsr.cli ... --include-lc-meta` exporta o `lc_meta` serializado em JSON, permitindo auditar as tokens, a sequência semântica e o `meta_calculation` que guiaram o plano ΣVM.
 - `Config.calc_mode` controla como os planos são executados: `hybrid` (padrão) roda o loop Φ e verifica o plano; `plan_only` devolve apenas o resultado da ΣVM (com `halt_reason=PLAN_EXECUTED`); `skip` ignora completamente a execução de planos. O CLI aceita `--calc-mode {hybrid,plan_only,skip}` para alternar o comportamento em tempo real.
-- `run_text_full` expõe `RunOutcome.meta_summary`, reunindo `meta_route`, `meta_input` e `meta_output` como o pacote oficial de **Meta-Resultado** (`route`, `language`, `input_size`, `input_preview`, `answer`, `quality`, `halt`); `python -m nsr.cli "...texto..." --include-meta` exporta o mesmo pacote em JSON auditável.
-- Quando existe um `meta_calculation`, o `meta_summary` também carrega `meta_calculation` (serializado) — útil para auditar as regras LC-Ω usadas antes mesmo de inspecionar o `lc_meta`.
+- `run_text_full` expõe `RunOutcome.meta_summary`, reunindo `meta_route`, `meta_input`, `meta_output` **e**, quando disponível, `meta_plan` (cadeia Φ pronta) como o pacote oficial de **Meta-Resultado** (`route`, `language`, `input_size`, `input_preview`, `answer`, `quality`, `halt`, `phi_plan_chain`); `python -m nsr.cli "...texto..." --include-meta` exporta o mesmo pacote em JSON auditável.
+- Quando existe um `meta_calculation`, o `meta_summary` também carrega `meta_calculation` (serializado) e o `meta_plan` correspondente — útil para auditar as regras LC-Ω e a sequência Φ planejada antes mesmo de inspecionar o `lc_meta`.
+- O runtime consome o `meta_calculation` detectado (via `lc_meta_calc`), injeta a mesma sequência Φ na fila do NSR **e** registra `Φ_PLAN[...]` no `trace`, garantindo que consultas `STATE_QUERY` executem `NORMALIZE → INFER → SUMMARIZE`, afirmações `STATE_ASSERT` disparem `NORMALIZE → ANSWER → EXPLAIN → SUMMARIZE` e assim por diante antes da fila padrão, mantendo ΣVM e loop Φ sincronizados do Meta-LER até o Meta-CALCULAR com auditoria explícita.
 - Para manipular o pacote meta diretamente no código, use `from nsr import meta_summary_to_dict` e chame `meta_summary_to_dict(outcome.meta_summary)` para obter o dicionário pronto para serialização.
 - `SessionCtx.meta_history` mantém a lista dos últimos `meta_summary`; ajuste `Config.meta_history_limit` (padrão 64) para controlar a retenção determinística por sessão.
 - A arquitetura completa (macro visão, pipeline interno e topologia cognitiva) está detalhada em [`docs/metanucleo_architecture.md`](docs/metanucleo_architecture.md).
-
-### Próximo passo público
-
-- Conectar o `meta_calculation` exportado ao orquestrador: o runtime passará a alimentar operadores Φ diretamente com os termos LC-Ω, usando o `lc_meta_calc` como gatilho determinístico. O objetivo é que o hardware reconheça consultas/afirmações e dispare sequências específicas sem intervenção extra.
 
 ## Camadas principais
 
