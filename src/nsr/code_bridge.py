@@ -39,7 +39,7 @@ PYTHON_KEYWORDS = (
 
 
 def maybe_route_code(text_value: str, module_name: str = "input") -> CodeHook | None:
-    """Detecta código Python determinístico e devolve o pacote LIU correspondente."""
+    """Detecta código determinístico e devolve o pacote LIU correspondente."""
 
     if not _looks_like_python(text_value):
         return None
