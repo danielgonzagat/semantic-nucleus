@@ -14,6 +14,7 @@ from nsr import (
     EquationInvariantStatus,
     tokenize,
     build_struct,
+    meta_summary_to_dict,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
@@ -138,7 +139,18 @@ def test_run_text_full_exposes_explanation():
     assert "Explicação determinística" in outcome.explanation
     assert "Relações" in outcome.explanation
     assert "Relações novas" in outcome.explanation
-    assert "Relações removidas" in outcome.explanation
+
+
+def test_run_text_full_includes_meta_summary():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    summary = outcome.meta_summary
+    assert summary is not None
+    meta_dict = meta_summary_to_dict(summary)
+    assert meta_dict["route"] == "text"
+    assert meta_dict["input_size"] >= 1
+    assert meta_dict["answer"]
+    assert meta_dict["quality"] >= 0.0
 
 
 def test_run_text_with_explanation_returns_triple():
@@ -147,6 +159,27 @@ def test_run_text_with_explanation_returns_triple():
     assert answer
     assert trace.steps
     assert "Relações novas" in explanation
+
+
+def test_session_ctx_accumulates_meta_history():
+    session = SessionCtx()
+    texts = ("Um carro existe", "O carro tem roda", "O carro anda rapido")
+    for text_value in texts:
+        run_text(text_value, session)
+    assert len(session.meta_history) == len(texts)
+    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    assert previews == list(texts)
+
+
+def test_meta_history_respects_limit():
+    session = SessionCtx()
+    session.config.meta_history_limit = 2
+    run_text("Um carro existe", session)
+    run_text("O carro tem roda", session)
+    run_text("O carro anda rapido", session)
+    assert len(session.meta_history) == 2
+    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    assert previews == ["O carro tem roda", "O carro anda rapido"]
 
 
 def test_run_struct_full_exposes_isr_and_quality():

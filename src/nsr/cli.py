@@ -11,6 +11,7 @@ from pathlib import Path
 from typing import Any, Dict
 
 from . import SessionCtx, run_text_full
+from .meta_transformer import meta_summary_to_dict
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -56,6 +57,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--include-explanation",
         action="store_true",
         help="Inclui narrativa determinística Equação→Texto baseada no estado final.",
+    )
+    parser.add_argument(
+        "--include-meta",
+        action="store_true",
+        help="Inclui meta_summary (meta_route/meta_input/meta_output) no payload final.",
     )
     return parser
 
@@ -108,6 +114,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["equation_stats"] = outcome.equation.stats().to_dict()
     if args.include_explanation:
         payload["explanation"] = outcome.explanation
+    if args.include_meta and outcome.meta_summary:
+        payload["meta_summary"] = meta_summary_to_dict(outcome.meta_summary)
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:

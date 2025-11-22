@@ -70,3 +70,15 @@ def test_cli_includes_explanation(capsys):
     assert "Relações" in data["explanation"]
     assert "Relações novas" in data["explanation"]
     assert "Relações removidas" in data["explanation"]
+
+
+def test_cli_includes_meta_summary(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["route"] == "text"
+    assert meta["input_size"] >= 1
+    assert meta["answer"]
