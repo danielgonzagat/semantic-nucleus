@@ -230,6 +230,7 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     assert summary_dict["phi_plan_const_len"] == 1
     assert summary_dict["language_category"] == "text"
     assert summary_dict["language_detected"] == "pt"
+    assert len(summary_dict["meta_digest"]) == 32
 
 
 def test_meta_summary_includes_plan_metadata_for_math():

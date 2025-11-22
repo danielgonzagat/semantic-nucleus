@@ -430,6 +430,7 @@ def build_meta_summary(
         nodes.append(meta.code_ast)
     if meta.math_ast is not None:
         nodes.append(meta.math_ast)
+    nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
 
@@ -501,6 +502,10 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         value_node = math_fields.get("value")
         if value_node is not None:
             result["math_ast_value"] = _value(value_node)
+    digest_node = nodes.get("meta_digest")
+    if digest_node is not None:
+        digest_fields = _fields(digest_node)
+        result["meta_digest"] = _label(digest_fields.get("hex"))
     return result
 
 
@@ -568,3 +573,10 @@ def _calculus_answer_node(calculus: MetaCalculation) -> Node:
         tag=entity("lc_meta_calc"),
         payload=meta_calculation_to_node(calculus),
     )
+
+
+def _meta_digest_node(nodes: list[Node]) -> Node:
+    hasher = blake2b(digest_size=16)
+    for node in nodes:
+        hasher.update(fingerprint(node).encode("utf-8"))
+    return liu_struct(tag=entity("meta_digest"), hex=liu_text(hasher.hexdigest()))

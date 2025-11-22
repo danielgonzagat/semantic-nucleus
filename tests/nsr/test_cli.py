@@ -98,6 +98,7 @@ def test_cli_includes_meta_summary(capsys):
     assert meta["phi_plan_program_len"] >= 3
     assert meta["language_category"] == "text"
     assert meta["language_detected"] in {"pt", "en"}
+    assert len(meta["meta_digest"]) == 32
 
 
 def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
