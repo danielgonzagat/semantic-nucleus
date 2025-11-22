@@ -9,7 +9,7 @@ from typing import Tuple
 
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation
-from .adapters import TextInputAdapter, classify_input, InputKind
+from .adapters import TextInputAdapter, CodeInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
 from .scheduler import Scheduler
 
@@ -18,6 +18,7 @@ from .scheduler import Scheduler
 class MetaRuntime:
     state: MetaState
     text_adapter: TextInputAdapter = field(default_factory=TextInputAdapter)
+    code_adapter: CodeInputAdapter = field(default_factory=CodeInputAdapter)
     scheduler: Scheduler = field(default_factory=Scheduler)
     renderer: OutputRenderer = field(default_factory=OutputRenderer)
 
@@ -29,7 +30,10 @@ class MetaRuntime:
             result = self._handle_control(raw_input.strip())
             self.state.metrics.total_requests += 1
             return result
-        msg = self.text_adapter.to_liu(raw_input, lang)
+        if kind is InputKind.CODE:
+            msg = self.code_adapter.to_liu(raw_input)
+        else:
+            msg = self.text_adapter.to_liu(raw_input, lang)
         self._inject_message(msg)
         self.scheduler.run(self.state)
         output = self.renderer.render(self.state)
@@ -111,8 +115,16 @@ class MetaRuntime:
             return
         lang_node = msg.fields.get("lang")
         content_node = msg.fields.get("content") or msg.fields.get("raw")
+        kind_field = msg.fields.get("kind")
+        kind_label = kind_field.label if kind_field and kind_field.kind is NodeKind.TEXT else ""
+        if kind_label == "utterance" or not kind_label:
+            route_value = "text"
+        elif kind_label == "code_snippet":
+            route_value = "code"
+        else:
+            route_value = kind_label
         summary = {
-            "route": "text",
+            "route": route_value,
             "lang": (lang_node.label if lang_node and lang_node.kind is NodeKind.TEXT else ""),
             "input": (
                 content_node.label if content_node and content_node.kind is NodeKind.TEXT else ""
