@@ -6,6 +6,57 @@
 
 Núcleo Originário é a implementação de referência da inteligência simbólica LIU/NSR/ΣVM: entrada textual → equação LIU → cálculo determinístico → resposta auditável. Nenhum componente usa pesos ou ML; apenas lógica estrutural, bytecode e matemática.
 
+## Metanúcleo
+
+### Definição oficial
+
+O **Metanúcleo** é o núcleo simbólico-determinístico que transforma qualquer entrada em meta-representação interna, converte essa estrutura em meta-cálculo auditável e despacha o cálculo puro para o hardware. Cada execução segue o pipeline irreversível reversível:
+
+1. Entrada (linguagem, código, dados, matemática, instruções).
+2. Meta-representação universal (meta-linguagem, meta-programação, meta-matemática, meta-estrutura).
+3. Meta-cálculo (operadores Φ, LC-Ω, Math-Core, Logic-Engine).
+4. Cálculo físico determístico (ΣVM / hardware).
+5. Meta-resultado (equações, provas, estados).
+6. Síntese reversa (meta-expressão → forma original).
+
+### Manifesto oficial do Metanúcleo
+
+1. **Determinismo absoluto** – mesma entrada ⇒ mesma meta-representação ⇒ mesmo meta-cálculo ⇒ mesma saída, sem aleatoriedade ou pesos ocultos.
+2. **Meta é cálculo** – toda estrutura humana/computacional é primeiro normalizada em meta-linguagem; somente depois vira cálculo delegável.
+3. **Transparência auditável** – cada etapa deixa termos LIU, equações e snapshots ΣVM verificáveis.
+4. **Inteligência estrutural inata** – operadores simbólicos (Meta-Ler, Meta-Pensar, Meta-Calcular, Meta-Expressar) já nascem instalados e podem evoluir adicionando regras formais.
+5. **Universalidade modular** – linguagem natural, programação, matemática e lógica compartilham a mesma ontologia, mesmos operadores e mesmo runtime.
+6. **Auto-evolução determinística** – o núcleo aprende novas regras apenas quando consegue provar que preserva coerência, reduz contradições e mantém reversibilidade.
+
+### Diagrama textual
+
+```
+Entrada crua (texto / código / dados / equações)
+        ↓ Meta-LER
+Meta-representação (meta-linguagem / meta-programação / meta-matemática)
+        ↓ Meta-PENSAR
+Normalização + reescrita + inferência (LC-Ω, Φ-meta, ontologias)
+        ↓ Meta-CALCULAR
+Meta-cálculo determinístico (Math-Core, Logic-Engine, ΣVM IR)
+        ↓ Execução física
+Hardware executa cálculo puro (bytecode ΣVM / operadores Φ)
+        ↓ Meta-EXPRESSAR
+Meta-resultado → linguagem/código/matemática original, auditável e reversível
+```
+
+### Diagrama MermaidJS
+
+```mermaid
+flowchart LR
+    A[Entrada crua<br/>texto ∣ código ∣ dados] --> B[Meta-LER<br/>tokenização → meta-representação]
+    B --> C[Meta-PENSAR<br/>normalização ∣ reescrita ∣ inferência]
+    C --> D[Meta-CALCULAR<br/>LC-Ω ∣ Math-Core ∣ Logic-Engine]
+    D --> E[Execução física<br/>ΣVM · hardware determinístico]
+    E --> F[Meta-EXPRESSAR<br/>meta-resultado → saída original]
+    F --> G[Memória / Ontologias<br/>aprendizado simbólico reversível]
+    G -. retroalimenta .-> B
+```
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
