@@ -184,6 +184,9 @@ class MetaTransformer:
             filtered = tuple((op.label or "") for op in ops if (op.label or ""))
             if filtered:
                 phi_plan_ops = filtered
+        plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops)
+        if plan_context is not None:
+            meta_context = tuple((*meta_context, plan_context))
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
@@ -279,16 +282,16 @@ def _meta_calc_node(calc_node: Node) -> Node:
     )
 
 
-def _meta_plan_node(meta: MetaTransformResult | None) -> Node | None:
-    if meta is None or not meta.phi_plan_ops:
+def _meta_plan_node(route: MetaRoute, plan_ops: Tuple[str, ...] | None) -> Node | None:
+    if not plan_ops:
         return None
-    ops_nodes = [entity(label) for label in meta.phi_plan_ops if label]
+    ops_nodes = [entity(label) for label in plan_ops if label]
     if not ops_nodes:
         return None
-    chain = "→".join(meta.phi_plan_ops)
+    chain = "→".join(plan_ops)
     return liu_struct(
         tag=entity("meta_plan"),
-        route=entity(meta.route.value),
+        route=entity(route.value),
         chain=liu_text(chain),
         ops=list_node(ops_nodes),
     )
@@ -308,7 +311,7 @@ def build_meta_summary(
     calc_node = _extract_meta_calculation(meta)
     if calc_node is not None:
         nodes.append(calc_node)
-    plan_node = _meta_plan_node(meta)
+    plan_node = _meta_plan_node(meta.route, meta.phi_plan_ops)
     if plan_node is not None:
         nodes.append(plan_node)
     return tuple(nodes)

@@ -126,6 +126,11 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert result.meta_calculation is not None
     assert result.meta_calculation.operator == "STATE_QUERY"
     assert result.phi_plan_ops == ("NORMALIZE", "INFER", "SUMMARIZE")
+    context_tags = [dict(node.fields)["tag"].label for node in result.preseed_context]
+    assert context_tags.count("meta_plan") == 1
+    plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
+    plan_fields = dict(plan_node.fields)
+    assert (plan_fields["chain"].label or "") == "NORMALIZE→INFER→SUMMARIZE"
     constants = result.calc_plan.program.constants
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
