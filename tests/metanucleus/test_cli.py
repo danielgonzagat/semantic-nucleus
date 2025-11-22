@@ -34,3 +34,10 @@ def test_cli_evolve_invalid_suite(tmp_path, capsys):
     captured = capsys.readouterr()
     assert exit_code != 0
     assert "Suite 'unknown' desconhecida" in captured.out
+
+
+def test_cli_testcore_command(capsys):
+    exit_code = main(["testcore", "basic"])
+    captured = capsys.readouterr()
+    assert exit_code in (0, 2)  # depende do resultado do suite básico
+    assert "[TESTCORE:basic]" in captured.out

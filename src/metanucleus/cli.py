@@ -132,6 +132,20 @@ def build_parser() -> argparse.ArgumentParser:
         "--samples",
         help="lista de amostras numéricas separadas por vírgula para regressão (ex: 0,1,5)",
     )
+
+    testcore_cmd = sub.add_parser(
+        "testcore",
+        help="Roda um suite do TESTCORE em sandbox determinístico.",
+    )
+    testcore_cmd.add_argument(
+        "suite",
+        help=f"nome do suite cadastrado (disponíveis: {', '.join(list_suites())})",
+    )
+    testcore_cmd.add_argument(
+        "--json",
+        action="store_true",
+        help="imprime o resultado em JSON compacto",
+    )
     return parser
 
 
@@ -141,6 +155,58 @@ def main(argv: Iterable[str] | None = None) -> int:
 
     if args.command == "evolve":
         return _cmd_evolve(args)
+    if args.command == "testcore":
+        suite = get_suite(args.suite)
+        if suite is None:
+            print(f"[TESTCORE] suite desconhecida: {args.suite}")
+            return 1
+        runtime = MetaRuntime(state=MetaState())
+        results = run_test_suite(runtime, suite)
+        total = len(results)
+        passed = sum(1 for r in results if r.passed)
+        failed = total - passed
+        if args.json:
+            import json
+
+            payload = {
+                "suite": args.suite,
+                "total": total,
+                "passed": passed,
+                "failed": failed,
+                "results": [
+                    {
+                        "name": r.case.name,
+                        "status": "OK" if r.passed else "FAIL",
+                        "intent": r.detected_intent,
+                        "lang": r.detected_lang,
+                        "diffs": [
+                            {"path": d.path, "expected": d.expected, "actual": d.actual}
+                            for d in r.field_diffs
+                        ],
+                    }
+                    for r in results
+                ],
+            }
+            print(json.dumps(payload, ensure_ascii=False))
+        else:
+            print(
+                f"[TESTCORE:{args.suite}] total={total} passed={passed} failed={failed}"
+            )
+            for result in results:
+                status = "OK" if result.passed else "FAIL"
+                line = (
+                    f"  {status} {result.case.name}"
+                    f" intent={result.detected_intent or '-'}"
+                    f" lang={result.detected_lang or '-'}"
+                )
+                if result.field_diffs:
+                    diffs = "; ".join(
+                        f"{d.path} expected={d.expected} actual={d.actual}"
+                        for d in result.field_diffs
+                    )
+                    line += f" diffs={diffs}"
+                print(line)
+        return 0 if failed == 0 else 2
 
     parser.print_help()
     return 0
