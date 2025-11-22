@@ -1,6 +1,7 @@
 import pytest
 
 from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
+from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from svm.opcodes import Opcode
 
 
@@ -139,3 +140,21 @@ def test_text_route_appends_lc_meta_calc_to_context(monkeypatch):
     assert "lc_meta_calc" in tags
     assert outcome.calc_result is not None
     assert outcome.calc_result.answer is not None
+
+
+def test_meta_summary_includes_meta_calculation(monkeypatch):
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+    meta_result = transformer.transform("como você está?")
+    summary_nodes = build_meta_summary(meta_result, "placeholder", 0.8, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    calc_json = summary_dict.get("meta_calculation")
+    assert calc_json
+    assert '"label":"STATE_QUERY"' in calc_json
