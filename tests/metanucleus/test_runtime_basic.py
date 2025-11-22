@@ -63,3 +63,11 @@ def test_reset_and_goals_command(runtime):
     assert "resetado" in reset_output
     goals_output_after = runtime.handle_request("/goals")
     assert "(vazio)" in goals_output_after
+
+
+def test_context_command_lists_recent(runtime):
+    runtime.handle_request("Primeira frase.")
+    runtime.handle_request("Segunda frase informativa.")
+    context_output = runtime.handle_request("/context")
+    assert "Contexto" in context_output
+    assert "Segunda frase" in context_output

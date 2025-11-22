@@ -54,6 +54,8 @@ class MetaRuntime:
             return "[META] Fatos: " + "; ".join(relations)
         if command == "/state":
             return self._format_state()
+        if command == "/context":
+            return self._format_context()
         if command == "/reset":
             self.state.isr.context.clear()
             self.state.isr.goals.clear()
@@ -68,9 +70,7 @@ class MetaRuntime:
 
     def _format_state(self) -> str:
         isr = self.state.isr
-        ctx_preview = [
-            _preview(node) for node in isr.context[-3:]
-        ]
+        ctx_preview = _context_snippets(isr.context, limit=3)
         answer_text = _preview(isr.answer)
         return (
             "[META] Estado:"
@@ -78,6 +78,12 @@ class MetaRuntime:
             f"context={ctx_preview}; "
             f"answer={answer_text}"
         )
+
+    def _format_context(self) -> str:
+        snippets = _context_snippets(self.state.isr.context, limit=5)
+        if not snippets:
+            return "[META] Contexto vazio."
+        return "[META] Contexto: " + " | ".join(snippets)
 
 
 def _preview(node: Node | None) -> str:
@@ -92,3 +98,7 @@ def _preview(node: Node | None) -> str:
     if node.label:
         return node.label[:40]
     return node.kind.name.lower()
+
+
+def _context_snippets(context: list[Node], limit: int) -> list[str]:
+    return [_preview(node) for node in context[-limit:] if node]
