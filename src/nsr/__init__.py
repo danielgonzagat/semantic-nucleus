@@ -39,6 +39,7 @@ from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
+from .meta_calculator import MetaCalculationResult, execute_meta_plan
 
 __all__ = [
     "run_text",
@@ -91,5 +92,7 @@ __all__ = [
     "MetaTransformResult",
     "MetaRoute",
     "MetaCalculationPlan",
+    "MetaCalculationResult",
+    "execute_meta_plan",
     "meta_summary_to_dict",
 ]

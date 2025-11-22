@@ -519,6 +519,27 @@ def test_run_text_full_short_circuits_for_ian():
     assert has_reply_context
 
 
+def test_run_text_full_provides_calc_plan_for_math():
+    session = SessionCtx()
+    outcome = run_text_full("2 + 2", session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route.value == "math"
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+    assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+
+
+def test_run_text_full_provides_calc_plan_for_code():
+    session = SessionCtx()
+    code = "def soma(x, y):\n    return x + y\n"
+    outcome = run_text_full(code, session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route.value == "code"
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+    assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+
+
 def test_code_eval_pure_binop_enriches_context():
     session = SessionCtx()
     base = struct(subject=entity("carro"))

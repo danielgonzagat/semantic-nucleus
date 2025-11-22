@@ -22,7 +22,8 @@ from .operators import apply_operator
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
-from .meta_transformer import MetaTransformer, MetaTransformResult, build_meta_summary
+from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, build_meta_summary
+from .meta_calculator import MetaCalculationResult, execute_meta_plan
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -101,6 +102,8 @@ class RunOutcome:
     equation_digest: str
     explanation: str
     meta_summary: Tuple[Node, ...] | None = None
+    calc_plan: MetaCalculationPlan | None = None
+    calc_result: MetaCalculationResult | None = None
 
     @property
     def quality(self) -> float:
@@ -185,6 +188,15 @@ def run_struct_full(
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
         trace.halt(HaltReason.QUALITY_THRESHOLD, isr, finalized=True)
         snapshot = snapshot_equation(struct_node, isr)
+        calc_plan = meta_info.calc_plan if meta_info else None
+        calc_result = (
+            execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
+        )
+        summary = (
+            build_meta_summary(meta_info, _answer_text(isr), isr.quality, HaltReason.QUALITY_THRESHOLD.value)
+            if meta_info
+            else None
+        )
         return RunOutcome(
             answer=_answer_text(isr),
             trace=trace,
@@ -194,6 +206,9 @@ def run_struct_full(
             equation=snapshot,
             equation_digest=snapshot.digest(),
             explanation=render_explanation(isr, struct_node),
+            meta_summary=summary,
+            calc_plan=calc_plan,
+            calc_result=calc_result,
         )
     steps = 0
     seen_signatures = set()
@@ -285,6 +300,10 @@ def run_struct_full(
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     if session.logic_engine:
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
+    calc_plan = meta_info.calc_plan if meta_info else None
+    calc_result = (
+        execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
+    )
     meta_summary = (
         build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
     )
@@ -303,6 +322,8 @@ def run_struct_full(
         equation_digest=snapshot.digest(),
         explanation=render_explanation(isr, struct_node),
         meta_summary=meta_summary,
+        calc_plan=calc_plan,
+        calc_result=calc_result,
     )
 
 
