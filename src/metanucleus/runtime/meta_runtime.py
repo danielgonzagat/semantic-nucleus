@@ -10,7 +10,7 @@ from pathlib import Path
 from time import time
 from typing import Tuple, Sequence
 
-from metanucleus.core.evolution import MetaEvolution
+from metanucleus.core.evolution import MetaEvolution, explanation_to_dict
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation, reset_answer
 from metanucleus.core.sandbox import MetaSandbox
@@ -403,12 +403,24 @@ class MetaRuntime:
         diff_text = result.diff or ""
         patch_path.write_text(diff_text, encoding="utf-8")
 
+        explain_path = path.with_suffix(path.suffix + ".meta.explain.json")
+        explanation_payload = None
+        if result.explanation:
+            explanation_payload = explanation_to_dict(result.explanation)
+            explain_path.write_text(
+                json.dumps(explanation_payload, ensure_ascii=False, indent=2),
+                encoding="utf-8",
+            )
+
         analysis = result.analysis
         summary_lines = [
             "[META-EVOLVE] Evolução bem-sucedida.",
             f"  alvo: {path}:{func_name}",
             f"  patch: {patch_path}",
         ]
+        if explanation_payload:
+            summary_lines.append(f"  explicação: {explain_path}")
+            summary_lines.append(f"  resumo: {result.explanation.summary}")
         if analysis:
             summary_lines.append(
                 f"  custo: {analysis.cost_before} → {analysis.cost_after}"

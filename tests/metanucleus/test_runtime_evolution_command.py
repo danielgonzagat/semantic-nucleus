@@ -23,7 +23,12 @@ def test_evolve_command_generates_patch(tmp_path):
     diff_contents = patch_file.read_text(encoding="utf-8")
     assert "return (x * 2) + (x * 2)" in diff_contents
     assert "return 4 * x" in diff_contents
+    explain_file = target_file.with_suffix(".py.meta.explain.json")
+    assert explain_file.exists()
+    explain_data = json.loads(explain_file.read_text(encoding="utf-8"))
+    assert "summary" in explain_data
     assert "tests: skipped" in output
+    assert "explicação" in output
     assert runtime.state.evolution_log
     event = runtime.state.evolution_log[-1]
     assert event["status"] == "success"

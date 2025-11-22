@@ -234,6 +234,38 @@ def _diff_strings(original: str, optimized: str, path: str) -> str:
     return "\n".join(diff_lines)
 
 
+def _jsonify_value(value: object) -> object:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return repr(value)
+
+
+def explanation_to_dict(expl: PatchExplanation) -> dict:
+    return {
+        "summary": expl.summary,
+        "operations": expl.operations,
+        "cost": {
+            "before": expl.cost_before,
+            "after": expl.cost_after,
+            "delta": expl.cost_before - expl.cost_after,
+        },
+        "redundant_terms": expl.redundant_terms,
+        "liu_signature": expl.liu_signature,
+        "regression": {
+            "passed": expl.regression.passed,
+            "samples": [
+                {
+                    "inputs": list(sample.inputs),
+                    "original_output": _jsonify_value(sample.original_output),
+                    "candidate_output": _jsonify_value(sample.candidate_output),
+                    "matched": sample.matched,
+                }
+                for sample in expl.regression.samples
+            ],
+        },
+    }
+
+
 def _describe_operations(
     original_expr: ast.AST,
     simplified_expr: ast.AST,
@@ -563,4 +595,5 @@ __all__ = [
     "PatchExplanation",
     "RegressionReport",
     "RegressionSample",
+    "explanation_to_dict",
 ]

@@ -16,7 +16,7 @@ from typing import Iterable, List, Sequence, Tuple
 from metanucleus.core.evolution import (
     EvolutionRequest,
     MetaEvolution,
-    PatchExplanation,
+    explanation_to_dict,
 )
 from metanucleus.core.state import MetaState
 from metanucleus.runtime.meta_runtime import MetaRuntime
@@ -97,38 +97,6 @@ def _build_patch(original: str, optimized: str, file_path: Path) -> str:
     if not diff_lines:
         return ""
     return "\n".join(diff_lines) + "\n"
-
-
-def _jsonify_value(value: object) -> object:
-    if isinstance(value, (str, int, float, bool)) or value is None:
-        return value
-    return repr(value)
-
-
-def _serialize_explanation(expl: PatchExplanation) -> dict:
-    return {
-        "summary": expl.summary,
-        "operations": expl.operations,
-        "cost": {
-            "before": expl.cost_before,
-            "after": expl.cost_after,
-            "delta": expl.cost_before - expl.cost_after,
-        },
-        "redundant_terms": expl.redundant_terms,
-        "liu_signature": expl.liu_signature,
-        "regression": {
-            "passed": expl.regression.passed,
-            "samples": [
-                {
-                    "inputs": list(sample.inputs),
-                    "original_output": _jsonify_value(sample.original_output),
-                    "candidate_output": _jsonify_value(sample.candidate_output),
-                    "matched": sample.matched,
-                }
-                for sample in expl.regression.samples
-            ],
-        },
-    }
 
 
 def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
@@ -255,7 +223,7 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     explanation = result.explanation
     explain_path = path.with_suffix(path.suffix + ".meta.explain.json")
     if explanation:
-        explanation_payload = _serialize_explanation(explanation)
+        explanation_payload = explanation_to_dict(explanation)
     else:
         explanation_payload = {"summary": "indisponível"}
     explain_path.write_text(
