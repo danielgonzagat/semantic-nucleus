@@ -376,6 +376,23 @@ def test_run_text_handles_french_verbose_health_question():
     assert any("IAN[QUESTION_HEALTH_VERBOSE_FR" in step for step in trace.steps)
 
 
+def test_run_text_handles_italian_greeting():
+    session = SessionCtx()
+    answer, trace = run_text("ciao!", session)
+    assert answer == "ciao"
+    assert any("IAN[GREETING_SIMPLE_IT" in step for step in trace.steps)
+
+
+def test_run_text_handles_italian_health_questions():
+    session = SessionCtx()
+    answer, trace = run_text("tutto bene?", session)
+    assert answer == "tutto bene, e tu?"
+    assert any("IAN[QUESTION_HEALTH_IT" in step for step in trace.steps)
+    answer_verbose, trace_verbose = run_text("come stai?", session)
+    assert answer_verbose == "sto bene, e tu?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_IT" in step for step in trace_verbose.steps)
+
+
 def test_ian_reply_language_portuguese():
     session = SessionCtx()
     outcome = run_text_full("oi, tudo bem?", session)
@@ -406,6 +423,14 @@ def test_ian_reply_language_french():
     reply_fields = _extract_ian_reply(outcome)
     assert reply_fields is not None
     assert (reply_fields["plan_language"].label or "") == "fr"
+
+
+def test_ian_reply_language_italian():
+    session = SessionCtx()
+    outcome = run_text_full("come stai?", session)
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "it"
 
 
 def test_language_hint_controls_non_ian_renderer():
