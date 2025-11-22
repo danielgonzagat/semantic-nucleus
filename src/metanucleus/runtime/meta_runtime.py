@@ -15,7 +15,7 @@ from metanucleus.test.testcore import run_test_suite
 from .adapters import TextInputAdapter, CodeInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
 from .scheduler import Scheduler
-from .test_suites import BASIC_RUNTIME_SUITE
+from .test_suites import get_suite, list_suites
 
 
 @dataclass(slots=True)
@@ -86,9 +86,7 @@ class MetaRuntime:
                 limit = max(1, min(10, int(parts[1])))
             return self._format_meta(limit)
         if command.startswith("/testcore"):
-            parts = command.split()
-            json_mode = len(parts) > 1 and parts[1].lower() == "json"
-            return self._run_builtin_testcore(as_json=json_mode)
+            return self._handle_testcore_command(command)
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -144,10 +142,31 @@ class MetaRuntime:
         if len(self.state.meta_history) > limit:
             del self.state.meta_history[:-limit]
 
-    def _run_builtin_testcore(self, as_json: bool = False) -> str:
+    def _handle_testcore_command(self, command: str) -> str:
+        tokens = command.split()
+        suite_name = "basic"
+        json_mode = False
+        for token in tokens[1:]:
+            lower = token.lower()
+            if lower == "json":
+                json_mode = True
+            elif get_suite(lower):
+                suite_name = lower
+            else:
+                return (
+                    "[TESTCORE] argumentos inválidos. "
+                    f"Use um dos suites: {', '.join(list_suites())} "
+                    "e opcionalmente 'json'."
+                )
+        return self._run_builtin_testcore(suite_name=suite_name, as_json=json_mode)
+
+    def _run_builtin_testcore(self, suite_name: str = "basic", as_json: bool = False) -> str:
+        suite = get_suite(suite_name)
+        if suite is None:
+            return f"[TESTCORE] suite desconhecida: {suite_name}"
         sandbox = MetaSandbox.from_state(self.state)
         temp_runtime = sandbox.spawn_runtime()
-        results = run_test_suite(temp_runtime, BASIC_RUNTIME_SUITE)
+        results = run_test_suite(temp_runtime, suite)
         total = len(results)
         passed = sum(1 for r in results if r.passed)
         if as_json:
@@ -170,7 +189,7 @@ class MetaRuntime:
             return json.dumps(payload, ensure_ascii=False)
 
         lines = [
-            f"[TESTCORE] total={total} passed={passed} failed={total - passed}"
+            f"[TESTCORE:{suite_name}] total={total} passed={passed} failed={total - passed}"
         ]
         for result in results:
             status = "OK" if result.passed else "FAIL"

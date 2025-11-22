@@ -91,7 +91,7 @@ def test_meta_command_reports_last_summary(runtime):
 def test_testcore_command_runs_suite(runtime):
     runtime.handle_request("Oi Metanúcleo!")
     output = runtime.handle_request("/testcore")
-    assert "[TESTCORE]" in output
+    assert "[TESTCORE:basic]" in output
     assert "greeting_pt" in output
 
 
@@ -100,3 +100,10 @@ def test_testcore_json_output(runtime):
     output = runtime.handle_request("/testcore json")
     assert output.startswith("{")
     assert '"total"' in output
+
+
+def test_testcore_alt_suite(runtime):
+    runtime.handle_request("Olá!")
+    output = runtime.handle_request("/testcore math")
+    assert "[TESTCORE:math]" in output
+    assert "math_simple_add" in output
