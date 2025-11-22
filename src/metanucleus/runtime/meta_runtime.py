@@ -239,19 +239,28 @@ class MetaRuntime:
     def _handle_evolve_command(self, command: str) -> str:
         """
         Executa o pipeline de meta-evolução para um alvo em disco.
-        Uso: /evolve caminho/para/arquivo.py:funcao
+        Uso: /evolve caminho/arquivo.py:funcao [suite=nome|suite=none]
         """
-        parts = command.split(maxsplit=1)
-        if len(parts) == 1:
-            return "[META-EVOLVE] Uso: /evolve caminho/arquivo.py:funcao"
+        tokens = command.split()
+        if len(tokens) < 2:
+            return "[META-EVOLVE] Uso: /evolve caminho/arquivo.py:funcao [suite=nome]"
 
-        target_spec = parts[1].strip()
+        target_spec = tokens[1].strip()
         if ":" not in target_spec:
             return "[META-EVOLVE] Formato inválido. Use caminho/arquivo.py:funcao"
 
         path_str, func_name = target_spec.split(":", 1)
         if not func_name:
             return "[META-EVOLVE] Nome da função ausente."
+
+        suite_name: str | None = None
+        for token in tokens[2:]:
+            if token.startswith("suite="):
+                value = token.split("=", 1)[1].lower()
+                if value in {"none", "skip", "off"}:
+                    suite_name = None
+                else:
+                    suite_name = value
 
         path = Path(path_str).expanduser()
         if not path.is_absolute():
@@ -268,6 +277,50 @@ class MetaRuntime:
         if not result.success:
             return f"[META-EVOLVE] Nenhuma otimização aplicada ({result.reason})."
 
+        test_report_lines: list[str] = []
+        test_status = "skipped"
+        if suite_name is not None:
+            suite = get_suite(suite_name)
+            if suite is None:
+                available = ", ".join(list_suites())
+                return f"[META-EVOLVE] Suite desconhecida '{suite_name}'. Disponíveis: {available}"
+            # executa testes em snapshot determinístico novo para garantir isolamento
+            sandbox = MetaSandbox.from_state(MetaState())
+            temp_runtime = sandbox.spawn_runtime()
+            results = run_test_suite(temp_runtime, suite)
+            passed = all(r.passed for r in results)
+            status_text = "PASS" if passed else "FAIL"
+            test_status = "pass" if passed else "fail"
+            successes = sum(1 for r in results if r.passed)
+            test_report_lines.append(
+                f"  tests ({suite_name}): {status_text} ({successes}/{len(results)})"
+            )
+            if not passed:
+                for res in results:
+                    if res.passed:
+                        continue
+                    diff_summary = "; ".join(
+                        f"{d.path} expected={d.expected} actual={d.actual}"
+                        for d in res.field_diffs
+                    ) or "sem detalhes"
+                    test_report_lines.append(
+                        f"    - {res.case.name}: {diff_summary}"
+                    )
+                test_report_lines.append(
+                    "  Resultado dos testes incompatível. Patch não será gerado automaticamente."
+                )
+                self._register_evolution_event(
+                    target=f"{path}:{func_name}",
+                    status="tests_failed",
+                    suite=suite_name,
+                    patch_path=None,
+                    test_status=test_status,
+                    reason="testcore_failure",
+                )
+                return "\n".join(
+                    ["[META-EVOLVE] Evolução rejeitada pelos testes."] + test_report_lines
+                )
+
         patch_path = path.with_suffix(path.suffix + ".meta.patch")
         diff_text = result.diff or ""
         patch_path.write_text(diff_text, encoding="utf-8")
@@ -282,13 +335,48 @@ class MetaRuntime:
             summary_lines.append(
                 f"  custo: {analysis.cost_before} → {analysis.cost_after}"
             )
+        if test_report_lines:
+            summary_lines.extend(test_report_lines)
+        else:
+            summary_lines.append("  tests: skipped (use suite=nome para executar)")
         summary_lines.append("  diff preview:")
         preview = "\n".join(diff_text.splitlines()[:10]) or "(diff vazio)"
         summary_lines.append(preview)
         summary_lines.append(
             "Revise o patch gerado manualmente antes de aplicar ao repositório."
         )
+        self._register_evolution_event(
+            target=f"{path}:{func_name}",
+            status="success",
+            suite=suite_name or "skipped",
+            patch_path=str(patch_path),
+            test_status=test_status,
+            reason="optimization_found",
+        )
         return "\n".join(summary_lines)
+
+    def _register_evolution_event(
+        self,
+        *,
+        target: str,
+        status: str,
+        suite: str | None,
+        patch_path: str | None,
+        test_status: str,
+        reason: str,
+    ) -> None:
+        event = {
+            "target": target,
+            "status": status,
+            "suite": suite or "skipped",
+            "patch": patch_path or "",
+            "tests": test_status,
+            "reason": reason,
+        }
+        self.state.evolution_log.append(event)
+        limit = 20
+        if len(self.state.evolution_log) > limit:
+            del self.state.evolution_log[:-limit]
 
 
 def _preview(node: Node | None) -> str:

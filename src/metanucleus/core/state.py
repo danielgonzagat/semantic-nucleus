@@ -46,6 +46,7 @@ class MetaState:
     metrics: Metrics = field(default_factory=Metrics)
     config: Config = field(default_factory=Config)
     meta_history: List[Dict[str, str]] = field(default_factory=list)
+    evolution_log: List[Dict[str, str]] = field(default_factory=list)
 
 
 def reset_answer(state: MetaState) -> None:
