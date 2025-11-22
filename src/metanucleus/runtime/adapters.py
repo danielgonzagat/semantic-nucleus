@@ -13,6 +13,7 @@ from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
 
 class InputKind(str, Enum):
     TEXT = "text"
+    CONTROL = "control"
     UNKNOWN = "unknown"
 
 
@@ -20,6 +21,8 @@ def classify_input(raw: str) -> InputKind:
     stripped = raw.strip()
     if not stripped:
         return InputKind.UNKNOWN
+    if stripped.startswith("/"):
+        return InputKind.CONTROL
     return InputKind.TEXT
 
 

@@ -40,3 +40,9 @@ def test_math_question_returns_result(runtime):
     facts = runtime.state.isr.relations
     assert any(name == "EQUALS" for name, _ in facts)
     assert any(name == "SAID" for name, _ in facts)
+
+
+def test_facts_command_reports_relations(runtime):
+    runtime.handle_request("Quanto é 7 * 3?")
+    facts_output = runtime.handle_request("/facts")
+    assert "EQUALS" in facts_output
