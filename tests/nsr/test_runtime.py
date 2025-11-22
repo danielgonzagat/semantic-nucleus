@@ -161,6 +161,27 @@ def test_run_text_with_explanation_returns_triple():
     assert "Relações novas" in explanation
 
 
+def test_session_ctx_accumulates_meta_history():
+    session = SessionCtx()
+    texts = ("Um carro existe", "O carro tem roda", "O carro anda rapido")
+    for text_value in texts:
+        run_text(text_value, session)
+    assert len(session.meta_history) == len(texts)
+    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    assert previews == list(texts)
+
+
+def test_meta_history_respects_limit():
+    session = SessionCtx()
+    session.config.meta_history_limit = 2
+    run_text("Um carro existe", session)
+    run_text("O carro tem roda", session)
+    run_text("O carro anda rapido", session)
+    assert len(session.meta_history) == 2
+    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    assert previews == ["O carro tem roda", "O carro anda rapido"]
+
+
 def test_run_struct_full_exposes_isr_and_quality():
     session = SessionCtx()
     base = struct(subject=entity("carro"))

@@ -21,6 +21,7 @@ class Config:
     max_steps: int = 32
     min_quality: float = 0.6
     enable_contradiction_check: bool = True
+    meta_history_limit: int = 64
 
 
 @dataclass(slots=True)
@@ -94,6 +95,7 @@ class SessionCtx:
     language_hint: str | None = None
     logic_engine: "LogicEngine | None" = None
     logic_serialized: str | None = None
+    meta_history: List[Tuple[Node, ...]] = field(default_factory=list)
 
 
 @dataclass(slots=True)

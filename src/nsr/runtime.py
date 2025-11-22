@@ -288,6 +288,11 @@ def run_struct_full(
     meta_summary = (
         build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
     )
+    if meta_summary is not None:
+        session.meta_history.append(meta_summary)
+        limit = getattr(session.config, "meta_history_limit", 0)
+        if limit and len(session.meta_history) > limit:
+            del session.meta_history[:-limit]
     return RunOutcome(
         answer=answer_text,
         trace=trace,
