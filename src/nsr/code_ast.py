@@ -109,6 +109,18 @@ def _literal_preview(value: object) -> str:
 
 
 def build_rust_ast_meta(functions: list[dict], source: str) -> Node:
+    return _build_outline_code_ast("rust", functions, source)
+
+
+def build_js_ast_meta(functions: list[dict], source: str) -> Node:
+    return _build_outline_code_ast("javascript", functions, source)
+
+
+def build_elixir_ast_meta(functions: list[dict], source: str) -> Node:
+    return _build_outline_code_ast("elixir", functions, source)
+
+
+def _build_outline_code_ast(language: str, functions: list[dict], source: str) -> Node:
     fn_nodes = []
     for item in functions:
         params = [
@@ -121,7 +133,7 @@ def build_rust_ast_meta(functions: list[dict], source: str) -> Node:
         ]
         fn_nodes.append(
             liu_struct(
-                tag=entity("code_fn"),
+                tag=entity("code_fn_outline"),
                 name=entity(item["name"]),
                 params=list_node(params),
                 param_count=number(len(params)),
@@ -131,7 +143,7 @@ def build_rust_ast_meta(functions: list[dict], source: str) -> Node:
         )
     return liu_struct(
         tag=entity("code_ast"),
-        language=entity("rust"),
+        language=entity(language),
         node_count=number(len(functions)),
         functions=list_node(fn_nodes),
         preview=liu_text(_preview_source(source)),
@@ -153,4 +165,9 @@ def _summary_nodes(counter: Counter) -> list[Node]:
     return nodes
 
 
-__all__ = ["build_python_ast_meta", "build_rust_ast_meta"]
+__all__ = [
+    "build_python_ast_meta",
+    "build_rust_ast_meta",
+    "build_js_ast_meta",
+    "build_elixir_ast_meta",
+]

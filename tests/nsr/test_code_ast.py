@@ -1,4 +1,9 @@
-from nsr.code_ast import build_python_ast_meta, build_rust_ast_meta
+from nsr.code_ast import (
+    build_python_ast_meta,
+    build_rust_ast_meta,
+    build_js_ast_meta,
+    build_elixir_ast_meta,
+)
 
 
 def test_build_python_ast_meta_returns_struct():
@@ -40,3 +45,31 @@ def test_build_rust_ast_meta_serializes_outline():
     fn_struct = functions.args[0]
     fn_fields = dict(fn_struct.fields)
     assert fn_fields["name"].label == "soma"
+
+
+def test_build_js_ast_meta_serializes_outline():
+    items = [
+        {
+            "name": "sum",
+            "params": [{"name": "x", "type": ""}],
+            "body": "return x + 1;",
+        }
+    ]
+    ast_node = build_js_ast_meta(items, "function sum(x) { return x + 1; }")
+    fields = dict(ast_node.fields)
+    assert fields["language"].label == "javascript"
+    assert fields["node_count"].value == 1
+
+
+def test_build_elixir_ast_meta_serializes_outline():
+    items = [
+        {
+            "name": "soma",
+            "params": [{"name": "x", "type": ""}, {"name": "y", "type": ""}],
+            "body": "x + y",
+        }
+    ]
+    ast_node = build_elixir_ast_meta(items, "def soma(x, y) do\nx + y\nend")
+    fields = dict(ast_node.fields)
+    assert fields["language"].label == "elixir"
+    assert fields["node_count"].value == 1

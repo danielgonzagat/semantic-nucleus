@@ -8,11 +8,16 @@ import re
 from dataclasses import dataclass
 from typing import Tuple
 
-from liu import Node, entity, struct as liu_struct, text as liu_text, list_node, number
+from liu import Node, entity, struct as liu_struct, text as liu_text, list_node, number, relation
 
 from frontend_python.compiler import compile_source
 from frontend_rust.compiler import compile_items as compile_rust_items
-from .code_ast import build_python_ast_meta, build_rust_ast_meta
+from .code_ast import (
+    build_python_ast_meta,
+    build_rust_ast_meta,
+    build_js_ast_meta,
+    build_elixir_ast_meta,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -51,6 +56,24 @@ def maybe_route_code(text_value: str, module_name: str = "input", dialect: str |
     normalized = (dialect or "").lower()
     if normalized.startswith("rust"):
         return _maybe_route_rust(text_value, module_name)
+    if normalized.startswith("javascript") or normalized.startswith("js"):
+        return _maybe_route_outline(
+            text_value,
+            module_name,
+            language="javascript",
+            extractor=_extract_js_functions,
+            ast_builder=build_js_ast_meta,
+            trace_label="CODE[JS]",
+        )
+    if normalized.startswith("elixir"):
+        return _maybe_route_outline(
+            text_value,
+            module_name,
+            language="elixir",
+            extractor=_extract_elixir_functions,
+            ast_builder=build_elixir_ast_meta,
+            trace_label="CODE[ELIXIR]",
+        )
     if normalized and not normalized.startswith("python"):
         return None
     if not _looks_like_python(text_value):
@@ -108,6 +131,37 @@ def _maybe_route_rust(text_value: str, module_name: str) -> CodeHook | None:
         context_nodes=context_nodes,
         quality=0.82,
         trace_label="CODE[RUST]",
+        ast_node=ast_node,
+    )
+
+
+def _maybe_route_outline(
+    text_value: str,
+    module_name: str,
+    *,
+    language: str,
+    extractor,
+    ast_builder,
+    trace_label: str,
+) -> CodeHook | None:
+    items = extractor(text_value)
+    if not items:
+        return None
+    relations = tuple(_outline_relations(language, module_name, items))
+    if not relations:
+        return None
+    struct_node = _build_struct(relations, module_name, language)
+    answer_node = _build_answer(relations, module_name, language)
+    ast_node = ast_builder(items, text_value)
+    context_nodes = _build_context(relations, module_name, ast_node, language)
+    return CodeHook(
+        language=f"code/{language}",
+        module=module_name,
+        struct_node=struct_node,
+        answer_node=answer_node,
+        context_nodes=context_nodes,
+        quality=0.8,
+        trace_label=trace_label,
         ast_node=ast_node,
     )
 
@@ -205,6 +259,72 @@ def _rust_body_preview(source: str, start_index: int, limit: int = 200) -> str:
     if len(compact) <= limit:
         return compact
     return compact[: limit - 3] + "..."
+
+
+def _extract_js_functions(source: str) -> list[dict]:
+    pattern = re.compile(
+        r"function\s+([A-Za-z_][A-Za-z0-9_]*)\s*\(([^)]*)\)\s*\{(.*?)\}",
+        re.DOTALL,
+    )
+    items = []
+    for match in pattern.finditer(source):
+        name = match.group(1)
+        params = _parse_generic_params(match.group(2))
+        body = " ".join(match.group(3).strip().split())
+        items.append({"name": name, "params": params, "body": body, "ret": ""})
+    return items
+
+
+def _extract_elixir_functions(source: str) -> list[dict]:
+    pattern = re.compile(
+        r"defp?\s+([a-zA-Z0-9_!?]+)\s*\(([^)]*)\)\s+do(.*?)end",
+        re.DOTALL,
+    )
+    items = []
+    for match in pattern.finditer(source):
+        name = match.group(1)
+        params = _parse_generic_params(match.group(2))
+        body = " ".join(match.group(3).strip().split())
+        items.append({"name": name, "params": params, "body": body, "ret": ""})
+    return items
+
+
+def _parse_generic_params(segment: str) -> list[dict]:
+    params = []
+    for raw in segment.split(","):
+        token = raw.strip()
+        if not token:
+            continue
+        if ":" in token:
+            name, _, type_part = token.partition(":")
+            params.append({"name": name.strip(), "type": type_part.strip()})
+        else:
+            params.append({"name": token, "type": ""})
+    return params
+
+
+def _outline_relations(language: str, module_name: str, items: list[dict]) -> list[Node]:
+    rels = []
+    for item in items:
+        fn_entity = entity(f"code/fn::{language}::{module_name}::{item['name']}")
+        params = [
+            struct(tag=entity("code_param"), name=entity(param["name"]), type=text(param.get("type", "")))
+            for param in item.get("params", [])
+        ]
+        fn_struct = struct(
+            tag=entity("code_fn_outline"),
+            language=entity(language),
+            module=entity(module_name),
+            name=entity(item["name"]),
+            params=list_node(params),
+            param_count=number(len(params)),
+            ret=text(item.get("ret", "")),
+            body=text(item.get("body", "")),
+        )
+        rels.append(relation("code/DEFN", fn_entity, fn_struct))
+        for param_struct in params:
+            rels.append(relation("code/PARAM", fn_entity, param_struct))
+    return rels
 
 
 __all__ = ["CodeHook", "maybe_route_code"]
