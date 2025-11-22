@@ -188,7 +188,9 @@ def _op_code_eval_pure(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
 
 
 def _render_struct(node: Node) -> Node:
-    return text(render_struct_sentence(node))
+    language_node = _field_node(node, "language") or _field_node(node, "plan_language")
+    language = language_node.label if language_node and language_node.label else None
+    return text(render_struct_sentence(node, language=language))
 
 
 def _field_node(node: Node, field: str) -> Node | None:
