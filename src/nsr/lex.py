@@ -48,13 +48,14 @@ STOP_WORDS = {
 
 def tokenize(text: str, lexicon: Lexicon) -> List[Token]:
     tokens: List[Token] = []
-    for match in WORD_RE.finditer(text.lower()):
+    lowered = text.lower()
+    for match in WORD_RE.finditer(lowered):
         word = match.group(0)
         lemma = lexicon.synonyms.get(word, word)
         tag, payload = infer_tag(word, lemma, lexicon)
         if word in STOP_WORDS and tag == "ENTITY":
             continue
-        tokens.append(Token(lemma=lemma, tag=tag, payload=payload))
+        tokens.append(Token(lemma=lemma, tag=tag, payload=payload, surface=word))
     return tokens
 
 
