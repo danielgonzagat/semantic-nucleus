@@ -35,6 +35,8 @@ def test_evolve_command_generates_patch(tmp_path):
     assert event["suite"] == "skipped"
     assert event["tests"] == "skipped"
     assert event["patch"].endswith(".meta.patch")
+    assert event["explanation_summary"]
+    assert event["explanation_path"].endswith(".meta.explain.json")
 
 
 def test_evolve_command_can_run_test_suite(tmp_path):
@@ -75,6 +77,7 @@ def test_evolutions_command_lists_recent_events(tmp_path):
     assert "Últimos eventos" in output
     assert "target" in output
     assert str(target_file) in output
+    assert "summary=" in output
 
 
 def test_evolve_command_with_suite_file(tmp_path):

@@ -442,6 +442,8 @@ class MetaRuntime:
             patch_path=str(patch_path),
             test_status=test_status,
             reason="optimization_found",
+            explanation_summary=result.explanation.summary if result.explanation else "",
+            explanation_path=str(explain_path) if explanation_payload else "",
         )
         return "\n".join(summary_lines)
 
@@ -454,6 +456,8 @@ class MetaRuntime:
         patch_path: str | None,
         test_status: str,
         reason: str,
+        explanation_summary: str = "",
+        explanation_path: str = "",
     ) -> None:
         event = {
             "target": target,
@@ -462,6 +466,8 @@ class MetaRuntime:
             "patch": patch_path or "",
             "tests": test_status,
             "reason": reason,
+            "explanation_summary": explanation_summary,
+            "explanation_path": explanation_path,
         }
         self.state.evolution_log.append(event)
         limit = 20
@@ -538,7 +544,8 @@ class MetaRuntime:
         for entry in reversed(log):
             lines.append(
                 f"  target={entry['target']} status={entry['status']} "
-                f"suite={entry['suite']} tests={entry['tests']} patch={entry['patch'] or '-'}"
+                f"suite={entry['suite']} tests={entry['tests']} patch={entry['patch'] or '-'} "
+                f"summary={entry.get('explanation_summary') or '-'}"
             )
         return "\n".join(lines)
 
