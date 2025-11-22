@@ -185,6 +185,19 @@ def test_meta_history_respects_limit():
     assert previews == ["O carro tem roda", "O carro anda rapido"]
 
 
+def test_text_route_trace_logs_phi_plan(monkeypatch):
+    session = SessionCtx()
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+    outcome = run_text_full("como você está?", session)
+    assert outcome.trace.steps[0].startswith("1:Φ_PLAN[STATE_QUERY")
+
+
 def test_prime_ops_from_meta_calc_enqueues_phi_sequence():
     session = SessionCtx()
     struct_node = struct(subject=entity("carro"))
@@ -196,10 +209,11 @@ def test_prime_ops_from_meta_calc_enqueues_phi_sequence():
     )
     isr = initial_isr(struct_node, session)
     default_labels = [op.label for op in list(isr.ops_queue)]
-    nsr_runtime._prime_ops_from_meta_calc(isr, struct_node, meta)
+    plan_label = nsr_runtime._prime_ops_from_meta_calc(isr, struct_node, meta)
     labels = [op.label for op in list(isr.ops_queue)]
     assert labels[:4] == ["NORMALIZE", "ANSWER", "EXPLAIN", "SUMMARIZE"]
     assert labels[4:7] == default_labels[:3]
+    assert plan_label == "Φ_PLAN[STATE_ASSERT:NORMALIZE→ANSWER→EXPLAIN→SUMMARIZE]"
 
 
 def test_run_struct_full_exposes_isr_and_quality():
