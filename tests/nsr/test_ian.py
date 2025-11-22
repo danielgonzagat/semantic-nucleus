@@ -7,6 +7,7 @@ from nsr.ian import (
     word_signature,
     respond,
     plan_reply,
+    conjugate,
 )
 from nsr.ian_bridge import maybe_route_text
 
@@ -42,3 +43,17 @@ def test_maybe_route_text_builds_struct_and_answer():
     fields = dict(hook.answer_node.fields)
     assert "answer" in fields
     assert fields["answer"].label == "tudo bem, e você?"
+
+
+def test_verbose_health_question_response():
+    assert respond("como você está?") == "estou bem, e você?"
+
+
+def test_state_positive_and_negative_responses():
+    assert respond("estou bem") == "que bom!"
+    assert respond("não estou bem") == "sinto muito. posso ajudar?"
+
+
+def test_conjugation_table():
+    assert conjugate("estar", "pres", 1, "sing") == "estou"
+    assert conjugate("falar", "pres", 2, "sing") == "fala"

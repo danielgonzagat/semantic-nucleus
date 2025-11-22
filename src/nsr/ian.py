@@ -48,6 +48,28 @@ def _build_char_tables(sequence: Sequence[str]) -> Tuple[Dict[str, int], Dict[in
 CHAR_TO_CODE, CODE_TO_CHAR = _build_char_tables(_base_charset())
 
 
+CONJUGATION_TABLE: Dict[Tuple[str, str, str, str], str] = {
+    ("estar", "pres", "1", "sing"): "estou",
+    ("estar", "pres", "2", "sing"): "está",
+    ("estar", "pres", "3", "sing"): "está",
+    ("estar", "pres", "1", "plur"): "estamos",
+    ("estar", "pres", "2", "plur"): "estão",
+    ("estar", "pres", "3", "plur"): "estão",
+    ("ser", "pres", "1", "sing"): "sou",
+    ("ser", "pres", "2", "sing"): "é",
+    ("ser", "pres", "3", "sing"): "é",
+    ("ser", "pres", "1", "plur"): "somos",
+    ("ser", "pres", "2", "plur"): "são",
+    ("ser", "pres", "3", "plur"): "são",
+    ("falar", "pres", "1", "sing"): "falo",
+    ("falar", "pres", "2", "sing"): "fala",
+    ("falar", "pres", "3", "sing"): "fala",
+    ("falar", "pres", "1", "plur"): "falamos",
+    ("falar", "pres", "2", "plur"): "falam",
+    ("falar", "pres", "3", "plur"): "falam",
+}
+
+
 def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
     """
     Converte uma palavra (string) em uma sequência determinística de códigos inteiros.
@@ -118,6 +140,13 @@ def _normalize_char(char: str, table: Mapping[str, int] | None = None) -> str | 
         return None
     upper = char.upper()
     return upper if upper in table else None
+
+
+def conjugate(lemma: str, tense: str = "pres", person: int = 1, number: str = "sing") -> str:
+    key = (lemma.lower(), tense.lower(), str(person), number.lower())
+    if key not in CONJUGATION_TABLE:
+        raise ValueError(f"Conjugation not defined for {key}")
+    return CONJUGATION_TABLE[key]
 
 
 # ---------------------------------------------------------------------------
@@ -223,11 +252,12 @@ class IANInstinct:
     def plan_reply(self, utterance: Utterance) -> ReplyPlan:
         for rule in self.dialog_rules:
             if rule.matches(utterance):
-                codes = tuple(self._encode_token_surface(token) for token in rule.surface_tokens)
+                materialized = self._materialize_rule_tokens(rule)
+                codes = tuple(self._encode_token_surface(token) for token in materialized)
                 return ReplyPlan(
                     role=rule.reply_role,
                     semantics=rule.reply_semantics,
-                    tokens=rule.surface_tokens,
+                    tokens=materialized,
                     token_codes=codes,
                 )
         codes = tuple(self._encode_token_surface(token) for token in self.unknown_reply)
@@ -253,6 +283,8 @@ class IANInstinct:
 
     def _infer_role(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
         semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in tokens if not t.is_punctuation]
+        if self._matches_verbose_health_question(tokens, semantics_seq):
+            return "QUESTION_HEALTH_VERBOSE", "STATE_QUERY"
         if self._contains_greeting(semantics_seq):
             # if a health question is also present, prefer the more specific intent
             if self._contains_health_question(tokens, semantics_seq):
@@ -260,6 +292,11 @@ class IANInstinct:
             return "GREETING_SIMPLE", "GREETING_SIMPLE"
         if self._contains_health_question(tokens, semantics_seq):
             return "QUESTION_HEALTH", "STATE_QUERY"
+        state_role = self._detect_state_statement(tokens)
+        if state_role == "POSITIVE":
+            return "STATE_POSITIVE", "STATE_POSITIVE"
+        if state_role == "NEGATIVE":
+            return "STATE_NEGATIVE", "STATE_NEGATIVE"
         return "UNKNOWN", "UNKNOWN"
 
     @staticmethod
@@ -273,6 +310,38 @@ class IANInstinct:
                 has_question_mark = any(tok.surface == "?" for tok in tokens)
                 return has_question_mark or True
         return False
+
+    @staticmethod
+    def _matches_verbose_health_question(tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]) -> bool:
+        filtered = [sem for sem in semantics_seq if sem]
+        pattern = ("QUESTION_HOW", "YOU", "BE_STATE")
+        return tuple(filtered[:3]) == pattern and any(tok.surface == "?" for tok in tokens)
+
+    @staticmethod
+    def _detect_state_statement(tokens: Sequence[IANToken]) -> str | None:
+        semantics = [t.lexeme.semantics if t.lexeme else None for t in tokens]
+        if any(sem == "STATE_BAD" for sem in semantics):
+            return "NEGATIVE"
+        if any(sem == "NEGATE" for sem in semantics) and any(sem == "STATE_GOOD" for sem in semantics):
+            return "NEGATIVE"
+        if any(sem == "STATE_GOOD" for sem in semantics):
+            has_self = any((t.lexeme and t.lexeme.semantics in {"SELF", "BE_STATE"}) for t in tokens)
+            if has_self:
+                return "POSITIVE"
+        return None
+
+    def _materialize_rule_tokens(self, rule: DialogRule) -> Tuple[str, ...]:
+        resolved: List[str] = []
+        for token in rule.surface_tokens:
+            if token.startswith(":CONJ:"):
+                parts = token.split(":")
+                if len(parts) != 6 or parts[1].upper() != "CONJ":
+                    raise ValueError(f"Malformed conjugation token '{token}'")
+                _, _, lemma, tense, person, number = parts
+                resolved.append(conjugate(lemma, tense, int(person), number))
+            else:
+                resolved.append(token)
+        return tuple(resolved)
 
     # ------------------------------------------------------------------
     # Fábrica de instinto padrão
@@ -289,6 +358,11 @@ class IANInstinct:
             Lexeme(lemma="EU", semantics="SELF", pos="PRON", forms=("EU",)),
             Lexeme(lemma="SIM", semantics="AFFIRM", pos="ADV", forms=("SIM",)),
             Lexeme(lemma="NÃO", semantics="NEGATE", pos="ADV", forms=("NÃO", "NAO")),
+            Lexeme(lemma="COMO", semantics="QUESTION_HOW", pos="ADV", forms=("COMO",)),
+            Lexeme(lemma="ESTAR", semantics="BE_STATE", pos="VERB", forms=("ESTÁ", "ESTA", "ESTOU", "ESTAS")),
+            Lexeme(lemma="MAL", semantics="STATE_BAD", pos="ADV", forms=("MAL",)),
+            Lexeme(lemma="RUIM", semantics="STATE_BAD", pos="ADJ", forms=("RUIM",)),
+            Lexeme(lemma="TRISTE", semantics="STATE_BAD", pos="ADJ", forms=("TRISTE",)),
         )
         dialog_rules = (
             DialogRule(
@@ -302,6 +376,24 @@ class IANInstinct:
                 reply_role="GREETING_SIMPLE_REPLY",
                 reply_semantics="GREETING_SIMPLE",
                 surface_tokens=("oi",),
+            ),
+            DialogRule(
+                trigger_role="QUESTION_HEALTH_VERBOSE",
+                reply_role="ANSWER_HEALTH_VERBOSE",
+                reply_semantics="STATE_GOOD_AND_RETURN",
+                surface_tokens=(":CONJ:estar:pres:1:sing", "bem", ",", "e", "você", "?"),
+            ),
+            DialogRule(
+                trigger_role="STATE_POSITIVE",
+                reply_role="ACK_POSITIVE",
+                reply_semantics="STATE_POSITIVE_ACK",
+                surface_tokens=("que", "bom", "!"),
+            ),
+            DialogRule(
+                trigger_role="STATE_NEGATIVE",
+                reply_role="CARE_NEGATIVE",
+                reply_semantics="STATE_NEGATIVE_SUPPORT",
+                surface_tokens=("sinto", "muito", ".", "posso", "ajudar", "?"),
             ),
         )
         return cls(
@@ -356,6 +448,7 @@ __all__ = [
     "encode_text",
     "decode_codes",
     "word_signature",
+    "conjugate",
     "analyze_utterance",
     "plan_reply",
     "respond",

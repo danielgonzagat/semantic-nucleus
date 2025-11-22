@@ -25,6 +25,7 @@ from .ian import (
     encode_word as ian_encode_word,
     decode_codes as ian_decode_codes,
     word_signature as ian_word_signature,
+    conjugate as ian_conjugate,
 )
 from .ian_bridge import (
     InstinctHook,
@@ -64,6 +65,7 @@ __all__ = [
     "ian_encode_word",
     "ian_decode_codes",
     "ian_word_signature",
+    "ian_conjugate",
     "maybe_route_text",
     "utterance_to_struct",
     "reply_plan_to_answer",

@@ -318,6 +318,13 @@ def test_run_text_handles_ian_greetings():
     assert any(step.startswith("1:IAN[") for step in trace.steps)
 
 
+def test_run_text_handles_verbose_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("como você está?", session)
+    assert answer == "estou bem, e você?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE" in step for step in trace.steps)
+
+
 def test_code_eval_pure_binop_enriches_context():
     session = SessionCtx()
     base = struct(subject=entity("carro"))
