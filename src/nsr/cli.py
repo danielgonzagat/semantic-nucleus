@@ -70,6 +70,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Inclui descrição e snapshot do MetaCalculationPlan executado (se existir).",
     )
+    parser.add_argument(
+        "--calc-mode",
+        choices=("hybrid", "plan_only", "skip"),
+        default=None,
+        help="Define como o runtime executa planos ΣVM: híbrido (padrão), apenas plano ou ignorar planos.",
+    )
     return parser
 
 
@@ -95,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
         session.config.max_steps = args.max_steps
     if args.min_quality is not None:
         session.config.min_quality = args.min_quality
+    if args.calc_mode is not None:
+        session.config.calc_mode = args.calc_mode
 
     outcome = run_text_full(args.text, session)
     payload = {

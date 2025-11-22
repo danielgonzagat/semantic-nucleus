@@ -16,6 +16,12 @@ Cada rota devolve um `MetaTransformResult` com a `struct_node`, contexto pré-se
 
 Quando a rota já fornece um `preseed_answer`, o `MetaTransformResult` também embute um `MetaCalculationPlan`. Este plano descreve um programa ΣVM mínimo (atualmente: `PUSH_CONST → STORE_ANSWER → HALT`) que reproduz, em nível de hardware simbólico, o mesmo resultado pré-semeado. É o primeiro passo concreto da etapa **Meta-CALCULAR**, permitindo despachar diretamente para a ΣVM qualquer meta-resposta determinística sem depender do loop Φ. O runtime executa esse plano via `execute_meta_plan`, registrando o snapshot completo na nova estrutura `MetaCalculationResult`.
 
+O `Config.calc_mode` define como o plano é usado:
+
+- `hybrid` (padrão): roda o loop Φ completo e executa o plano para auditoria/consistência.
+- `plan_only`: retorna imediatamente o resultado proveniente da ΣVM (`HALT=PLAN_EXECUTED`), útil para caminhos em que o meta-cálculo já é definitivo.
+- `skip`: ignora totalmente os planos, preservando o comportamento clássico do NSR.
+
 ## Macro Arquitetura Oficial
 
 ```

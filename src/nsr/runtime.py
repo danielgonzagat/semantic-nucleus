@@ -89,6 +89,7 @@ class HaltReason(str, Enum):
     MAX_STEPS = "MAX_STEPS"
     CONTRADICTION = "CONTRADICTION"
     INVARIANT_FAILURE = "INVARIANT_FAILURE"
+    PLAN_EXECUTED = "PLAN_EXECUTED"
 
 
 @dataclass(slots=True)
@@ -137,6 +138,11 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     _ensure_logic_engine(session)
     transformer = MetaTransformer(session)
     meta = transformer.transform(text)
+    calc_mode = getattr(session.config, "calc_mode", "hybrid")
+    if calc_mode == "plan_only":
+        plan_outcome = _run_plan_only(meta, session)
+        if plan_outcome is not None:
+            return plan_outcome
     struct0 = meta.struct_node
     return run_struct_full(
         struct0,
@@ -185,12 +191,14 @@ def run_struct_full(
     trace = Trace(steps=[])
     if trace_hint:
         trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
+    calc_mode = getattr(session.config, "calc_mode", "hybrid")
+    plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
         trace.halt(HaltReason.QUALITY_THRESHOLD, isr, finalized=True)
         snapshot = snapshot_equation(struct_node, isr)
         calc_plan = meta_info.calc_plan if meta_info else None
         calc_result = (
-            execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
+            execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
         )
         calc_result = _validate_calc_result(calc_result, isr, trace)
         summary = (
@@ -303,7 +311,7 @@ def run_struct_full(
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
     calc_plan = meta_info.calc_plan if meta_info else None
     calc_result = (
-        execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
+        execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
     )
     calc_result = _validate_calc_result(calc_result, isr, trace)
     meta_summary = (
@@ -373,6 +381,45 @@ def _validate_calc_result(
     )
     updated_error = calc_result.error or "calc_plan_mismatch"
     return dc_replace(calc_result, error=updated_error, consistent=False)
+
+
+def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
+    plan = meta.calc_plan
+    if plan is None:
+        return None
+    calc_result = execute_meta_plan(plan, meta.struct_node, session)
+    if calc_result.answer is None:
+        return None
+    isr = initial_isr(meta.struct_node, session)
+    if meta.preseed_context:
+        isr.context = tuple((*isr.context, *meta.preseed_context))
+    isr.answer = calc_result.answer
+    isr.quality = meta.preseed_quality or session.config.min_quality
+    trace = Trace(steps=[])
+    trace_label = f"PLAN_ONLY[{meta.route.value.upper()}]"
+    trace.add(trace_label, isr.quality, len(isr.relations), len(isr.context))
+    calc_result = _validate_calc_result(calc_result, isr, trace)
+    trace.halt(HaltReason.PLAN_EXECUTED, isr, finalized=True)
+    snapshot = snapshot_equation(meta.struct_node, isr)
+    answer_text = _answer_text(isr)
+    meta_summary = build_meta_summary(meta, answer_text, isr.quality, HaltReason.PLAN_EXECUTED.value)
+    session.meta_history.append(meta_summary)
+    limit = getattr(session.config, "meta_history_limit", 0)
+    if limit and len(session.meta_history) > limit:
+        del session.meta_history[:-limit]
+    return RunOutcome(
+        answer=answer_text,
+        trace=trace,
+        isr=isr,
+        halt_reason=HaltReason.PLAN_EXECUTED,
+        finalized=True,
+        equation=snapshot,
+        equation_digest=snapshot.digest(),
+        explanation=render_explanation(isr, meta.struct_node),
+        meta_summary=meta_summary,
+        calc_plan=plan,
+        calc_result=calc_result,
+    )
 
 
 def _audit_state(

@@ -19,6 +19,17 @@ def test_cli_outputs_equation_bundle(capsys):
     assert data["invariant_failures"] == []
 
 
+def test_cli_supports_plan_only_mode(capsys):
+    exit_code = nsr_cli.main(["2 + 2", "--include-calc", "--calc-mode", "plan_only"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    assert data["halt_reason"] == "PLAN_EXECUTED"
+    calc = data.get("meta_calc")
+    assert calc is not None
+    assert calc["consistent"] is True
+    assert calc["error"] is None
+
 def test_cli_writes_file(tmp_path):
     output_path = tmp_path / "bundle.json"
     exit_code = nsr_cli.main(

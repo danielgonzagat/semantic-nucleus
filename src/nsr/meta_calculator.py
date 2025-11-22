@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict
 
-from liu import Node
+from liu import Node, to_json
 
 from svm.vm import SigmaVM
 
@@ -39,7 +39,7 @@ def execute_meta_plan(
     try:
         vm.load(plan.program, initial_struct=struct_node, session=session)
         answer = vm.run()
-        snapshot = vm.snapshot()
+        snapshot = _serialize_snapshot(vm.snapshot())
         return MetaCalculationResult(plan=plan, answer=answer, snapshot=snapshot, consistent=True)
     except Exception as exc:  # determinístico: captura para auditoria
         return MetaCalculationResult(
@@ -49,6 +49,24 @@ def execute_meta_plan(
             error=str(exc),
             consistent=False,
         )
+
+
+def _serialize_snapshot(raw: Dict[str, Any]) -> Dict[str, Any]:
+    def _maybe(node: Any) -> Any:
+        if isinstance(node, Node):
+            return to_json(node)
+        return node
+
+    return {
+        "pc": raw.get("pc"),
+        "stack_depth": raw.get("stack_depth"),
+        "stack": [_maybe(item) for item in raw.get("stack", [])],
+        "registers": raw.get("registers"),
+        "register_values": [_maybe(item) for item in raw.get("register_values", [])],
+        "call_stack": raw.get("call_stack"),
+        "isr_digest": raw.get("isr_digest"),
+        "answer": _maybe(raw.get("answer")),
+    }
 
 
 __all__ = ["MetaCalculationResult", "execute_meta_plan"]
