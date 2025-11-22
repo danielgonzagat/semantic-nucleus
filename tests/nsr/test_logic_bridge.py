@@ -37,3 +37,14 @@ def test_run_text_handles_logic_commands():
     assert answer.startswith("FACT OK")
     answer, trace = run_text("Query sensor ativo", session)
     assert answer.startswith("TRUE:")
+
+
+def test_logic_state_persistence_roundtrip():
+    session = SessionCtx()
+    run_text("Fact canal aberto", session)
+    saved = session.logic_serialized
+    assert saved
+    new_session = SessionCtx()
+    new_session.logic_serialized = saved
+    answer, _ = run_text("Query canal aberto", new_session)
+    assert answer.startswith("TRUE:")

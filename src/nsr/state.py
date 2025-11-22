@@ -93,6 +93,7 @@ class SessionCtx:
     lexicon: Lexicon = field(default_factory=Lexicon)
     language_hint: str | None = None
     logic_engine: "LogicEngine | None" = None
+    logic_serialized: str | None = None
 
 
 @dataclass(slots=True)

@@ -12,6 +12,7 @@ from typing import Tuple
 from liu import entity, number, struct as liu_struct, text as liu_text, Node
 
 from .logic_engine import LogicEngine, negate, normalize_statement
+from .logic_persistence import serialize_logic_engine
 
 RULE_START_WORDS = ("IF", "SE", "SI")
 RULE_THEN_WORDS = ("THEN", "ENTAO", "ENTONCES", "ALORS")
@@ -42,6 +43,7 @@ class LogicHook:
     context_nodes: Tuple[Node, ...]
     quality: float
     trace_label: str
+    snapshot: str
 
 
 def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicHook | None:
@@ -181,6 +183,7 @@ def _build_hook(result: LogicBridgeResult) -> LogicHook:
     context_nodes = _context_from_result(result)
     quality = 0.96 if result.action == "query" else 0.9
     trace_label = f"LOGIC[{result.action.upper()}]"
+    snapshot_blob = serialize_logic_engine(result.engine)
     return LogicHook(
         result=result,
         struct_node=struct_node,
@@ -188,6 +191,7 @@ def _build_hook(result: LogicBridgeResult) -> LogicHook:
         context_nodes=context_nodes,
         quality=quality,
         trace_label=trace_label,
+        snapshot=snapshot_blob,
     )
 
 
