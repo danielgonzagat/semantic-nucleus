@@ -50,3 +50,21 @@ def test_evolve_command_can_run_test_suite(tmp_path):
     assert event["status"] == "tests_failed"
     assert event["suite"] == "basic"
     assert event["tests"] == "fail"
+
+
+def test_evolutions_command_lists_recent_events(tmp_path):
+    runtime = MetaRuntime(state=MetaState())
+    target_file = tmp_path / "redundant.py"
+    target_file.write_text(
+        "\n"
+        "def redundant(x):\n"
+        "    return (x * 2) + (x * 2)\n",
+        encoding="utf-8",
+    )
+
+    runtime.handle_request(f"/evolve {target_file}:redundant suite=none")
+    output = runtime.handle_request("/evolutions")
+
+    assert "Últimos eventos" in output
+    assert "target" in output
+    assert str(target_file) in output

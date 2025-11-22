@@ -93,6 +93,8 @@ class MetaRuntime:
             return self._handle_testcore_command(command)
         if command.startswith("/evolve"):
             return self._handle_evolve_command(command)
+        if command.startswith("/evolutions"):
+            return self._handle_evolutions_command(command)
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -377,6 +379,22 @@ class MetaRuntime:
         limit = 20
         if len(self.state.evolution_log) > limit:
             del self.state.evolution_log[:-limit]
+
+    def _handle_evolutions_command(self, command: str) -> str:
+        parts = command.split()
+        limit = 5
+        if len(parts) == 2 and parts[1].isdigit():
+            limit = max(1, min(20, int(parts[1])))
+        log = self.state.evolution_log[-limit:]
+        if not log:
+            return "[META-EVOLVE] Nenhum evento registrado."
+        lines = ["[META-EVOLVE] Últimos eventos:"]
+        for entry in reversed(log):
+            lines.append(
+                f"  target={entry['target']} status={entry['status']} "
+                f"suite={entry['suite']} tests={entry['tests']} patch={entry['patch'] or '-'}"
+            )
+        return "\n".join(lines)
 
 
 def _preview(node: Node | None) -> str:
