@@ -10,12 +10,16 @@ from typing import Tuple
 
 from liu import Node, struct as liu_struct, entity, text as liu_text, number
 
+from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .parser import build_struct
 from .state import SessionCtx
+from svm.vm import Program
+from svm.bytecode import Instruction
+from svm.opcodes import Opcode
 
 
 class MetaRoute(str, Enum):
@@ -23,6 +27,7 @@ class MetaRoute(str, Enum):
 
     MATH = "math"
     LOGIC = "logic"
+    CODE = "code"
     INSTINCT = "instinct"
     TEXT = "text"
 
@@ -39,6 +44,16 @@ class MetaTransformResult:
     preseed_context: Tuple[Node, ...] | None = None
     preseed_quality: float | None = None
     language_hint: str | None = None
+    calc_plan: "MetaCalculationPlan | None" = None
+
+
+@dataclass(frozen=True, slots=True)
+class MetaCalculationPlan:
+    """Plano determinístico de meta-cálculo pronto para ΣVM."""
+
+    route: MetaRoute
+    program: Program
+    description: str
 
 
 class MetaTransformer:
@@ -59,6 +74,7 @@ class MetaTransformer:
 
         math_hook = maybe_route_math(text_value)
         if math_hook:
+            plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
             self.session.language_hint = math_hook.reply.language
             return MetaTransformResult(
                 struct_node=math_hook.struct_node,
@@ -74,10 +90,12 @@ class MetaTransformer:
                 ),
                 preseed_quality=math_hook.quality,
                 language_hint=math_hook.reply.language,
+                calc_plan=plan,
             )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
         if logic_hook:
+            plan = _direct_answer_plan(MetaRoute.LOGIC, logic_hook.answer_node)
             self.session.logic_engine = logic_hook.result.engine
             self.session.logic_serialized = logic_hook.snapshot
             return MetaTransformResult(
@@ -93,10 +111,32 @@ class MetaTransformer:
                     text_value,
                 ),
                 preseed_quality=logic_hook.quality,
+                calc_plan=plan,
+            )
+
+        code_hook = maybe_route_code(text_value)
+        if code_hook:
+            plan = _direct_answer_plan(MetaRoute.CODE, code_hook.answer_node)
+            return MetaTransformResult(
+                struct_node=code_hook.struct_node,
+                route=MetaRoute.CODE,
+                input_text=text_value,
+                trace_label=code_hook.trace_label,
+                preseed_answer=code_hook.answer_node,
+                preseed_context=self._with_meta_context(
+                    code_hook.context_nodes,
+                    MetaRoute.CODE,
+                    code_hook.language,
+                    text_value,
+                ),
+                preseed_quality=code_hook.quality,
+                language_hint=code_hook.language,
+                calc_plan=plan,
             )
 
         instinct_hook = maybe_route_text(text_value)
         if instinct_hook:
+            plan = _direct_answer_plan(MetaRoute.INSTINCT, instinct_hook.answer_node)
             self.session.language_hint = instinct_hook.reply_plan.language
             return MetaTransformResult(
                 struct_node=instinct_hook.struct_node,
@@ -112,6 +152,7 @@ class MetaTransformer:
                 ),
                 preseed_quality=instinct_hook.quality,
                 language_hint=instinct_hook.reply_plan.language,
+                calc_plan=plan,
             )
 
         language = (self.session.language_hint or "pt").lower()
@@ -119,6 +160,7 @@ class MetaTransformer:
         tokens = tokenize(text_value, lexicon)
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
+        text_plan = _text_phi_plan()
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
@@ -130,6 +172,7 @@ class MetaTransformer:
                 text_value,
             ),
             language_hint=language,
+            calc_plan=text_plan,
         )
 
     def _effective_lexicon(self):
@@ -172,6 +215,7 @@ __all__ = [
     "attach_language_field",
     "build_meta_summary",
     "meta_summary_to_dict",
+    "MetaCalculationPlan",
 ]
 
 
@@ -248,3 +292,28 @@ def _value(node: Node | None) -> float:
     if node.value is not None:
         return float(node.value)
     return 0.0
+
+
+def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculationPlan | None:
+    if answer is None:
+        return None
+    program = Program(
+        instructions=[
+            Instruction(Opcode.PUSH_CONST, 0),
+            Instruction(Opcode.STORE_ANSWER, 0),
+            Instruction(Opcode.HALT, 0),
+        ],
+        constants=[answer],
+    )
+    description = f"{route.value}_direct_answer"
+    return MetaCalculationPlan(route=route, program=program, description=description)
+
+
+def _text_phi_plan() -> MetaCalculationPlan:
+    instructions = [
+        Instruction(Opcode.PHI_NORMALIZE, 0),
+        Instruction(Opcode.PHI_SUMMARIZE, 0),
+        Instruction(Opcode.HALT, 0),
+    ]
+    program = Program(instructions=instructions, constants=[])
+    return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description="text_phi_pipeline")

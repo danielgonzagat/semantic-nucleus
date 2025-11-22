@@ -33,11 +33,13 @@ from .ian_bridge import (
     utterance_to_struct,
     reply_plan_to_answer,
 )
+from .code_bridge import CodeHook, maybe_route_code
 from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
-from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict
+from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
+from .meta_calculator import MetaCalculationResult, execute_meta_plan
 
 __all__ = [
     "run_text",
@@ -64,6 +66,7 @@ __all__ = [
     "render_struct_node",
     "IANInstinct",
     "InstinctHook",
+    "CodeHook",
     "MathInstinct",
     "analyze_utterance",
     "plan_reply",
@@ -76,6 +79,7 @@ __all__ = [
     "maybe_route_math",
     "utterance_to_struct",
     "reply_plan_to_answer",
+    "maybe_route_code",
     "LogicEngine",
     "LogicRule",
     "LogicHook",
@@ -87,5 +91,8 @@ __all__ = [
     "MetaTransformer",
     "MetaTransformResult",
     "MetaRoute",
+    "MetaCalculationPlan",
+    "MetaCalculationResult",
+    "execute_meta_plan",
     "meta_summary_to_dict",
 ]

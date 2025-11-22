@@ -8,10 +8,19 @@ O estágio Meta-LER recebe texto cru e determina, de maneira determinística, qu
 
 - **Matemática** (`MetaRoute.MATH`): ativa o `math_bridge`/`Math-Core` quando a entrada é equação ou instrução aritmética.
 - **Lógica** (`MetaRoute.LOGIC`): roteia comandos `FACT/IF/QUERY` para o `logic_bridge`.
+- **Código** (`MetaRoute.CODE`): detecta snippets Python determinísticos via `code_bridge` e converte diretamente para relações LIU de programação.
 - **Instinto Linguístico** (`MetaRoute.INSTINCT`): aciona o IAN-Ω quando a frase corresponde a um instinto nativo (saudações, diagnósticos etc.).
 - **Parser textual** (`MetaRoute.TEXT`): cai no LxU + PSE e produz um `STRUCT` LIU completo, anexando metadados de idioma.
 
 Cada rota devolve um `MetaTransformResult` com a `struct_node`, contexto pré-semeado (sempre carrega `meta_route` + `meta_input` para auditoria), qualidade estimada e etiqueta de trace (`trace_label`). O `run_text_full` usa esse resultado para alimentar o ISR inicial e também publica `meta_summary = (meta_route, meta_input, meta_output)` — serializado como `{route, language, input_size, input_preview, answer, quality, halt}` — caracterizando formalmente o estágio **Meta-Resultado** (o CLI expõe o mesmo trio via `--include-meta` e o helper `nsr.meta_summary_to_dict` produz o dicionário em Python). O `SessionCtx.meta_history` retém os últimos pacotes meta, com retenção determinística definida por `Config.meta_history_limit`.
+
+Quando a rota já fornece um `preseed_answer`, o `MetaTransformResult` também embute um `MetaCalculationPlan`. Este plano descreve um programa ΣVM mínimo (atualmente: `PUSH_CONST → STORE_ANSWER → HALT`) que reproduz, em nível de hardware simbólico, o mesmo resultado pré-semeado. É o primeiro passo concreto da etapa **Meta-CALCULAR**, permitindo despachar diretamente para a ΣVM qualquer meta-resposta determinística sem depender do loop Φ. O runtime executa esse plano via `execute_meta_plan`, registrando o snapshot completo na nova estrutura `MetaCalculationResult`.
+
+O `Config.calc_mode` define como o plano é usado:
+
+- `hybrid` (padrão): roda o loop Φ completo e executa o plano para auditoria/consistência.
+- `plan_only`: retorna imediatamente o resultado proveniente da ΣVM (`HALT=PLAN_EXECUTED`), útil para caminhos em que o meta-cálculo já é definitivo.
+- `skip`: ignora totalmente os planos, preservando o comportamento clássico do NSR.
 
 ## Macro Arquitetura Oficial
 

@@ -1,4 +1,5 @@
 from nsr import MetaTransformer, MetaRoute, SessionCtx
+from svm.opcodes import Opcode
 
 
 def test_meta_transformer_routes_math():
@@ -9,6 +10,12 @@ def test_meta_transformer_routes_math():
     assert result.preseed_answer is not None
     assert result.trace_label and result.trace_label.startswith("MATH[")
     assert session.language_hint == result.language_hint
+    assert result.calc_plan is not None
+    assert [inst.opcode for inst in result.calc_plan.program.instructions] == [
+        Opcode.PUSH_CONST,
+        Opcode.STORE_ANSWER,
+        Opcode.HALT,
+    ]
 
 
 def test_meta_transformer_routes_logic():
@@ -45,3 +52,34 @@ def test_meta_transformer_falls_back_to_text_route():
     language_field = dict(result.struct_node.fields).get("language")
     assert language_field is not None
     assert (language_field.label or "").startswith("pt")
+    assert result.calc_plan is not None
+    assert [inst.opcode for inst in result.calc_plan.program.instructions] == [
+        Opcode.PHI_NORMALIZE,
+        Opcode.PHI_SUMMARIZE,
+        Opcode.HALT,
+    ]
+
+
+def test_meta_transformer_routes_code_snippet():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    code_text = """
+def soma(x, y):
+    return x + y
+"""
+    result = transformer.transform(code_text)
+    assert result.route is MetaRoute.CODE
+    assert result.preseed_answer is not None
+    assert result.trace_label == "CODE[PYTHON]"
+    assert result.preseed_quality and result.preseed_quality >= 0.85
+    assert any((dict(node.fields)["tag"].label == "meta_route") for node in result.preseed_context)
+    plan = result.calc_plan
+    assert plan is not None
+    assert plan.route is MetaRoute.CODE
+    assert len(plan.program.constants) == 1
+    assert plan.program.constants[0] == result.preseed_answer
+    assert [inst.opcode for inst in plan.program.instructions] == [
+        Opcode.PUSH_CONST,
+        Opcode.STORE_ANSWER,
+        Opcode.HALT,
+    ]

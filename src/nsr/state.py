@@ -22,6 +22,7 @@ class Config:
     min_quality: float = 0.6
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
+    calc_mode: str = "hybrid"
 
 
 @dataclass(slots=True)

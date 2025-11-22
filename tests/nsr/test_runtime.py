@@ -15,6 +15,7 @@ from nsr import (
     tokenize,
     build_struct,
     meta_summary_to_dict,
+    MetaRoute,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
@@ -337,6 +338,12 @@ def test_run_text_handles_english_relation_sentence():
     answer, _ = run_text("The car has a wheel", session)
     assert "relações:" in answer.lower()
     assert "carro has wheel" in answer.lower()
+    outcome = run_text_full("The car has a wheel", session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route is MetaRoute.TEXT
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+    assert outcome.calc_result.consistent is True
 
 
 def test_run_text_handles_spanish_relation_sentence():
@@ -517,6 +524,46 @@ def test_run_text_full_short_circuits_for_ian():
             has_reply_context = "plan_role" in node_fields
             break
     assert has_reply_context
+
+
+def test_run_text_full_provides_calc_plan_for_math():
+    session = SessionCtx()
+    outcome = run_text_full("2 + 2", session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route.value == "math"
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+    assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+    assert outcome.calc_result.consistent is True
+
+
+def test_run_text_full_provides_calc_plan_for_code():
+    session = SessionCtx()
+    code = "def soma(x, y):\n    return x + y\n"
+    outcome = run_text_full(code, session)
+    assert outcome.calc_plan is not None
+    assert outcome.calc_plan.route.value == "code"
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+    assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+    assert outcome.calc_result.consistent is True
+
+
+def test_run_text_plan_only_mode_executes_plan():
+    session = SessionCtx()
+    session.config.calc_mode = "plan_only"
+    outcome = run_text_full("2 + 2", session)
+    assert outcome.halt_reason is HaltReason.PLAN_EXECUTED
+    assert outcome.trace.steps[0].startswith("1:PLAN_ONLY[MATH")
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.error is None
+
+
+def test_run_text_skip_mode_disables_calc_execution():
+    session = SessionCtx()
+    session.config.calc_mode = "skip"
+    outcome = run_text_full("2 + 2", session)
+    assert outcome.calc_result is None
 
 
 def test_code_eval_pure_binop_enriches_context():

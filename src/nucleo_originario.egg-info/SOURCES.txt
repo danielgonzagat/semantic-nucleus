@@ -18,6 +18,7 @@ src/liu/signatures.py
 src/liu/wf.py
 src/nsr/__init__.py
 src/nsr/cli.py
+src/nsr/code_bridge.py
 src/nsr/consistency.py
 src/nsr/equation.py
 src/nsr/explain.py

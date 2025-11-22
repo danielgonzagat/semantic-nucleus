@@ -10,6 +10,8 @@ import sys
 from pathlib import Path
 from typing import Any, Dict
 
+from liu import to_json
+
 from . import SessionCtx, run_text_full
 from .meta_transformer import meta_summary_to_dict
 
@@ -63,6 +65,17 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Inclui meta_summary (meta_route/meta_input/meta_output) no payload final.",
     )
+    parser.add_argument(
+        "--include-calc",
+        action="store_true",
+        help="Inclui descrição e snapshot do MetaCalculationPlan executado (se existir).",
+    )
+    parser.add_argument(
+        "--calc-mode",
+        choices=("hybrid", "plan_only", "skip"),
+        default=None,
+        help="Define como o runtime executa planos ΣVM: híbrido (padrão), apenas plano ou ignorar planos.",
+    )
     return parser
 
 
@@ -88,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
         session.config.max_steps = args.max_steps
     if args.min_quality is not None:
         session.config.min_quality = args.min_quality
+    if args.calc_mode is not None:
+        session.config.calc_mode = args.calc_mode
 
     outcome = run_text_full(args.text, session)
     payload = {
@@ -116,6 +131,17 @@ def main(argv: list[str] | None = None) -> int:
         payload["explanation"] = outcome.explanation
     if args.include_meta and outcome.meta_summary:
         payload["meta_summary"] = meta_summary_to_dict(outcome.meta_summary)
+    if args.include_calc and outcome.calc_result:
+        calc_payload: Dict[str, Any] = {
+            "plan": outcome.calc_result.plan.description,
+            "error": outcome.calc_result.error,
+            "consistent": outcome.calc_result.consistent,
+        }
+        if outcome.calc_result.answer is not None:
+            calc_payload["answer"] = to_json(outcome.calc_result.answer)
+        if outcome.calc_result.snapshot is not None:
+            calc_payload["snapshot"] = outcome.calc_result.snapshot
+        payload["meta_calc"] = calc_payload
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
