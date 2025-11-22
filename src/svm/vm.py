@@ -22,7 +22,7 @@ from liu import (
     struct,
     text,
 )
-from nsr.operators import apply_operator
+# from nsr.operators import apply_operator
 from nsr.rules import unify as nsr_unify
 from nsr.state import ISR, SessionCtx, initial_isr
 
@@ -287,6 +287,8 @@ class SigmaVM:
         self.isr = replace(self.isr, ops_queue=queue)
 
     def _instr_dispatch(self) -> None:
+        from nsr.operators import apply_operator  # Lazy import
+
         self._ensure_isr()
         queue = deque(self.isr.ops_queue)
         if not queue:
@@ -299,6 +301,8 @@ class SigmaVM:
         self._push(op)
 
     def _apply_phi(self, name: str, *args: Node) -> None:
+        from nsr.operators import apply_operator  # Lazy import to avoid circular dependency
+
         self._ensure_isr()
         op = operation(name, *args)
         self.isr = apply_operator(self.isr, op, self.session)
