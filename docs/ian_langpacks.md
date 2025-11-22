@@ -30,6 +30,10 @@ Este guia explica como o instinto alfabético-numérico (IAN-Ω) manipula idioma
 5. **Cobrir com testes runtime**:
    - `tests/nsr/test_ian.py` para o pipeline isolado (`respond`).
    - `tests/nsr/test_runtime.py` para validar preseed e `plan_language`.
+6. **Validar o pacote**:
+   - Use `python3 scripts/langpack_check.py --code it` para verificar idiomas embutidos.
+   - Para JSONs externos (antes de importar), execute `python3 scripts/langpack_check.py --file caminho.json --fail-on-warn`.
+   - O script dispara erros se encontrar formas não normalizadas, duplicatas de conjugação ou tokens `:CONJ:` inconsistentes.
 
 ## 3. Esquema unificado de gramática e morfologia
 

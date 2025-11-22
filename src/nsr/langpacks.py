@@ -82,7 +82,7 @@ def _merged_payload(code: str) -> Dict:
     return merged
 
 
-def _build_pack(code: str, data: Dict) -> LanguagePack:
+def build_language_pack_from_dict(code: str, data: Dict) -> LanguagePack:
     lexemes = tuple(
         LexemeSpec(
             lemma=entry["lemma"],
@@ -138,7 +138,7 @@ def get_language_pack(code: str) -> LanguagePack:
     if not payload:
         raise ValueError(f"Unknown language pack '{code}'")
     if normalized not in _PACK_CACHE:
-        _PACK_CACHE[normalized] = _build_pack(normalized, payload)
+        _PACK_CACHE[normalized] = build_language_pack_from_dict(normalized, payload)
     return _PACK_CACHE[normalized]
 
 
@@ -486,6 +486,7 @@ __all__ = [
     "ConjugationSpec",
     "SyntacticPatternSpec",
     "IdiomEquivalentSpec",
+    "build_language_pack_from_dict",
     "get_language_pack",
     "iter_language_packs",
     "list_available_codes",
