@@ -26,6 +26,12 @@ from .ian import (
     decode_codes as ian_decode_codes,
     word_signature as ian_word_signature,
 )
+from .ian_bridge import (
+    InstinctHook,
+    maybe_route_text,
+    utterance_to_struct,
+    reply_plan_to_answer,
+)
 
 __all__ = [
     "run_text",
@@ -51,10 +57,14 @@ __all__ = [
     "render_struct_sentence",
     "render_struct_node",
     "IANInstinct",
+    "InstinctHook",
     "analyze_utterance",
     "plan_reply",
     "respond",
     "ian_encode_word",
     "ian_decode_codes",
     "ian_word_signature",
+    "maybe_route_text",
+    "utterance_to_struct",
+    "reply_plan_to_answer",
 ]

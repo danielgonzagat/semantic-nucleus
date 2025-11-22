@@ -311,6 +311,13 @@ def test_run_text_handles_french_relation_sentence():
     assert "carro has roda" in answer.lower()
 
 
+def test_run_text_handles_ian_greetings():
+    session = SessionCtx()
+    answer, trace = run_text("oi, tudo bem?", session)
+    assert answer == "tudo bem, e você?"
+    assert any(step.startswith("1:IAN[") for step in trace.steps)
+
+
 def test_code_eval_pure_binop_enriches_context():
     session = SessionCtx()
     base = struct(subject=entity("carro"))

@@ -23,6 +23,7 @@ from .operators import apply_operator
 from .parser import build_struct
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
+from .ian_bridge import maybe_route_text
 
 
 @dataclass(slots=True)
@@ -127,19 +128,36 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     lexicon = session.lexicon
     if not (lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words):
         lexicon = DEFAULT_LEXICON
-    tokens = tokenize(text, lexicon)
-    struct0 = build_struct(tokens)
-    return run_struct_full(struct0, session)
+    instinct_hook = maybe_route_text(text)
+    if instinct_hook:
+        struct0 = instinct_hook.struct_node
+        preseed_answer = instinct_hook.answer_node
+        trace_hint = f"IAN[{instinct_hook.utterance.role}]"
+    else:
+        tokens = tokenize(text, lexicon)
+        struct0 = build_struct(tokens)
+        preseed_answer = None
+        trace_hint = None
+    return run_struct_full(struct0, session, preseed_answer=preseed_answer, trace_hint=trace_hint)
 
 
-def run_struct(struct_node: Node, session: SessionCtx) -> Tuple[str, Trace]:
-    outcome = run_struct_full(struct_node, session)
+def run_struct(struct_node: Node, session: SessionCtx, preseed_answer: Node | None = None) -> Tuple[str, Trace]:
+    outcome = run_struct_full(struct_node, session, preseed_answer=preseed_answer)
     return outcome.answer, outcome.trace
 
 
-def run_struct_full(struct_node: Node, session: SessionCtx) -> RunOutcome:
+def run_struct_full(
+    struct_node: Node,
+    session: SessionCtx,
+    preseed_answer: Node | None = None,
+    trace_hint: str | None = None,
+) -> RunOutcome:
     isr = initial_isr(struct_node, session)
+    if preseed_answer is not None:
+        isr.answer = preseed_answer
     trace = Trace(steps=[])
+    if trace_hint:
+        trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
     steps = 0
     seen_signatures = set()
     idle_loops = 0
