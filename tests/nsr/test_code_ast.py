@@ -1,4 +1,4 @@
-from nsr.code_ast import build_python_ast_meta
+from nsr.code_ast import build_python_ast_meta, build_rust_ast_meta
 
 
 def test_build_python_ast_meta_returns_struct():
@@ -20,3 +20,23 @@ def soma(x, y):
 def test_build_python_ast_meta_handles_invalid_source():
     ast_node = build_python_ast_meta("not : valid python")
     assert ast_node is None
+
+
+def test_build_rust_ast_meta_serializes_outline():
+    items = [
+        {
+            "kind": "fn",
+            "name": "soma",
+            "params": [{"name": "x", "type": "i32"}, {"name": "y", "type": "i32"}],
+            "ret": "i32",
+            "body": "x + y",
+        }
+    ]
+    ast_node = build_rust_ast_meta(items, "fn soma(x: i32, y: i32) -> i32 { x + y }")
+    fields = dict(ast_node.fields)
+    assert fields["language"].label == "rust"
+    assert fields["node_count"].value == 1
+    functions = fields["functions"]
+    fn_struct = functions.args[0]
+    fn_fields = dict(fn_struct.fields)
+    assert fn_fields["name"].label == "soma"

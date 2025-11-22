@@ -259,3 +259,23 @@ def soma(x, y):
     summary_dict = meta_summary_to_dict(summary_nodes)
     assert summary_dict["code_ast_language"] == "python"
     assert summary_dict["code_ast_node_count"] >= 1
+
+
+def test_meta_transformer_routes_rust_code():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    rust_source = """
+fn soma(x: i32, y: i32) -> i32 {
+    x + y
+}
+"""
+    result = transformer.transform(rust_source)
+    assert result.route is MetaRoute.CODE
+    assert result.trace_label == "CODE[RUST]"
+    assert result.code_ast is not None
+    ast_fields = dict(result.code_ast.fields)
+    assert ast_fields["language"].label == "rust"
+    summary_nodes = build_meta_summary(result, "Resumo", result.preseed_quality or 0.88, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["code_ast_language"] == "rust"
+    assert summary_dict["code_ast_node_count"] >= 1

@@ -108,6 +108,43 @@ def _literal_preview(value: object) -> str:
     return text_value
 
 
+def build_rust_ast_meta(functions: list[dict], source: str) -> Node:
+    fn_nodes = []
+    for item in functions:
+        params = [
+            liu_struct(
+                tag=entity("code_param"),
+                name=entity(param["name"]),
+                type=liu_text(param.get("type", "")),
+            )
+            for param in item.get("params", [])
+        ]
+        fn_nodes.append(
+            liu_struct(
+                tag=entity("code_fn"),
+                name=entity(item["name"]),
+                params=list_node(params),
+                param_count=number(len(params)),
+                ret=liu_text(item.get("ret", "")),
+                body=liu_text(item.get("body", "")),
+            )
+        )
+    return liu_struct(
+        tag=entity("code_ast"),
+        language=entity("rust"),
+        node_count=number(len(functions)),
+        functions=list_node(fn_nodes),
+        preview=liu_text(_preview_source(source)),
+    )
+
+
+def _preview_source(source: str, limit: int = 160) -> str:
+    compact = " ".join(source.strip().split())
+    if len(compact) <= limit:
+        return compact
+    return compact[: limit - 3] + "..."
+
+
 def _summary_nodes(counter: Counter) -> list[Node]:
     most_common = counter.most_common(8)
     nodes = []
@@ -116,4 +153,4 @@ def _summary_nodes(counter: Counter) -> list[Node]:
     return nodes
 
 
-__all__ = ["build_python_ast_meta"]
+__all__ = ["build_python_ast_meta", "build_rust_ast_meta"]

@@ -101,7 +101,9 @@ class MetaTransformer:
             self.session.language_hint = language_hint
         should_build_code_ast = detection.category == "code" and detection.dialect == "python"
 
-        math_hook = maybe_route_math(text_value)
+        math_hook = None
+        if detection.category != "code":
+            math_hook = maybe_route_math(text_value)
         if math_hook:
             plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
             self.session.language_hint = math_hook.reply.language
@@ -159,7 +161,10 @@ class MetaTransformer:
                 math_ast=None,
             )
 
-        code_hook = maybe_route_code(text_value)
+        code_hook = maybe_route_code(
+            text_value,
+            dialect=detection.dialect if detection.category == "code" else None,
+        )
         if code_hook:
             plan = _direct_answer_plan(MetaRoute.CODE, code_hook.answer_node)
             preseed_context = self._with_meta_context(

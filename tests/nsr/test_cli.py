@@ -160,6 +160,22 @@ def soma(x, y):
     assert meta["code_ast_node_count"] >= 1
 
 
+def test_cli_meta_summary_reports_rust_ast(capsys):
+    code = """
+fn soma(x: i32, y: i32) -> i32 {
+    x + y
+}
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["code_ast_language"] == "rust"
+    assert meta["code_ast_node_count"] >= 1
+
+
 def test_cli_includes_lc_meta(capsys, monkeypatch):
     for target in (
         "maybe_route_math",
