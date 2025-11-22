@@ -53,3 +53,13 @@ def test_state_command_shows_context(runtime):
     state_output = runtime.handle_request("/state")
     assert "Estado" in state_output
     assert "Oi Metanúcleo"[:5] in state_output
+
+
+def test_reset_and_goals_command(runtime):
+    runtime.handle_request("Qual é o plano hoje?")
+    goals_output_before = runtime.handle_request("/goals")
+    assert "Goals/Ops" in goals_output_before
+    reset_output = runtime.handle_request("/reset")
+    assert "resetado" in reset_output
+    goals_output_after = runtime.handle_request("/goals")
+    assert "(vazio)" in goals_output_after

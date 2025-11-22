@@ -54,6 +54,16 @@ class MetaRuntime:
             return "[META] Fatos: " + "; ".join(relations)
         if command == "/state":
             return self._format_state()
+        if command == "/reset":
+            self.state.isr.context.clear()
+            self.state.isr.goals.clear()
+            self.state.isr.ops_queue.clear()
+            self.state.isr.answer = Node(kind=NodeKind.NIL)
+            self.state.isr.quality = 0.0
+            return "[META] Estado reativo resetado."
+        if command == "/goals":
+            goals = [g.label or g.kind.name for g in self.state.isr.ops_queue[:5]]
+            return "[META] Goals/Ops: " + ", ".join(goals or ["(vazio)"])
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
