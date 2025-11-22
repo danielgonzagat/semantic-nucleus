@@ -84,34 +84,15 @@ class MathInstinct:
         return None
 
     def _safe_eval(self, expression: str) -> float:
-        expr_ast = ast.parse(expression, mode="eval")
-        return float(self._eval_node(expr_ast.body))
+        return evaluate_expression(expression)
 
     def _eval_node(self, node: ast.AST) -> float:
-        if isinstance(node, ast.BinOp) and isinstance(node.op, ALLOWED_BIN_OPS):
-            left = self._eval_node(node.left)
-            right = self._eval_node(node.right)
-            if isinstance(node.op, ast.Add):
-                return left + right
-            if isinstance(node.op, ast.Sub):
-                return left - right
-            if isinstance(node.op, ast.Mult):
-                return left * right
-            if isinstance(node.op, ast.Div):
-                return left / right
-            if isinstance(node.op, ast.Pow):
-                return left ** right
-        if isinstance(node, ast.UnaryOp) and isinstance(node.op, ALLOWED_UNARY_OPS):
-            operand = self._eval_node(node.operand)
-            return operand if isinstance(node.op, ast.UAdd) else -operand
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
-            func_name = node.func.id.upper()
-            if func_name in ALLOWED_CALLS and len(node.args) == 1:
-                value = self._eval_node(node.args[0])
-                return float(ALLOWED_CALLS[func_name](value))
-        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
-            return float(node.value)
-        raise ValueError("Unsupported expression")
+        return _eval_math_node(node)
+
+
+def evaluate_expression(expression: str) -> float:
+    expr_ast = ast.parse(expression, mode="eval")
+    return float(_eval_math_node(expr_ast.body))
 
 
 def _normalize_spaces(text: str) -> str:
@@ -145,4 +126,31 @@ def _looks_like_math(text: str) -> bool:
     return any(func in upper for func in ALLOWED_CALLS.keys())
 
 
-__all__ = ["MathInstinct", "MathUtterance", "MathReply"]
+def _eval_math_node(node: ast.AST) -> float:
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ALLOWED_BIN_OPS):
+        left = _eval_math_node(node.left)
+        right = _eval_math_node(node.right)
+        if isinstance(node.op, ast.Add):
+            return left + right
+        if isinstance(node.op, ast.Sub):
+            return left - right
+        if isinstance(node.op, ast.Mult):
+            return left * right
+        if isinstance(node.op, ast.Div):
+            return left / right
+        if isinstance(node.op, ast.Pow):
+            return left ** right
+    if isinstance(node, ast.UnaryOp) and isinstance(node.op, ALLOWED_UNARY_OPS):
+        operand = _eval_math_node(node.operand)
+        return operand if isinstance(node.op, ast.UAdd) else -operand
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        func_name = node.func.id.upper()
+        if func_name in ALLOWED_CALLS and len(node.args) == 1:
+            value = _eval_math_node(node.args[0])
+            return float(ALLOWED_CALLS[func_name](value))
+    if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+        return float(node.value)
+    raise ValueError("Unsupported expression")
+
+
+__all__ = ["MathInstinct", "MathUtterance", "MathReply", "evaluate_expression"]
