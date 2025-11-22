@@ -74,3 +74,10 @@ def test_context_command_lists_recent(runtime):
     context_output = runtime.handle_request("/context")
     assert "Contexto" in context_output
     assert "Segunda frase" in context_output
+
+
+def test_meta_command_reports_last_summary(runtime):
+    runtime.handle_request("Oi Metanúcleo!")
+    meta_output = runtime.handle_request("/meta")
+    assert "route=text" in meta_output
+    assert "Oi Metanúcleo"[:5] in meta_output

@@ -5,7 +5,7 @@ Estado determinístico do Metanúcleo.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Set, Tuple
+from typing import List, Set, Tuple, Dict
 
 from .liu import Node, NodeKind, nil, rel, text, entity
 
@@ -45,6 +45,7 @@ class MetaState:
     isr: ISR = field(default_factory=ISR)
     metrics: Metrics = field(default_factory=Metrics)
     config: Config = field(default_factory=Config)
+    meta_history: List[Dict[str, str]] = field(default_factory=list)
 
 
 def reset_answer(state: MetaState) -> None:

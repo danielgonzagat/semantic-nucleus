@@ -32,8 +32,10 @@ class MetaRuntime:
         msg = self.text_adapter.to_liu(raw_input, lang)
         self._inject_message(msg)
         self.scheduler.run(self.state)
+        output = self.renderer.render(self.state)
+        self._record_meta_summary(msg, output)
         self.state.metrics.total_requests += 1
-        return self.renderer.render(self.state)
+        return output
 
     def _inject_message(self, msg: Node) -> None:
         isr = self.state.isr
@@ -69,6 +71,8 @@ class MetaRuntime:
         if command == "/goals":
             goals = [g.label or g.kind.name for g in self.state.isr.ops_queue[:5]]
             return "[META] Goals/Ops: " + ", ".join(goals or ["(vazio)"])
+        if command == "/meta":
+            return self._format_meta()
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -87,6 +91,36 @@ class MetaRuntime:
         if not snippets:
             return "[META] Contexto vazio."
         return "[META] Contexto: " + " | ".join(snippets)
+
+    def _format_meta(self) -> str:
+        if not self.state.meta_history:
+            return "[META] Nenhum meta registrado."
+        last = self.state.meta_history[-1]
+        return (
+            "[META] MetaSummary:"
+            f" route={last.get('route','')};"
+            f" lang={last.get('lang','')};"
+            f" input={last.get('input','')};"
+            f" answer={last.get('answer','')}"
+        )
+
+    def _record_meta_summary(self, msg: Node, output: str) -> None:
+        if msg.kind is not NodeKind.STRUCT:
+            return
+        lang_node = msg.fields.get("lang")
+        content_node = msg.fields.get("content") or msg.fields.get("raw")
+        summary = {
+            "route": "text",
+            "lang": (lang_node.label if lang_node and lang_node.kind is NodeKind.TEXT else ""),
+            "input": (
+                content_node.label if content_node and content_node.kind is NodeKind.TEXT else ""
+            ),
+            "answer": output,
+        }
+        self.state.meta_history.append(summary)
+        limit = 10
+        if len(self.state.meta_history) > limit:
+            del self.state.meta_history[:-limit]
 
 
 def _preview(node: Node | None) -> str:
