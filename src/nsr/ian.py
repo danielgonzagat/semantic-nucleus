@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Dict, List, Mapping, Sequence, Tuple
 
+from .langpacks import iter_language_packs
+
 # ---------------------------------------------------------------------------
 # Alfabeto ↔ código (nascimento alfabetizado)
 # ---------------------------------------------------------------------------
@@ -68,6 +70,8 @@ CONJUGATION_TABLE: Dict[Tuple[str, str, str, str], str] = {
     ("falar", "pres", "2", "plur"): "falam",
     ("falar", "pres", "3", "plur"): "falam",
 }
+
+DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr")
 
 
 def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
@@ -149,6 +153,12 @@ def conjugate(lemma: str, tense: str = "pres", person: int = 1, number: str = "s
     return CONJUGATION_TABLE[key]
 
 
+def _register_conjugations(entries) -> None:
+    for entry in entries:
+        key = (entry.lemma.lower(), entry.tense.lower(), str(entry.person), entry.number.lower())
+        CONJUGATION_TABLE.setdefault(key, entry.form)
+
+
 # ---------------------------------------------------------------------------
 # Léxico inato + estrutura de tokens
 # ---------------------------------------------------------------------------
@@ -163,6 +173,10 @@ class Lexeme:
 
     def matches(self, candidate: str) -> bool:
         return candidate in self.forms
+
+
+def _normalize_forms(forms: Sequence[str]) -> Tuple[str, ...]:
+    return tuple(form.upper() for form in forms)
 
 
 @dataclass(frozen=True)
@@ -445,144 +459,32 @@ class IANInstinct:
 
     @classmethod
     def default(cls) -> "IANInstinct":
-        lexicon = (
-            Lexeme(lemma="OI", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("OI", "OLÁ", "OLA")),
-            Lexeme(lemma="HI", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("HI", "HELLO", "HEY")),
-            Lexeme(lemma="HOLA", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("HOLA",)),
-            Lexeme(lemma="BONJOUR", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("BONJOUR",)),
-            Lexeme(lemma="SALUT", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("SALUT",)),
-            Lexeme(lemma="TUDO", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TUDO",)),
-            Lexeme(lemma="TODO", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TODO",)),
-            Lexeme(lemma="TOUT", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TOUT",)),
-            Lexeme(lemma="BEM", semantics="STATE_GOOD", pos="ADV", forms=("BEM",)),
-            Lexeme(lemma="FINE", semantics="STATE_GOOD", pos="ADJ", forms=("FINE", "GOOD")),
-            Lexeme(lemma="BIEN", semantics="STATE_GOOD", pos="ADV", forms=("BIEN",)),
-            Lexeme(lemma="E", semantics="CONJ_AND", pos="CONJ", forms=("E",)),
-            Lexeme(lemma="Y", semantics="CONJ_AND", pos="CONJ", forms=("Y",)),
-            Lexeme(lemma="ET", semantics="CONJ_AND", pos="CONJ", forms=("ET",)),
-            Lexeme(lemma="VOCÊ", semantics="YOU", pos="PRON", forms=("VOCÊ", "VOCE")),
-            Lexeme(lemma="YOU", semantics="YOU", pos="PRON", forms=("YOU",)),
-            Lexeme(lemma="TÚ", semantics="YOU", pos="PRON", forms=("TÚ", "TU")),
-            Lexeme(lemma="TOI", semantics="YOU", pos="PRON", forms=("TOI",)),
-            Lexeme(lemma="ÇA", semantics="YOU", pos="PRON", forms=("ÇA", "CA")),
-            Lexeme(lemma="EU", semantics="SELF", pos="PRON", forms=("EU",)),
-            Lexeme(lemma="I", semantics="SELF", pos="PRON", forms=("I",)),
-            Lexeme(lemma="JE", semantics="SELF", pos="PRON", forms=("JE",)),
-            Lexeme(lemma="SIM", semantics="AFFIRM", pos="ADV", forms=("SIM",)),
-            Lexeme(lemma="NÃO", semantics="NEGATE", pos="ADV", forms=("NÃO", "NAO")),
-            Lexeme(lemma="COMO", semantics="QUESTION_HOW", pos="ADV", forms=("COMO", "CÓMO")),
-            Lexeme(lemma="HOW", semantics="QUESTION_HOW", pos="ADV", forms=("HOW",)),
-            Lexeme(lemma="COMMENT", semantics="QUESTION_HOW", pos="ADV", forms=("COMMENT",)),
-            Lexeme(
-                lemma="ESTAR",
-                semantics="BE_STATE",
-                pos="VERB",
-                forms=("ESTÁ", "ESTA", "ESTOU", "ESTAS", "ESTOY", "ESTÁS", "ESTAS"),
-            ),
-            Lexeme(
-                lemma="ALLER",
-                semantics="BE_STATE",
-                pos="VERB",
-                forms=("VA", "VAS", "VAIS"),
-            ),
-            Lexeme(lemma="BE", semantics="BE_STATE", pos="VERB", forms=("ARE", "AM", "IS")),
-            Lexeme(lemma="MAL", semantics="STATE_BAD", pos="ADV", forms=("MAL",)),
-            Lexeme(lemma="RUIM", semantics="STATE_BAD", pos="ADJ", forms=("RUIM",)),
-            Lexeme(lemma="TRISTE", semantics="STATE_BAD", pos="ADJ", forms=("TRISTE",)),
-        )
-        dialog_rules = (
-            DialogRule(
-                trigger_role="QUESTION_HEALTH",
-                reply_role="ANSWER_HEALTH_AND_RETURN",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("tudo", "bem", ",", "e", "você", "?"),
-                reply_language="pt",
-            ),
-            DialogRule(
-                trigger_role="GREETING_SIMPLE",
-                reply_role="GREETING_SIMPLE_REPLY",
-                reply_semantics="GREETING_SIMPLE",
-                surface_tokens=("oi",),
-                reply_language="pt",
-            ),
-            DialogRule(
-                trigger_role="GREETING_SIMPLE_EN",
-                reply_role="GREETING_SIMPLE_EN_REPLY",
-                reply_semantics="GREETING_SIMPLE",
-                surface_tokens=("hi",),
-                reply_language="en",
-            ),
-            DialogRule(
-                trigger_role="GREETING_SIMPLE_ES",
-                reply_role="GREETING_SIMPLE_ES_REPLY",
-                reply_semantics="GREETING_SIMPLE",
-                surface_tokens=("hola",),
-                reply_language="es",
-            ),
-            DialogRule(
-                trigger_role="GREETING_SIMPLE_FR",
-                reply_role="GREETING_SIMPLE_FR_REPLY",
-                reply_semantics="GREETING_SIMPLE",
-                surface_tokens=("bonjour",),
-                reply_language="fr",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_VERBOSE",
-                reply_role="ANSWER_HEALTH_VERBOSE",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=(":CONJ:estar:pres:1:sing", "bem", ",", "e", "você", "?"),
-                reply_language="pt",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_VERBOSE_EN",
-                reply_role="ANSWER_HEALTH_VERBOSE_EN",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("i", "am", "fine", ",", "and", "you", "?"),
-                reply_language="en",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_VERBOSE_ES",
-                reply_role="ANSWER_HEALTH_VERBOSE_ES",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("estoy", "bien", ",", "y", "tú", "?"),
-                reply_language="es",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_ES",
-                reply_role="ANSWER_HEALTH_ES",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("todo", "bien", ",", "y", "tú", "?"),
-                reply_language="es",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_FR",
-                reply_role="ANSWER_HEALTH_FR",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("tout", "va", "bien", ",", "et", "toi", "?"),
-                reply_language="fr",
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_VERBOSE_FR",
-                reply_role="ANSWER_HEALTH_VERBOSE_FR",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("je", "vais", "bien", ",", "et", "toi", "?"),
-                reply_language="fr",
-            ),
-            DialogRule(
-                trigger_role="STATE_POSITIVE",
-                reply_role="ACK_POSITIVE",
-                reply_semantics="STATE_POSITIVE_ACK",
-                surface_tokens=("que", "bom", "!"),
-                reply_language="pt",
-            ),
-            DialogRule(
-                trigger_role="STATE_NEGATIVE",
-                reply_role="CARE_NEGATIVE",
-                reply_semantics="STATE_NEGATIVE_SUPPORT",
-                surface_tokens=("sinto", "muito", ".", "posso", "ajudar", "?"),
-                reply_language="pt",
-            ),
-        )
+        packs = iter_language_packs(DEFAULT_LANGUAGE_CODES)
+        lexicon_entries = []
+        dialog_entries = []
+        for pack in packs:
+            lexicon_entries.extend(
+                Lexeme(
+                    lemma=spec.lemma.upper(),
+                    semantics=spec.semantics,
+                    pos=spec.pos,
+                    forms=_normalize_forms(spec.forms),
+                )
+                for spec in pack.lexemes
+            )
+            dialog_entries.extend(
+                DialogRule(
+                    trigger_role=spec.trigger_role,
+                    reply_role=spec.reply_role,
+                    reply_semantics=spec.reply_semantics,
+                    surface_tokens=spec.surface_tokens,
+                    reply_language=spec.language,
+                )
+                for spec in pack.dialog_rules
+            )
+            _register_conjugations(pack.conjugations)
+        lexicon = tuple(lexicon_entries)
+        dialog_rules = tuple(dialog_entries)
         return cls(
             char_to_code=CHAR_TO_CODE,
             code_to_char=CODE_TO_CHAR,
