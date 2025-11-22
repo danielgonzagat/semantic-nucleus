@@ -35,9 +35,10 @@ class TextInputAdapter:
 
     def to_liu(self, raw: str, lang: str | None = None) -> Node:
         utterance = parse_utterance(raw)
-        language = (lang or self.default_lang).lower()
-        utterance.fields["lang"] = text(language)
-        # compat: garantir campo content
+        if lang:
+            utterance.fields["lang"] = text(lang.lower())
+        elif "lang" not in utterance.fields or not utterance.fields["lang"].label:
+            utterance.fields["lang"] = text(self.default_lang)
         if "content" not in utterance.fields:
             utterance.fields["content"] = text(raw)
         return utterance

@@ -10,6 +10,11 @@ from enum import Enum, auto
 from typing import Dict, List, Optional
 
 from metanucleus.core.liu import Node, struct, text
+from metanucleus.core.lang_profiles import (
+    LanguageCode,
+    LanguageFeatures,
+    extract_language_features,
+)
 
 TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÿ0-9]+|[^\w\s]", re.UNICODE)
 
@@ -69,14 +74,23 @@ VERBS_EN = {
     "want",
 }
 
-GREET_PT = {"oi", "olá", "ola", "opa", "eae", "eaí", "bom dia", "boa tarde", "boa noite"}
-GREET_EN = {"hi", "hello", "hey", "yo"}
+QUESTION_WORDS = {
+    "pt": {"o que", "que", "quando", "onde", "por que", "porque", "qual", "quais", "como"},
+    "en": {"what", "when", "where", "why", "how", "which"},
+    "es": {"qué", "que", "cuando", "donde", "cómo", "como", "por qué", "porque"},
+    "fr": {"pourquoi", "comment", "quand", "où", "qui"},
+    "it": {"perché", "perche", "come", "quando", "dove", "chi"},
+    "de": {"warum", "wie", "wann", "wo", "wer"},
+}
 
-CMD_MARKERS_PT = {"faça", "faz", "cria", "gera", "mostra", "executa", "roda", "abre", "fecha", "lista"}
-CMD_MARKERS_EN = {"do", "make", "create", "generate", "show", "run", "open", "close", "list"}
-
-QWORDS_PT = {"o que", "que", "quando", "onde", "por que", "porque", "qual", "quais", "como"}
-QWORDS_EN = {"what", "when", "where", "why", "how", "which"}
+COMMAND_MARKERS = {
+    "pt": {"faça", "faz", "cria", "gera", "mostra", "executa", "roda", "abre", "fecha", "lista"},
+    "en": {"do", "make", "create", "generate", "show", "run", "open", "close", "list", "reset"},
+    "es": {"haz", "hacer", "ejecuta", "lista", "muestra"},
+    "fr": {"fais", "faire", "montre", "liste"},
+    "it": {"esegui", "fai", "crea", "mostra", "lista"},
+    "de": {"mach", "ausführen", "liste", "zeige"},
+}
 
 
 def lex(text_raw: str) -> List[Token]:
@@ -98,41 +112,33 @@ def lex(text_raw: str) -> List[Token]:
     return tokens
 
 
-def detect_language(text_raw: str, tokens: List[Token]) -> str:
+def _intent_from_features(
+    text_raw: str,
+    tokens: List[Token],
+    features: LanguageFeatures,
+    lang: str,
+) -> UtteranceIntent:
     lowered = text_raw.lower()
-    if any(ch in lowered for ch in "ãõáéíóúâêôç"):
-        return "pt"
-    lowers = {tok.lower for tok in tokens}
-    if lowers & {"the", "this", "that"}:
-        return "en"
-    if lowers & {"vc", "você", "voce", "pra", "tá", "ta"}:
-        return "pt"
-    if any(tok.lower in GREET_PT for tok in tokens):
-        return "pt"
-    if any(tok.lower in GREET_EN for tok in tokens):
-        return "en"
-    return "pt"
+    joined = " ".join(tok.lower for tok in tokens)
 
-
-def detect_intent(text_raw: str, tokens: List[Token], lang: str) -> UtteranceIntent:
-    stripped = text_raw.strip()
-    lowers = [tok.lower for tok in tokens]
-    joined = " ".join(lowers)
-
-    if "?" in stripped:
+    if features.is_greeting_like:
+        return UtteranceIntent.GREETING
+    if features.has_question_mark:
         return UtteranceIntent.QUESTION
-    if lang == "pt":
-        if any(marker in joined for marker in GREET_PT):
-            return UtteranceIntent.GREETING
-    else:
-        if any(marker in joined for marker in GREET_EN):
-            return UtteranceIntent.GREETING
-    qwords = QWORDS_PT if lang == "pt" else QWORDS_EN
+
+    qwords = QUESTION_WORDS.get(lang, QUESTION_WORDS["en"])
     if any(q in joined for q in qwords):
         return UtteranceIntent.QUESTION
-    cmd_markers = CMD_MARKERS_PT if lang == "pt" else CMD_MARKERS_EN
-    if lowers and (lowers[0] in cmd_markers or tokens[0].tag == "VERB"):
+
+    cmd_markers = COMMAND_MARKERS.get(lang, COMMAND_MARKERS["en"])
+    if tokens:
+        first = tokens[0]
+        if first.tag == "VERB" or first.lower in cmd_markers or joined.startswith(tuple(cmd_markers)):
+            return UtteranceIntent.COMMAND
+
+    if any(marker in lowered for marker in cmd_markers):
         return UtteranceIntent.COMMAND
+
     return UtteranceIntent.STATEMENT
 
 
@@ -180,8 +186,9 @@ def _object_fragment(tokens: List[Token], verb_surface: Optional[str]) -> str:
 
 def parse_utterance(text_raw: str) -> Node:
     tokens = lex(text_raw)
-    lang = detect_language(text_raw, tokens)
-    intent = detect_intent(text_raw, tokens, lang)
+    features = extract_language_features(text_raw)
+    lang = features.lang if features.lang != LanguageCode.UNKNOWN.value else LanguageCode.PT.value
+    intent = _intent_from_features(text_raw, tokens, features, lang)
 
     subject = _select_subject(tokens)
     verb = _select_verb(tokens)
@@ -190,6 +197,7 @@ def parse_utterance(text_raw: str) -> Node:
     fields: Dict[str, Node] = {
         "kind": text("utterance"),
         "lang": text(lang),
+        "lang_confidence": text(f"{features.confidence:.3f}"),
         "raw": text(text_raw),
         "content": text(text_raw),
         "intent": text(intent.value),

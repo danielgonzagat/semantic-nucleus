@@ -18,7 +18,7 @@ def test_evolution_session_finishes_when_all_tests_pass():
         TestCase(
             name="greeting",
             input_text="oi, tudo bem?",
-            expected=Expected(lang="pt", answer_prefix="Pergunta registrada"),
+            expected=Expected(intent="greeting", lang="pt", answer_prefix="Olá!"),
         )
     ]
 

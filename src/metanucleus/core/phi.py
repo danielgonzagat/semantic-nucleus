@@ -9,6 +9,7 @@ import operator
 from typing import Iterable, List, Optional
 
 from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
+from metanucleus.core.lang_profiles import detect_language
 
 from .liu import Node, NodeKind, struct, text, op, number, rel
 from .state import MetaState, _rel_signature, register_semantic_metrics
@@ -438,10 +439,9 @@ def _guess_lang(msg: Node) -> str:
     lang = _as_text(lang_field)
     if lang:
         return lang.lower()
-    raw = _content_text(msg).lower()
-    if any(ch in raw for ch in "ãõáéíóúâêôç"):
-        return "pt"
-    return "en"
+    raw = _content_text(msg)
+    guess = detect_language(raw)
+    return guess.code if guess.code else "pt"
 
 
 def _token_list(tokens_node: Optional[Node]) -> List[str]:
