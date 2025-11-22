@@ -22,7 +22,7 @@ from .operators import apply_operator
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
-from .meta_transformer import MetaTransformer
+from .meta_transformer import MetaTransformer, MetaTransformResult, build_meta_summary
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -100,6 +100,7 @@ class RunOutcome:
     equation: EquationSnapshot
     equation_digest: str
     explanation: str
+    meta_summary: Tuple[Node, ...] | None = None
 
     @property
     def quality(self) -> float:
@@ -141,6 +142,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         preseed_context=meta.preseed_context,
         preseed_quality=meta.preseed_quality,
         trace_hint=meta.trace_label,
+        meta_info=meta,
     )
 
 
@@ -168,6 +170,7 @@ def run_struct_full(
     preseed_context: Tuple[Node, ...] | None = None,
     preseed_quality: float | None = None,
     trace_hint: str | None = None,
+    meta_info: MetaTransformResult | None = None,
 ) -> RunOutcome:
     isr = initial_isr(struct_node, session)
     if preseed_answer is not None:
@@ -282,6 +285,9 @@ def run_struct_full(
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     if session.logic_engine:
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
+    meta_summary = (
+        build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
+    )
     return RunOutcome(
         answer=answer_text,
         trace=trace,
@@ -291,6 +297,7 @@ def run_struct_full(
         equation=snapshot,
         equation_digest=snapshot.digest(),
         explanation=render_explanation(isr, struct_node),
+        meta_summary=meta_summary,
     )
 
 

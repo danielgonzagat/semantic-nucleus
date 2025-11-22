@@ -33,6 +33,7 @@ class MetaTransformResult:
 
     struct_node: Node
     route: MetaRoute
+    input_text: str
     trace_label: str | None = None
     preseed_answer: Node | None = None
     preseed_context: Tuple[Node, ...] | None = None
@@ -62,6 +63,7 @@ class MetaTransformer:
             return MetaTransformResult(
                 struct_node=math_hook.struct_node,
                 route=MetaRoute.MATH,
+                input_text=text_value,
                 trace_label=f"MATH[{math_hook.utterance.role}]",
                 preseed_answer=math_hook.answer_node,
                 preseed_context=self._with_meta_context(
@@ -81,6 +83,7 @@ class MetaTransformer:
             return MetaTransformResult(
                 struct_node=logic_hook.struct_node,
                 route=MetaRoute.LOGIC,
+                input_text=text_value,
                 trace_label=logic_hook.trace_label,
                 preseed_answer=logic_hook.answer_node,
                 preseed_context=self._with_meta_context(
@@ -98,6 +101,7 @@ class MetaTransformer:
             return MetaTransformResult(
                 struct_node=instinct_hook.struct_node,
                 route=MetaRoute.INSTINCT,
+                input_text=text_value,
                 trace_label=f"IAN[{instinct_hook.utterance.role}]",
                 preseed_answer=instinct_hook.answer_node,
                 preseed_context=self._with_meta_context(
@@ -118,6 +122,7 @@ class MetaTransformer:
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
+            input_text=text_value,
             preseed_context=self._with_meta_context(
                 None,
                 MetaRoute.TEXT,
@@ -160,7 +165,7 @@ def attach_language_field(node: Node, language: str | None) -> Node:
     return liu_struct(**fields)
 
 
-__all__ = ["MetaTransformer", "MetaTransformResult", "MetaRoute", "attach_language_field"]
+__all__ = ["MetaTransformer", "MetaTransformResult", "MetaRoute", "attach_language_field", "build_meta_summary"]
 
 
 def _meta_route_node(route: MetaRoute, language: str | None) -> Node:
@@ -179,4 +184,26 @@ def _meta_input_node(text_value: str) -> Node:
         tag=entity("meta_input"),
         size=number(len(text_value)),
         preview=liu_text(preview),
+    )
+
+
+def _meta_output_node(answer_text: str, quality: float, halt_reason: str) -> Node:
+    return liu_struct(
+        tag=entity("meta_output"),
+        answer=liu_text(answer_text),
+        quality=number(round(quality, 4)),
+        halt=entity(halt_reason.lower()),
+    )
+
+
+def build_meta_summary(
+    meta: MetaTransformResult,
+    answer_text: str,
+    quality: float,
+    halt_reason: str,
+) -> Tuple[Node, ...]:
+    return (
+        _meta_route_node(meta.route, meta.language_hint),
+        _meta_input_node(meta.input_text),
+        _meta_output_node(answer_text, quality, halt_reason),
     )

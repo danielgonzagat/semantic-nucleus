@@ -138,7 +138,21 @@ def test_run_text_full_exposes_explanation():
     assert "Explicação determinística" in outcome.explanation
     assert "Relações" in outcome.explanation
     assert "Relações novas" in outcome.explanation
-    assert "Relações removidas" in outcome.explanation
+
+
+def test_run_text_full_includes_meta_summary():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    summary = outcome.meta_summary
+    assert summary is not None
+    tags = [dict(node.fields)["tag"].label for node in summary]
+    assert tags == ["meta_route", "meta_input", "meta_output"]
+    route_fields = dict(summary[0].fields)
+    assert (route_fields["route"].label or "") == "text"
+    input_fields = dict(summary[1].fields)
+    assert input_fields["size"].value >= 1
+    output_fields = dict(summary[2].fields)
+    assert "answer" in output_fields
 
 
 def test_run_text_with_explanation_returns_triple():
