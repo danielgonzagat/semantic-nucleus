@@ -8,7 +8,9 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any, Dict, List
+
+from liu.serialize import to_json as node_to_json
 
 from . import SessionCtx, run_text_full
 
@@ -56,6 +58,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--include-explanation",
         action="store_true",
         help="Inclui narrativa determinística Equação→Texto baseada no estado final.",
+    )
+    parser.add_argument(
+        "--include-meta",
+        action="store_true",
+        help="Inclui meta_summary (meta_route/meta_input/meta_output) no payload final.",
     )
     return parser
 
@@ -108,6 +115,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["equation_stats"] = outcome.equation.stats().to_dict()
     if args.include_explanation:
         payload["explanation"] = outcome.explanation
+    if args.include_meta and outcome.meta_summary:
+        payload["meta_summary"] = [_node_to_obj(node) for node in outcome.meta_summary]
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
@@ -118,3 +127,7 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _node_to_obj(node) -> Dict[str, Any]:
+    return json.loads(node_to_json(node))
