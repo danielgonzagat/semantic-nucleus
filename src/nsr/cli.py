@@ -81,6 +81,10 @@ def _build_parser() -> argparse.ArgumentParser:
         default=None,
         help="Define como o runtime executa planos ΣVM: híbrido (padrão), apenas plano ou ignorar planos.",
     )
+    parser.add_argument(
+        "--expect-meta-digest",
+        help="Verifica se o meta_digest calculado coincide com o valor informado; falha se divergir.",
+    )
     return parser
 
 
@@ -110,6 +114,15 @@ def main(argv: list[str] | None = None) -> int:
         session.config.calc_mode = args.calc_mode
 
     outcome = run_text_full(args.text, session)
+    if args.expect_meta_digest:
+        if not outcome.meta_summary:
+            raise SystemExit("expect-meta-digest requer meta_summary (use --include-meta).")
+        summary_dict = meta_summary_to_dict(outcome.meta_summary)
+        digest = summary_dict.get("meta_digest", "")
+        if not digest:
+            raise SystemExit("meta_digest indisponível para comparação.")
+        if digest.lower() != args.expect_meta_digest.lower():
+            raise SystemExit(f"meta_digest divergente: esperado {args.expect_meta_digest}, obtido {digest}.")
     payload = {
         "answer": outcome.answer,
         "quality": outcome.quality,

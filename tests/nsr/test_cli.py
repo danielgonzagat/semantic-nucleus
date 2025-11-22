@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 import nsr.cli as nsr_cli
 
 
@@ -175,6 +177,36 @@ fn soma(x: i32, y: i32) -> i32 {
     assert meta is not None
     assert meta["code_ast_language"] == "rust"
     assert meta["code_ast_node_count"] >= 1
+
+
+def test_cli_accepts_expect_meta_digest(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["meta_digest"]
+    exit_code = nsr_cli.main(
+        ["Um carro existe", "--format", "json", "--include-meta", "--expect-meta-digest", digest]
+    )
+    assert exit_code == 0
+
+
+def test_cli_expect_meta_digest_fails_on_mismatch(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["meta_digest"]
+    bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
+    with pytest.raises(SystemExit):
+        nsr_cli.main(
+            [
+                "Um carro existe",
+                "--format",
+                "json",
+                "--include-meta",
+                "--expect-meta-digest",
+                bad_digest,
+            ]
+        )
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):
