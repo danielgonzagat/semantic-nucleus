@@ -25,6 +25,7 @@ from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .ian_bridge import maybe_route_text
 from .math_bridge import maybe_route_math
+from .logic_bridge import maybe_route_logic
 
 
 @dataclass(slots=True)
@@ -138,23 +139,32 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         preseed_quality = math_hook.quality
         session.language_hint = math_hook.reply.language
     else:
-        instinct_hook = maybe_route_text(text)
-        if instinct_hook:
-            struct0 = instinct_hook.struct_node
-            preseed_answer = instinct_hook.answer_node
-            trace_hint = f"IAN[{instinct_hook.utterance.role}]"
-            preseed_context = instinct_hook.context_nodes
-            preseed_quality = instinct_hook.quality
-            session.language_hint = instinct_hook.reply_plan.language
+        logic_hook = maybe_route_logic(text, engine=session.logic_engine)
+        if logic_hook:
+            struct0 = logic_hook.struct_node
+            preseed_answer = logic_hook.answer_node
+            trace_hint = logic_hook.trace_label
+            preseed_context = logic_hook.context_nodes
+            preseed_quality = logic_hook.quality
+            session.logic_engine = logic_hook.result.engine
         else:
-            tokens = tokenize(text, lexicon)
-            language = (session.language_hint or "pt").lower()
-            struct0 = build_struct(tokens, language=language, text_input=text)
-            struct0 = _attach_language_field(struct0, language)
-            preseed_answer = None
-            trace_hint = None
-            preseed_context = None
-            preseed_quality = None
+            instinct_hook = maybe_route_text(text)
+            if instinct_hook:
+                struct0 = instinct_hook.struct_node
+                preseed_answer = instinct_hook.answer_node
+                trace_hint = f"IAN[{instinct_hook.utterance.role}]"
+                preseed_context = instinct_hook.context_nodes
+                preseed_quality = instinct_hook.quality
+                session.language_hint = instinct_hook.reply_plan.language
+            else:
+                tokens = tokenize(text, lexicon)
+                language = (session.language_hint or "pt").lower()
+                struct0 = build_struct(tokens, language=language, text_input=text)
+                struct0 = _attach_language_field(struct0, language)
+                preseed_answer = None
+                trace_hint = None
+                preseed_context = None
+                preseed_quality = None
     return run_struct_full(
         struct0,
         session,

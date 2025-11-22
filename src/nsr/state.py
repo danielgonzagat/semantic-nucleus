@@ -6,11 +6,14 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, List, Mapping, Sequence, Tuple
+from typing import Deque, List, Mapping, Sequence, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
 from ontology import code as code_ontology
+
+if TYPE_CHECKING:
+    from .logic_engine import LogicEngine
 
 
 @dataclass(slots=True)
@@ -89,6 +92,7 @@ class SessionCtx:
     kb_rules: Tuple[Rule, ...] = field(default_factory=tuple)
     lexicon: Lexicon = field(default_factory=Lexicon)
     language_hint: str | None = None
+    logic_engine: "LogicEngine | None" = None
 
 
 @dataclass(slots=True)

@@ -9,6 +9,8 @@ import unicodedata
 from dataclasses import dataclass
 from typing import Tuple
 
+from liu import entity, number, struct as liu_struct, text as liu_text, Node
+
 from .logic_engine import LogicEngine, negate, normalize_statement
 
 RULE_START_WORDS = ("IF", "SE", "SI")
@@ -29,9 +31,27 @@ class LogicBridgeResult:
     conclusion: str | None
     new_facts: Tuple[str, ...]
     engine: LogicEngine
+    original_text: str
 
 
-def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicBridgeResult | None:
+@dataclass(frozen=True)
+class LogicHook:
+    result: LogicBridgeResult
+    struct_node: Node
+    answer_node: Node
+    context_nodes: Tuple[Node, ...]
+    quality: float
+    trace_label: str
+
+
+def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicHook | None:
+    result = interpret_logic_command(text, engine=engine)
+    if result is None:
+        return None
+    return _build_hook(result)
+
+
+def interpret_logic_command(text: str, engine: LogicEngine | None = None) -> LogicBridgeResult | None:
     engine = engine or LogicEngine()
     normalized = _normalize_upper(text)
 
@@ -39,7 +59,7 @@ def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicBrid
     if rule_payload:
         premises, conclusion = rule_payload
         logic_rule = engine.add_rule(premises, conclusion)
-        new_facts = tuple(engine.infer())
+        new_facts = tuple(sorted(engine.infer()))
         return LogicBridgeResult(
             action="rule",
             statement=None,
@@ -48,12 +68,13 @@ def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicBrid
             conclusion=logic_rule.conclusion,
             new_facts=new_facts,
             engine=engine,
+            original_text=text,
         )
 
     fact_statement = _parse_fact(normalized)
     if fact_statement:
         engine.add_fact(fact_statement)
-        new_facts = tuple(engine.infer())
+        new_facts = tuple(sorted(engine.infer()))
         return LogicBridgeResult(
             action="fact",
             statement=fact_statement,
@@ -62,19 +83,22 @@ def maybe_route_logic(text: str, engine: LogicEngine | None = None) -> LogicBrid
             conclusion=None,
             new_facts=new_facts,
             engine=engine,
+            original_text=text,
         )
 
     query_statement = _parse_query(normalized)
     if query_statement:
         truth = engine.facts.get(query_statement)
+        truth_value = True if truth else False if truth is not None else None
         return LogicBridgeResult(
             action="query",
             statement=query_statement,
-            truth=True if truth else False if truth is not None else None,
+            truth=truth_value,
             premises=(),
             conclusion=None,
             new_facts=(),
             engine=engine,
+            original_text=text,
         )
 
     return None
@@ -141,4 +165,72 @@ def _normalize_upper(text: str) -> str:
     return " ".join(upper.split())
 
 
-__all__ = ["LogicBridgeResult", "maybe_route_logic"]
+def _build_hook(result: LogicBridgeResult) -> LogicHook:
+    struct_node = liu_struct(
+        tag=entity("logic_input"),
+        action=entity(result.action.upper()),
+        original=liu_text(result.original_text),
+        statement=liu_text(result.statement or ""),
+    )
+    answer_text, truth_label = _answer_text(result)
+    answer_node = liu_struct(
+        tag=entity("logic_answer"),
+        answer=liu_text(answer_text),
+        truth=entity(truth_label),
+    )
+    context_nodes = _context_from_result(result)
+    quality = 0.96 if result.action == "query" else 0.9
+    trace_label = f"LOGIC[{result.action.upper()}]"
+    return LogicHook(
+        result=result,
+        struct_node=struct_node,
+        answer_node=answer_node,
+        context_nodes=context_nodes,
+        quality=quality,
+        trace_label=trace_label,
+    )
+
+
+def _answer_text(result: LogicBridgeResult) -> Tuple[str, str]:
+    if result.action == "fact":
+        return (f"FACT OK: {result.statement}", "ACK")
+    if result.action == "rule":
+        premises = " ∧ ".join(result.premises)
+        conclusion = result.conclusion or ""
+        return (f"RULE OK: {premises} ⇒ {conclusion}", "ACK")
+    if result.action == "query":
+        if result.truth is True:
+            return (f"TRUE: {result.statement}", "TRUE")
+        if result.truth is False:
+            return (f"FALSE: {result.statement}", "FALSE")
+        return (f"UNKNOWN: {result.statement}", "UNKNOWN")
+    return ("NO ACTION", "UNKNOWN")
+
+
+def _context_from_result(result: LogicBridgeResult) -> Tuple[Node, ...]:
+    context = []
+    if result.statement:
+        context.append(
+            liu_struct(tag=entity("logic_statement"), value=liu_text(result.statement), action=entity(result.action.upper()))
+        )
+    if result.premises:
+        context.append(
+            liu_struct(
+                tag=entity("logic_rule"),
+                premises=liu_text(" ∧ ".join(result.premises)),
+                conclusion=liu_text(result.conclusion or ""),
+            )
+        )
+    for fact in result.new_facts:
+        context.append(liu_struct(tag=entity("logic_fact"), value=liu_text(fact), status=entity("DERIVED")))
+    context.append(
+        liu_struct(
+            tag=entity("logic_state"),
+            facts=number(len(result.engine.facts)),
+            rules=number(len(result.engine.rules)),
+        )
+    )
+    return tuple(context)
+
+
+__all__ = ["LogicBridgeResult", "LogicHook", "maybe_route_logic", "interpret_logic_command"]
