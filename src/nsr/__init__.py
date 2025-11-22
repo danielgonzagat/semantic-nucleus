@@ -33,6 +33,8 @@ from .ian_bridge import (
     utterance_to_struct,
     reply_plan_to_answer,
 )
+from .math_instinct import MathInstinct
+from .math_bridge import maybe_route_math
 
 __all__ = [
     "run_text",
@@ -59,6 +61,7 @@ __all__ = [
     "render_struct_node",
     "IANInstinct",
     "InstinctHook",
+    "MathInstinct",
     "analyze_utterance",
     "plan_reply",
     "respond",
@@ -67,6 +70,7 @@ __all__ = [
     "ian_word_signature",
     "ian_conjugate",
     "maybe_route_text",
+    "maybe_route_math",
     "utterance_to_struct",
     "reply_plan_to_answer",
 ]

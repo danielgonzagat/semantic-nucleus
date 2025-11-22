@@ -45,7 +45,7 @@ def test_run_text_simple():
 def test_explain_operator_outputs_detailed_report():
     session = SessionCtx()
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     isr = initial_isr(struct_node, session)
     explained = apply_operator(isr, operation("EXPLAIN", struct_node), session)
     answer_node = dict(explained.answer.fields)["answer"]
@@ -272,7 +272,7 @@ def test_tokenize_skips_articles_and_handles_english_relations():
 
 def test_build_struct_includes_relation_nodes():
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     relations_field = dict(struct_node.fields).get("relations")
     assert relations_field is not None
     assert relations_field.kind is NodeKind.LIST
@@ -293,7 +293,7 @@ def test_answer_renders_relation_summary():
 def test_initial_isr_seeds_relations_into_state():
     session = SessionCtx()
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     outcome = run_struct_full(struct_node, session)
     assert any(rel.label == "HAS" for rel in outcome.isr.relations)
     assert any(rel.label == "HAS" for rel in outcome.equation.relations)
@@ -376,6 +376,23 @@ def test_run_text_handles_french_verbose_health_question():
     assert any("IAN[QUESTION_HEALTH_VERBOSE_FR" in step for step in trace.steps)
 
 
+def test_run_text_handles_italian_greeting():
+    session = SessionCtx()
+    answer, trace = run_text("ciao!", session)
+    assert answer == "ciao"
+    assert any("IAN[GREETING_SIMPLE_IT" in step for step in trace.steps)
+
+
+def test_run_text_handles_italian_health_questions():
+    session = SessionCtx()
+    answer, trace = run_text("tutto bene?", session)
+    assert answer == "tutto bene, e tu?"
+    assert any("IAN[QUESTION_HEALTH_IT" in step for step in trace.steps)
+    answer_verbose, trace_verbose = run_text("come stai?", session)
+    assert answer_verbose == "sto bene, e tu?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_IT" in step for step in trace_verbose.steps)
+
+
 def test_ian_reply_language_portuguese():
     session = SessionCtx()
     outcome = run_text_full("oi, tudo bem?", session)
@@ -406,6 +423,44 @@ def test_ian_reply_language_french():
     reply_fields = _extract_ian_reply(outcome)
     assert reply_fields is not None
     assert (reply_fields["plan_language"].label or "") == "fr"
+
+
+def test_ian_reply_language_italian():
+    session = SessionCtx()
+    outcome = run_text_full("come stai?", session)
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "it"
+
+
+def test_run_text_handles_thanks_and_commands():
+    session = SessionCtx()
+    answer, trace = run_text("obrigado!", session)
+    assert answer == "de nada!"
+    assert any("IAN[THANKS_PT" in step for step in trace.steps)
+    answer_cmd, trace_cmd = run_text("faça isso agora", session)
+    assert answer_cmd == "certo, encaminhando para o núcleo."
+    assert any("IAN[COMMAND_PT" in step for step in trace_cmd.steps)
+    answer_farewell, trace_farewell = run_text("tchau", session)
+    assert answer_farewell == "até logo."
+    assert any("IAN[FAREWELL_PT" in step for step in trace_farewell.steps)
+    answer_confirm, trace_confirm = run_text("ok", session)
+    assert answer_confirm == "ok, seguindo."
+    assert any("IAN[CONFIRM_PT" in step for step in trace_confirm.steps)
+
+
+def test_run_text_handles_fact_question_en():
+    session = SessionCtx()
+    answer, trace = run_text("what is NSR?", session)
+    assert answer == "let me check that."
+    assert any("IAN[QUESTION_FACT_EN" in step for step in trace.steps)
+
+
+def test_run_text_handles_math_expression():
+    session = SessionCtx()
+    answer, trace = run_text("2 + 2", session)
+    assert answer == "4"
+    assert trace.steps[0].startswith("1:MATH[")
 
 
 def test_language_hint_controls_non_ian_renderer():

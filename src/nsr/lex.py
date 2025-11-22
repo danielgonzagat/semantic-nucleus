@@ -9,6 +9,13 @@ import re
 from pathlib import Path
 from typing import List, Sequence
 
+from .langpacks_verbs import (
+    EN_VERB_LEXEMES,
+    ES_VERB_LEXEMES,
+    FR_VERB_LEXEMES,
+    IT_VERB_LEXEMES,
+    PT_VERB_LEXEMES,
+)
 from .state import Lexicon, Token
 
 WORD_RE = re.compile(r"[\wáéíóúãõâêîôûàèùç_-]+", re.UNICODE)
@@ -36,6 +43,11 @@ STOP_WORDS = {
     "les",
     "le",
     "du",
+    "gli",
+    "degli",
+    "delle",
+    "della",
+    "dello",
     "the",
     "an",
 }
@@ -43,13 +55,14 @@ STOP_WORDS = {
 
 def tokenize(text: str, lexicon: Lexicon) -> List[Token]:
     tokens: List[Token] = []
-    for match in WORD_RE.finditer(text.lower()):
-        word = match.group(0)
+    for match in WORD_RE.finditer(text):
+        surface = match.group(0)
+        word = surface.lower()
         lemma = lexicon.synonyms.get(word, word)
         tag, payload = infer_tag(word, lemma, lexicon)
         if word in STOP_WORDS and tag == "ENTITY":
             continue
-        tokens.append(Token(lemma=lemma, tag=tag, payload=payload))
+        tokens.append(Token(lemma=lemma, tag=tag, payload=payload, surface=surface))
     return tokens
 
 
@@ -204,10 +217,56 @@ LANGUAGE_PACKS: dict[str, Lexicon] = {
             "appartient": "PART_OF",
         },
     ),
+    "it": Lexicon(
+        synonyms={
+            "auto": "carro",
+            "automobile": "carro",
+            "macchina": "carro",
+            "veicolo": "veiculo",
+            "ruota": "roda",
+        },
+        pos_hint={
+            "muove": "ACTION",
+            "muovere": "ACTION",
+            "corre": "ACTION",
+            "cammina": "ACTION",
+            "camminare": "ACTION",
+        },
+        qualifiers={
+            "veloce",
+            "rapido",
+            "lentamente",
+            "forte",
+        },
+        rel_words={
+            "con": "HAS",
+            "ha": "HAS",
+            "hanno": "HAS",
+            "possiede": "HAS",
+            "appartiene": "PART_OF",
+        },
+    ),
 }
 
 
-DEFAULT_LEXICON = compose_lexicon(("pt", "en", "es", "fr"))
+def _extend_with_verbs(code: str, lexemes: List[dict]) -> None:
+    lex = LANGUAGE_PACKS[code]
+    for entry in lexemes:
+        lemma = entry["lemma"].lower()
+        lex.pos_hint.setdefault(lemma, "ACTION")
+        for form in entry.get("forms", []):
+            form_lower = form.lower()
+            lex.synonyms.setdefault(form_lower, lemma)
+
+
+_extend_with_verbs("pt", PT_VERB_LEXEMES)
+_extend_with_verbs("es", ES_VERB_LEXEMES)
+_extend_with_verbs("fr", FR_VERB_LEXEMES)
+_extend_with_verbs("it", IT_VERB_LEXEMES)
+_extend_with_verbs("en", EN_VERB_LEXEMES)
+
+
+DEFAULT_LEXICON = compose_lexicon(("pt", "en", "es", "fr", "it"))
 
 
 __all__ = ["tokenize", "DEFAULT_LEXICON", "compose_lexicon", "load_lexicon_file", "LANGUAGE_PACKS"]

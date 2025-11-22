@@ -23,6 +23,8 @@ src/nsr/equation.py
 src/nsr/explain.py
 src/nsr/ian.py
 src/nsr/ian_bridge.py
+src/nsr/langpacks.py
+src/nsr/lc_omega.py
 src/nsr/lex.py
 src/nsr/operators.py
 src/nsr/parser.py

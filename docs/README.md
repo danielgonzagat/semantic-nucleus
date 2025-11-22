@@ -3,6 +3,8 @@
 - `manifesto.md` — princípios éticos/técnicos e governança.
 - `roadmap.md` — metas semestrais e métricas (MOPS, TTA, SRF, determinismo).
 - `spec/*` — anexos normativos por camada (LIU, Compilers, NSR, ΣVM, Manifesto).
+- `ian_langpacks.md` — guia para instinto IAN-Ω, gramáticas unificadas e benchmark de performance.
+- `math_instinct.md` — documentação do instinto matemático e integração com o NSR.
 
 ## Como contribuir
 

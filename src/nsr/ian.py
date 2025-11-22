@@ -5,6 +5,7 @@ Instinto Alfabético Numérico (IAN-Ω) – camada linguística determinística.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from functools import lru_cache
 import re
 from typing import Dict, List, Mapping, Sequence, Tuple
 
@@ -24,15 +25,19 @@ def _base_charset() -> Tuple[str, ...]:
         "À",
         "É",
         "Ê",
+        "È",
         "Í",
+        "Ì",
         "Ó",
         "Ô",
         "Õ",
+        "Ò",
         "Ú",
+        "Ù",
         "Ç",
     )
     digits = tuple("0123456789")
-    punct = (" ", ",", ".", "?", "!", ";", ":")
+    punct = (" ", ",", ".", "?", "!", ";", ":", "'", "(", ")", "+", "-", "*", "/", "^", "%", "¿", "¡")
     return letters + accented + digits + punct
 
 
@@ -71,7 +76,12 @@ CONJUGATION_TABLE: Dict[Tuple[str, str, str, str], str] = {
     ("falar", "pres", "3", "plur"): "falam",
 }
 
-DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr")
+DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr", "it")
+
+
+@lru_cache(maxsize=8192)
+def _normalize_default(word: str) -> str:
+    return _normalize(word, CHAR_TO_CODE)
 
 
 def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
@@ -80,11 +90,11 @@ def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int,
     """
 
     table = table or CHAR_TO_CODE
-    normalized = _normalize(word, table)
-    codes: List[int] = []
-    for char in normalized:
-        codes.append(table[char])
-    return tuple(codes)
+    if table is CHAR_TO_CODE:
+        normalized = _normalize_default(word)
+    else:
+        normalized = _normalize(word, table)
+    return tuple(table[char] for char in normalized)
 
 
 def encode_text(text: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
@@ -93,13 +103,11 @@ def encode_text(text: str, table: Mapping[str, int] | None = None) -> Tuple[int,
     """
 
     table = table or CHAR_TO_CODE
-    codes: List[int] = []
-    for ch in text:
-        normalized = _normalize_char(ch, table)
-        if normalized is None:
-            continue
-        codes.append(table[normalized])
-    return tuple(codes)
+    return tuple(
+        table[normalized]
+        for ch in text
+        if (normalized := _normalize_char(ch, table)) is not None
+    )
 
 
 def decode_codes(codes: Sequence[int], table: Mapping[int, str] | None = None) -> str:
@@ -221,10 +229,63 @@ TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[!?.,]")
 EN_GREETING_SURFACES = frozenset({"HI", "HELLO", "HEY"})
 ES_GREETING_SURFACES = frozenset({"HOLA"})
 FR_GREETING_SURFACES = frozenset({"BONJOUR", "SALUT"})
+IT_GREETING_SURFACES = frozenset({"CIAO"})
+PT_FAREWELL_SURFACES = frozenset({"TCHAU", "TCHAO", "ADEUS"})
+EN_FAREWELL_SURFACES = frozenset({"BYE", "GOODBYE", "SEEYA"})
+ES_FAREWELL_SURFACES = frozenset({"ADIOS", "ADIÓS", "CHAU"})
+FR_FAREWELL_SURFACES = frozenset({"AU REVOIR"})
+IT_FAREWELL_SURFACES = frozenset({"CIAO", "ADDIO"})
+FAREWELL_SURFACES = {
+    "pt": PT_FAREWELL_SURFACES,
+    "en": EN_FAREWELL_SURFACES,
+    "es": ES_FAREWELL_SURFACES,
+    "fr": FR_FAREWELL_SURFACES,
+    "it": IT_FAREWELL_SURFACES,
+}
+PT_CONFIRM_SURFACES = frozenset({"CERTO", "OK", "TÁ", "TA"})
+EN_CONFIRM_SURFACES = frozenset({"OK", "OKAY", "SURE"})
+ES_CONFIRM_SURFACES = frozenset({"OK", "VALE"})
+FR_CONFIRM_SURFACES = frozenset({"D'ACCORD", "DACCORD", "OK"})
+IT_CONFIRM_SURFACES = frozenset({"OK", "CERTO"})
+CONFIRM_SURFACES = {
+    "pt": PT_CONFIRM_SURFACES,
+    "en": EN_CONFIRM_SURFACES,
+    "es": ES_CONFIRM_SURFACES,
+    "fr": FR_CONFIRM_SURFACES,
+    "it": IT_CONFIRM_SURFACES,
+}
+PT_THANKS_SURFACES = frozenset({"OBRIGADO", "OBRIGADA", "VALEU"})
+EN_THANKS_SURFACES = frozenset({"THANKS"})
+ES_THANKS_SURFACES = frozenset({"GRACIAS"})
+FR_THANKS_SURFACES = frozenset({"MERCI"})
+IT_THANKS_SURFACES = frozenset({"GRAZIE"})
+THANKS_SURFACES = {
+    "pt": PT_THANKS_SURFACES,
+    "en": EN_THANKS_SURFACES,
+    "es": ES_THANKS_SURFACES,
+    "fr": FR_THANKS_SURFACES,
+    "it": IT_THANKS_SURFACES,
+}
+COMMAND_SURFACES = {
+    "pt": frozenset({"FAÇA", "FACA", "EXECUTE", "CALCULE", "RESOLVA"}),
+    "en": frozenset({"DO", "PLEASE", "CALCULATE", "COMPUTE"}),
+    "es": frozenset({"HAZ", "CALCULA", "EJECUTA"}),
+    "fr": frozenset({"FAIS", "CALCULE", "EXECUTE"}),
+    "it": frozenset({"FAI", "CALCOLA", "ESEGUI"}),
+}
+FACT_SURFACES = {
+    "pt": frozenset({"QUE", "QUAL"}),
+    "en": frozenset({"WHAT"}),
+    "es": frozenset({"QUE", "QUÉ"}),
+    "fr": frozenset({"QUOI", "QUE"}),
+    "it": frozenset({"CHE"}),
+}
 PT_VERBOSE_SEQUENCE = ("QUESTION_HOW", "YOU", "BE_STATE")
 EN_VERBOSE_SEQUENCE = ("QUESTION_HOW", "BE_STATE", "YOU")
 ES_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
 ES_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "BE_STATE", "YOU")
+IT_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
+IT_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "YOU", "BE_STATE")
 FR_VERBOSE_KEYWORDS = frozenset({"COMMENT", "ÇA", "CA"})
 
 
@@ -320,6 +381,21 @@ class IANInstinct:
             return health_role, "STATE_QUERY"
         if self._contains_greeting(semantics_seq):
             return self._greeting_role(content_tokens), "GREETING_SIMPLE"
+        thanks_role = self._thanks_role(content_tokens)
+        if thanks_role:
+            return thanks_role, "THANKS"
+        fact_role = self._fact_question_role(content_tokens)
+        if fact_role:
+            return fact_role, "FACT_QUERY"
+        command_role = self._command_role(content_tokens)
+        if command_role:
+            return command_role, "COMMAND"
+        farewell_role = self._farewell_role(content_tokens)
+        if farewell_role:
+            return farewell_role, "FAREWELL"
+        confirm_role = self._confirm_role(content_tokens)
+        if confirm_role:
+            return confirm_role, "CONFIRM"
         state_role = self._detect_state_statement(tokens)
         if state_role == "POSITIVE":
             return "STATE_POSITIVE", "STATE_POSITIVE"
@@ -345,9 +421,11 @@ class IANInstinct:
             return "es"
         if role.endswith("_FR") or "_FR_" in role:
             return "fr"
+        if role.endswith("_IT") or "_IT_" in role:
+            return "it"
         if role.endswith("_PT") or "_PT_" in role:
             return "pt"
-        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE"}:
+        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE", "THANKS", "QUESTION_FACT", "COMMAND", "FAREWELL", "CONFIRM"}:
             return "pt"
         return "und"
 
@@ -370,7 +448,12 @@ class IANInstinct:
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
         if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+        if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
             return "QUESTION_HEALTH_VERBOSE_ES"
+        if head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG:
+            first_surface = self._first_surface_with_semantics(tokens, "QUESTION_HOW")
+            if first_surface == "COME":
+                return "QUESTION_HEALTH_VERBOSE_IT"
         return None
 
     @staticmethod
@@ -386,6 +469,10 @@ class IANInstinct:
         return any((not token.is_punctuation) and token.normalized in FR_GREETING_SURFACES for token in tokens)
 
     @staticmethod
+    def _is_italian_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in IT_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
     def _contains_french_verbose_marker(tokens: Sequence[IANToken]) -> bool:
         return any((not token.is_punctuation) and token.normalized in FR_VERBOSE_KEYWORDS for token in tokens)
 
@@ -396,7 +483,42 @@ class IANInstinct:
             return "GREETING_SIMPLE_ES"
         if self._is_french_greeting(tokens):
             return "GREETING_SIMPLE_FR"
+        if self._is_italian_greeting(tokens):
+            return "GREETING_SIMPLE_IT"
         return "GREETING_SIMPLE"
+
+    def _thanks_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "THANKS":
+                return self._role_from_surface(token.normalized, THANKS_SURFACES, "THANKS")
+        return None
+
+    def _command_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.is_punctuation:
+                continue
+            if token.lexeme and token.lexeme.semantics == "COMMAND":
+                return self._role_from_surface(token.normalized, COMMAND_SURFACES, "COMMAND")
+            break
+        return None
+
+    def _farewell_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "FAREWELL":
+                return self._role_from_surface(token.normalized, FAREWELL_SURFACES, "FAREWELL")
+        return None
+
+    def _confirm_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "CONFIRM":
+                return self._role_from_surface(token.normalized, CONFIRM_SURFACES, "CONFIRM")
+        return None
+
+    def _fact_question_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "QUESTION_FACT":
+                return self._role_from_surface(token.normalized, FACT_SURFACES, "QUESTION_FACT")
+        return None
 
     def _health_question_role(
         self, tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]
@@ -415,6 +537,8 @@ class IANInstinct:
                 return "QUESTION_HEALTH_ES"
             if first_surface == "TOUT":
                 return "QUESTION_HEALTH_FR"
+            if first_surface == "TUTTO":
+                return "QUESTION_HEALTH_IT"
             return "QUESTION_HEALTH"
         return None
 
@@ -438,6 +562,20 @@ class IANInstinct:
             has_self = any((t.lexeme and t.lexeme.semantics in {"SELF", "BE_STATE"}) for t in tokens)
             if has_self:
                 return "POSITIVE"
+        return None
+
+    @staticmethod
+    def _role_from_surface(surface: str, lookup: Mapping[str, frozenset[str]], base: str) -> str:
+        for code, values in lookup.items():
+            if surface in values:
+                return f"{base}_{code.upper()}"
+        return base
+
+    @staticmethod
+    def _first_surface_with_semantics(tokens: Sequence[IANToken], semantics: str) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == semantics:
+                return token.normalized
         return None
 
     def _materialize_rule_tokens(self, rule: DialogRule) -> Tuple[str, ...]:
