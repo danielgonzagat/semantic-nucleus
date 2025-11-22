@@ -140,6 +140,9 @@ def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
     assert meta["phi_plan_program_len"] == 3
     assert meta["phi_plan_const_len"] == 1
     assert meta["language_category"] in {"text", "unknown"}
+    assert "math_ast_operator" in meta
+    assert meta["math_ast_language"] in {"pt", "und"}
+    assert meta["math_ast_operand_count"] >= 1
 
 
 def test_cli_meta_summary_exposes_code_ast(capsys):

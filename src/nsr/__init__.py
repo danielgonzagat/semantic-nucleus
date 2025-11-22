@@ -47,6 +47,7 @@ from .meta_structures import (
 )
 from .language_detector import detect_language_profile
 from .code_ast import build_python_ast_meta
+from .math_ast import build_math_ast_node
 
 __all__ = [
     "run_text",
@@ -107,4 +108,5 @@ __all__ = [
     "meta_calculation_to_node",
     "detect_language_profile",
     "build_python_ast_meta",
+    "build_math_ast_node",
 ]

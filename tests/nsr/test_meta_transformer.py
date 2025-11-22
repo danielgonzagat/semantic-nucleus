@@ -25,6 +25,12 @@ def test_meta_transformer_routes_math():
     assert plan_fields["description"].label == "math_direct_answer"
     assert plan_fields["digest"].label
     assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
+    math_ast_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "math_ast"]
+    assert math_ast_nodes
+    math_ast_fields = dict(math_ast_nodes[0].fields)
+    assert math_ast_fields["language"].label in {"pt", "und"}
+    assert math_ast_fields["expression"].label.replace(" ", "") == "2+2"
+    assert result.math_ast is not None
 
 
 def test_language_detection_updates_hint_and_context(monkeypatch):
@@ -236,6 +242,9 @@ def test_meta_summary_includes_plan_metadata_for_math():
     assert summary_dict["phi_plan_digest"]
     assert summary_dict["phi_plan_program_len"] == 3
     assert summary_dict["phi_plan_const_len"] == 1
+    assert summary_dict["math_ast_operator"] == "EXPRESSION"
+    assert summary_dict["math_ast_language"] in {"pt", "und"}
+    assert summary_dict["math_ast_operand_count"] >= 1
 
 
 def test_meta_summary_includes_code_ast_data():

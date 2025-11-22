@@ -65,6 +65,7 @@ class MetaTransformResult:
     phi_plan_ops: Tuple[str, ...] | None = None
     language_profile: Node | None = None
     code_ast: Node | None = None
+    math_ast: Node | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +127,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,
+                math_ast=math_hook.math_ast,
             )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
@@ -154,6 +156,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,
+                math_ast=None,
             )
 
         code_hook = maybe_route_code(text_value)
@@ -181,6 +184,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=code_hook.ast_node,
+                math_ast=None,
             )
 
         instinct_hook = maybe_route_text(text_value)
@@ -209,6 +213,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,
+                math_ast=None,
             )
 
         language = (language_hint or "pt").lower()
@@ -255,6 +260,7 @@ class MetaTransformer:
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
             code_ast=fallback_code_ast,
+            math_ast=None,
         )
 
     def _effective_lexicon(self):
@@ -417,6 +423,8 @@ def build_meta_summary(
         nodes.append(meta.language_profile)
     if meta.code_ast is not None:
         nodes.append(meta.code_ast)
+    if meta.math_ast is not None:
+        nodes.append(meta.math_ast)
     return tuple(nodes)
 
 
@@ -476,6 +484,18 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         truncated_node = ast_fields.get("truncated")
         if truncated_node is not None:
             result["code_ast_truncated"] = (_label(truncated_node).lower() == "true")
+    math_ast_node = nodes.get("math_ast")
+    if math_ast_node is not None:
+        math_fields = _fields(math_ast_node)
+        result["math_ast_operator"] = _label(math_fields.get("operator"))
+        result["math_ast_language"] = _label(math_fields.get("language"))
+        result["math_ast_expression"] = _label(math_fields.get("expression"))
+        operand_node = math_fields.get("operand_count")
+        if operand_node is not None:
+            result["math_ast_operand_count"] = int(_value(operand_node))
+        value_node = math_fields.get("value")
+        if value_node is not None:
+            result["math_ast_value"] = _value(value_node)
     return result
 
 
