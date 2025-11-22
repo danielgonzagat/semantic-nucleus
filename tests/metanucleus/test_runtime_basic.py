@@ -46,3 +46,10 @@ def test_facts_command_reports_relations(runtime):
     runtime.handle_request("Quanto é 7 * 3?")
     facts_output = runtime.handle_request("/facts")
     assert "EQUALS" in facts_output
+
+
+def test_state_command_shows_context(runtime):
+    runtime.handle_request("Oi Metanúcleo!")
+    state_output = runtime.handle_request("/state")
+    assert "Estado" in state_output
+    assert "Oi Metanúcleo"[:5] in state_output

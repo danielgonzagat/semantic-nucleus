@@ -52,4 +52,33 @@ class MetaRuntime:
             if not relations:
                 return "[META] Nenhum fato registrado."
             return "[META] Fatos: " + "; ".join(relations)
+        if command == "/state":
+            return self._format_state()
         return f"[META] Comando desconhecido: {command}"
+
+    def _format_state(self) -> str:
+        isr = self.state.isr
+        ctx_preview = [
+            _preview(node) for node in isr.context[-3:]
+        ]
+        answer_text = _preview(isr.answer)
+        return (
+            "[META] Estado:"
+            f" quality={isr.quality:.2f}; "
+            f"context={ctx_preview}; "
+            f"answer={answer_text}"
+        )
+
+
+def _preview(node: Node | None) -> str:
+    if node is None:
+        return ""
+    if node.kind is NodeKind.STRUCT:
+        content = node.fields.get("content") or node.fields.get("raw")
+        if content and content.kind is NodeKind.TEXT and content.label:
+            return content.label[:40]
+    if node.kind is NodeKind.TEXT and node.label:
+        return node.label[:40]
+    if node.label:
+        return node.label[:40]
+    return node.kind.name.lower()
