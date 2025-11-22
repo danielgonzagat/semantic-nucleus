@@ -17,6 +17,7 @@ from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .parser import build_struct
 from .state import SessionCtx
+from .meta_structures import maybe_build_lc_meta_struct
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -160,17 +161,23 @@ class MetaTransformer:
         tokens = tokenize(text_value, lexicon)
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
+        lc_meta_node, _ = maybe_build_lc_meta_struct(language, text_value)
+        if lc_meta_node is not None:
+            struct_node = _set_struct_field(struct_node, "lc_meta", lc_meta_node, overwrite=False)
         text_plan = _text_phi_plan()
+        meta_context = self._with_meta_context(
+            None,
+            MetaRoute.TEXT,
+            language,
+            text_value,
+        )
+        if lc_meta_node is not None:
+            meta_context = tuple((*meta_context, lc_meta_node))
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
             input_text=text_value,
-            preseed_context=self._with_meta_context(
-                None,
-                MetaRoute.TEXT,
-                language,
-                text_value,
-            ),
+            preseed_context=meta_context,
             language_hint=language,
             calc_plan=text_plan,
         )
@@ -201,10 +208,14 @@ def attach_language_field(node: Node, language: str | None) -> Node:
 
     if not language:
         return node
+    return _set_struct_field(node, "language", entity(language), overwrite=False)
+
+
+def _set_struct_field(node: Node, key: str, value: Node, *, overwrite: bool = True) -> Node:
     fields = dict(node.fields)
-    if "language" in fields:
+    if not overwrite and key in fields:
         return node
-    fields["language"] = entity(language)
+    fields[key] = value
     return liu_struct(**fields)
 
 

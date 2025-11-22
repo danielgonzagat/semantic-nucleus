@@ -52,12 +52,19 @@ def test_meta_transformer_falls_back_to_text_route():
     language_field = dict(result.struct_node.fields).get("language")
     assert language_field is not None
     assert (language_field.label or "").startswith("pt")
+    lc_meta = dict(result.struct_node.fields).get("lc_meta")
+    assert lc_meta is not None
+    lc_fields = dict(lc_meta.fields)
+    assert lc_fields["tag"].label == "lc_meta"
+    assert lc_fields["language"].label == "pt"
     assert result.calc_plan is not None
     assert [inst.opcode for inst in result.calc_plan.program.instructions] == [
         Opcode.PHI_NORMALIZE,
         Opcode.PHI_SUMMARIZE,
         Opcode.HALT,
     ]
+    context_tags = [dict(node.fields)["tag"].label for node in result.preseed_context]
+    assert "lc_meta" in context_tags
 
 
 def test_meta_transformer_routes_code_snippet():
