@@ -105,6 +105,7 @@ class RunOutcome:
     meta_summary: Tuple[Node, ...] | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
+    lc_meta: Node | None = None
 
     @property
     def quality(self) -> float:
@@ -195,12 +196,13 @@ def run_struct_full(
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
         trace.halt(HaltReason.QUALITY_THRESHOLD, isr, finalized=True)
-        snapshot = snapshot_equation(struct_node, isr)
         calc_plan = meta_info.calc_plan if meta_info else None
         calc_result = (
             execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
         )
         calc_result = _validate_calc_result(calc_result, isr, trace)
+        _maybe_attach_calc_answer(isr, calc_result, meta_info)
+        snapshot = snapshot_equation(struct_node, isr)
         summary = (
             build_meta_summary(meta_info, _answer_text(isr), isr.quality, HaltReason.QUALITY_THRESHOLD.value)
             if meta_info
@@ -218,6 +220,7 @@ def run_struct_full(
             meta_summary=summary,
             calc_plan=calc_plan,
             calc_result=calc_result,
+            lc_meta=meta_info.lc_meta if meta_info else None,
         )
     steps = 0
     seen_signatures = set()
@@ -306,7 +309,6 @@ def run_struct_full(
                 halt_reason = HaltReason.INVARIANT_FAILURE
     trace.halt(halt_reason, isr, finalized)
     answer_text = _answer_text(isr)
-    snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     if session.logic_engine:
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
     calc_plan = meta_info.calc_plan if meta_info else None
@@ -314,6 +316,10 @@ def run_struct_full(
         execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
     )
     calc_result = _validate_calc_result(calc_result, isr, trace)
+    context_updated = _maybe_attach_calc_answer(isr, calc_result, meta_info)
+    if context_updated:
+        last_snapshot = None
+    snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     meta_summary = (
         build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
     )
@@ -334,6 +340,7 @@ def run_struct_full(
         meta_summary=meta_summary,
         calc_plan=calc_plan,
         calc_result=calc_result,
+        lc_meta=meta_info.lc_meta if meta_info else None,
     )
 
 
@@ -383,6 +390,27 @@ def _validate_calc_result(
     return dc_replace(calc_result, error=updated_error, consistent=False)
 
 
+def _maybe_attach_calc_answer(
+    isr: ISR,
+    calc_result: MetaCalculationResult | None,
+    meta_info: MetaTransformResult | None,
+) -> bool:
+    if (
+        calc_result is None
+        or calc_result.answer is None
+        or meta_info is None
+        or meta_info.route is not MetaRoute.TEXT
+    ):
+        return False
+    answer = calc_result.answer
+    existing = {fingerprint(node) for node in isr.context}
+    sig = fingerprint(answer)
+    if sig in existing:
+        return False
+    isr.context = tuple((*isr.context, answer))
+    return True
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -399,6 +427,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     trace_label = f"PLAN_ONLY[{meta.route.value.upper()}]"
     trace.add(trace_label, isr.quality, len(isr.relations), len(isr.context))
     calc_result = _validate_calc_result(calc_result, isr, trace)
+    _maybe_attach_calc_answer(isr, calc_result, meta)
     trace.halt(HaltReason.PLAN_EXECUTED, isr, finalized=True)
     snapshot = snapshot_equation(meta.struct_node, isr)
     answer_text = _answer_text(isr)
@@ -419,6 +448,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_summary=meta_summary,
         calc_plan=plan,
         calc_result=calc_result,
+        lc_meta=meta.lc_meta,
     )
 
 

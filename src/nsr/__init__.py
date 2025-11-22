@@ -40,6 +40,11 @@ from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normal
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
+from .meta_structures import (
+    build_lc_meta_struct,
+    lc_term_to_node,
+    meta_calculation_to_node,
+)
 
 __all__ = [
     "run_text",
@@ -95,4 +100,7 @@ __all__ = [
     "MetaCalculationResult",
     "execute_meta_plan",
     "meta_summary_to_dict",
+    "build_lc_meta_struct",
+    "lc_term_to_node",
+    "meta_calculation_to_node",
 ]

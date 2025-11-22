@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-from liu import Node, struct as liu_struct, entity, text as liu_text, number
+from liu import Node, struct as liu_struct, entity, text as liu_text, number, to_json
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -17,6 +17,8 @@ from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .parser import build_struct
 from .state import SessionCtx
+from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
+from .lc_omega import MetaCalculation
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -45,6 +47,7 @@ class MetaTransformResult:
     preseed_quality: float | None = None
     language_hint: str | None = None
     calc_plan: "MetaCalculationPlan | None" = None
+    lc_meta: Node | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -160,19 +163,26 @@ class MetaTransformer:
         tokens = tokenize(text_value, lexicon)
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
-        text_plan = _text_phi_plan()
+        lc_meta_node, lc_parsed = maybe_build_lc_meta_struct(language, text_value)
+        if lc_meta_node is not None:
+            struct_node = _set_struct_field(struct_node, "lc_meta", lc_meta_node, overwrite=False)
+        text_plan = _text_phi_plan(calculus=lc_parsed.calculus if lc_parsed else None)
+        meta_context = self._with_meta_context(
+            None,
+            MetaRoute.TEXT,
+            language,
+            text_value,
+        )
+        if lc_meta_node is not None:
+            meta_context = tuple((*meta_context, lc_meta_node))
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
             input_text=text_value,
-            preseed_context=self._with_meta_context(
-                None,
-                MetaRoute.TEXT,
-                language,
-                text_value,
-            ),
+            preseed_context=meta_context,
             language_hint=language,
             calc_plan=text_plan,
+            lc_meta=lc_meta_node,
         )
 
     def _effective_lexicon(self):
@@ -201,10 +211,14 @@ def attach_language_field(node: Node, language: str | None) -> Node:
 
     if not language:
         return node
+    return _set_struct_field(node, "language", entity(language), overwrite=False)
+
+
+def _set_struct_field(node: Node, key: str, value: Node, *, overwrite: bool = True) -> Node:
     fields = dict(node.fields)
-    if "language" in fields:
+    if not overwrite and key in fields:
         return node
-    fields["language"] = entity(language)
+    fields[key] = value
     return liu_struct(**fields)
 
 
@@ -247,17 +261,28 @@ def _meta_output_node(answer_text: str, quality: float, halt_reason: str) -> Nod
     )
 
 
+def _meta_calc_node(calc_node: Node) -> Node:
+    return liu_struct(
+        tag=entity("meta_calc"),
+        payload=calc_node,
+    )
+
+
 def build_meta_summary(
     meta: MetaTransformResult,
     answer_text: str,
     quality: float,
     halt_reason: str,
 ) -> Tuple[Node, ...]:
-    return (
+    nodes = [
         _meta_route_node(meta.route, meta.language_hint),
         _meta_input_node(meta.input_text),
         _meta_output_node(answer_text, quality, halt_reason),
-    )
+    ]
+    calc_node = _extract_meta_calculation(meta)
+    if calc_node is not None:
+        nodes.append(calc_node)
+    return tuple(nodes)
 
 
 def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
@@ -265,7 +290,7 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
     route_fields = _fields(nodes["meta_route"])
     input_fields = _fields(nodes["meta_input"])
     output_fields = _fields(nodes["meta_output"])
-    return {
+    result = {
         "route": _label(route_fields["route"]),
         "language": _label(route_fields.get("language")),
         "input_size": _value(input_fields["size"]),
@@ -274,6 +299,13 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         "quality": _value(output_fields["quality"]),
         "halt": _label(output_fields["halt"]),
     }
+    calc_node = nodes.get("meta_calc")
+    if calc_node is not None:
+        calc_fields = _fields(calc_node)
+        payload = calc_fields.get("payload")
+        if payload is not None:
+            result["meta_calculation"] = to_json(payload)
+    return result
 
 
 def _fields(node: Node) -> dict[str, Node]:
@@ -294,6 +326,16 @@ def _value(node: Node | None) -> float:
     return 0.0
 
 
+def _extract_meta_calculation(meta: MetaTransformResult | None) -> Node | None:
+    if meta is None or meta.lc_meta is None:
+        return None
+    fields = _fields(meta.lc_meta)
+    calc_node = fields.get("calculus")
+    if calc_node is None:
+        return None
+    return _meta_calc_node(calc_node)
+
+
 def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculationPlan | None:
     if answer is None:
         return None
@@ -309,11 +351,38 @@ def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculatio
     return MetaCalculationPlan(route=route, program=program, description=description)
 
 
-def _text_phi_plan() -> MetaCalculationPlan:
-    instructions = [
-        Instruction(Opcode.PHI_NORMALIZE, 0),
-        Instruction(Opcode.PHI_SUMMARIZE, 0),
-        Instruction(Opcode.HALT, 0),
-    ]
-    program = Program(instructions=instructions, constants=[])
-    return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description="text_phi_pipeline")
+_TEXT_PIPELINES: dict[str, Tuple[Opcode, ...]] = {
+    "STATE_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
+    "STATE_ASSERT": (Opcode.PHI_NORMALIZE, Opcode.PHI_ANSWER, Opcode.PHI_EXPLAIN, Opcode.PHI_SUMMARIZE),
+    "FACT_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
+    "COMMAND_ROUTE": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
+    "EMIT_GREETING": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
+    "EMIT_THANKS": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
+    "EMIT_FAREWELL": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
+    "EMIT_CONFIRM": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
+}
+_DEFAULT_TEXT_PIPELINE: Tuple[Opcode, ...] = (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE)
+
+
+def _text_phi_plan(calculus: MetaCalculation | None = None) -> MetaCalculationPlan:
+    operator = (calculus.operator if calculus else "").upper()
+    pipeline = _TEXT_PIPELINES.get(operator, _DEFAULT_TEXT_PIPELINE)
+    opcodes: list[Opcode] = list(pipeline)
+    constants: list[Node] = []
+    if calculus is not None:
+        opcodes.extend((Opcode.PUSH_CONST, Opcode.STORE_ANSWER))
+        constants.append(_calculus_answer_node(calculus))
+    opcodes.append(Opcode.HALT)
+    instructions = [Instruction(opcode, 0) for opcode in opcodes]
+    description = (
+        "text_phi_pipeline" if not operator else f"text_phi_{operator.lower()}"
+    )
+    program = Program(instructions=instructions, constants=constants)
+    return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description=description)
+
+
+def _calculus_answer_node(calculus: MetaCalculation) -> Node:
+    return liu_struct(
+        tag=entity("lc_meta_calc"),
+        payload=meta_calculation_to_node(calculus),
+    )
