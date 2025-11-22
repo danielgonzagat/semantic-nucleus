@@ -14,10 +14,10 @@ from nsr import (
     EquationInvariantStatus,
     tokenize,
     build_struct,
+    meta_summary_to_dict,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
-from nsr.meta_transformer import meta_summary_to_dict
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 
