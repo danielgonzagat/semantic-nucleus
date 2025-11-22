@@ -59,6 +59,7 @@ def test_meta_transformer_falls_back_to_text_route():
     assert lc_meta is not None
     assert result.lc_meta is lc_meta
     assert result.meta_calculation is None
+    assert result.phi_plan_ops is None
     lc_fields = dict(lc_meta.fields)
     assert lc_fields["tag"].label == "lc_meta"
     assert lc_fields["language"].label == "pt"
@@ -124,6 +125,7 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert result.calc_plan.description == "text_phi_state_query"
     assert result.meta_calculation is not None
     assert result.meta_calculation.operator == "STATE_QUERY"
+    assert result.phi_plan_ops == ("NORMALIZE", "INFER", "SUMMARIZE")
     constants = result.calc_plan.program.constants
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
@@ -161,3 +163,5 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     calc_json = summary_dict.get("meta_calculation")
     assert calc_json
     assert '"label":"STATE_QUERY"' in calc_json
+    assert summary_dict["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
+    assert summary_dict["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]

@@ -113,6 +113,8 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
     assert calc_json
     calc_payload = json.loads(calc_json)
     assert calc_payload["fields"]["operator"]["label"] == "STATE_QUERY"
+    assert meta["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
+    assert meta["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):
