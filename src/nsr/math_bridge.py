@@ -31,11 +31,12 @@ def maybe_route_math(text_value: str, instinct: MathInstinct | None = None) -> M
         return _core_hook(core_result)
 
     instinct = instinct or MathInstinct()
-    reply = instinct.evaluate(text_value)
-    if reply is None:
+    try:
+        reply = instinct.evaluate(text_value)
+        utterance = instinct.analyze(text_value)
+    except ValueError:
         return None
-    utterance = instinct.analyze(text_value)
-    if utterance is None:
+    if reply is None or utterance is None:
         return None
     struct_node = _utterance_struct(utterance)
     answer_node = _reply_struct(reply)

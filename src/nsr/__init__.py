@@ -33,6 +33,7 @@ from .ian_bridge import (
     utterance_to_struct,
     reply_plan_to_answer,
 )
+from .code_bridge import CodeHook, maybe_route_code
 from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
@@ -64,6 +65,7 @@ __all__ = [
     "render_struct_node",
     "IANInstinct",
     "InstinctHook",
+    "CodeHook",
     "MathInstinct",
     "analyze_utterance",
     "plan_reply",
@@ -76,6 +78,7 @@ __all__ = [
     "maybe_route_math",
     "utterance_to_struct",
     "reply_plan_to_answer",
+    "maybe_route_code",
     "LogicEngine",
     "LogicRule",
     "LogicHook",

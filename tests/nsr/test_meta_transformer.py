@@ -45,3 +45,18 @@ def test_meta_transformer_falls_back_to_text_route():
     language_field = dict(result.struct_node.fields).get("language")
     assert language_field is not None
     assert (language_field.label or "").startswith("pt")
+
+
+def test_meta_transformer_routes_code_snippet():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    code_text = """
+def soma(x, y):
+    return x + y
+"""
+    result = transformer.transform(code_text)
+    assert result.route is MetaRoute.CODE
+    assert result.preseed_answer is not None
+    assert result.trace_label == "CODE[PYTHON]"
+    assert result.preseed_quality and result.preseed_quality >= 0.85
+    assert any((dict(node.fields)["tag"].label == "meta_route") for node in result.preseed_context)

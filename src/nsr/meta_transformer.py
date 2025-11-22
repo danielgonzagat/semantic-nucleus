@@ -10,6 +10,7 @@ from typing import Tuple
 
 from liu import Node, struct as liu_struct, entity, text as liu_text, number
 
+from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
@@ -23,6 +24,7 @@ class MetaRoute(str, Enum):
 
     MATH = "math"
     LOGIC = "logic"
+    CODE = "code"
     INSTINCT = "instinct"
     TEXT = "text"
 
@@ -93,6 +95,24 @@ class MetaTransformer:
                     text_value,
                 ),
                 preseed_quality=logic_hook.quality,
+            )
+
+        code_hook = maybe_route_code(text_value)
+        if code_hook:
+            return MetaTransformResult(
+                struct_node=code_hook.struct_node,
+                route=MetaRoute.CODE,
+                input_text=text_value,
+                trace_label=code_hook.trace_label,
+                preseed_answer=code_hook.answer_node,
+                preseed_context=self._with_meta_context(
+                    code_hook.context_nodes,
+                    MetaRoute.CODE,
+                    code_hook.language,
+                    text_value,
+                ),
+                preseed_quality=code_hook.quality,
+                language_hint=code_hook.language,
             )
 
         instinct_hook = maybe_route_text(text_value)
