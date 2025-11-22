@@ -58,6 +58,7 @@ def test_meta_transformer_falls_back_to_text_route():
     lc_meta = dict(result.struct_node.fields).get("lc_meta")
     assert lc_meta is not None
     assert result.lc_meta is lc_meta
+    assert result.meta_calculation is None
     lc_fields = dict(lc_meta.fields)
     assert lc_fields["tag"].label == "lc_meta"
     assert lc_fields["language"].label == "pt"
@@ -121,6 +122,8 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
         Opcode.HALT,
     ]
     assert result.calc_plan.description == "text_phi_state_query"
+    assert result.meta_calculation is not None
+    assert result.meta_calculation.operator == "STATE_QUERY"
     constants = result.calc_plan.program.constants
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]

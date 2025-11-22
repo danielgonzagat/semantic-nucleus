@@ -22,6 +22,8 @@ O `RunOutcome` expõe diretamente o `lc_meta`, e o CLI pode serializá-lo via `-
 
 O pacote `meta_summary` também passa a carregar o `meta_calculation`, garantindo que o mesmo cálculo LC-Ω esteja disponível tanto no histórico meta quanto no `lc_meta_calc` anexado ao contexto.
 
+Para fechar o elo, o runtime agora lê o `lc_meta_calc` antes de iniciar o loop Φ e injeta na fila de operadores a mesma sequência prevista para a ΣVM: `STATE_QUERY` passa imediatamente por `NORMALIZE → INFER → SUMMARIZE`, `STATE_ASSERT` executa `NORMALIZE → ANSWER → EXPLAIN → SUMMARIZE`, comandos e saudações recebem seus fluxos específicos. O plano LC-Ω deixa de ser apenas metadata e passa a comandar, de forma determinística, tanto o hardware quanto o executor simbólico.
+
 Quando a rota já fornece um `preseed_answer`, o `MetaTransformResult` também embute um `MetaCalculationPlan`. Este plano descreve um programa ΣVM mínimo (atualmente: `PUSH_CONST → STORE_ANSWER → HALT`) que reproduz, em nível de hardware simbólico, o mesmo resultado pré-semeado. É o primeiro passo concreto da etapa **Meta-CALCULAR**, permitindo despachar diretamente para a ΣVM qualquer meta-resposta determinística sem depender do loop Φ. O runtime executa esse plano via `execute_meta_plan`, registrando o snapshot completo na nova estrutura `MetaCalculationResult`.
 
 O `Config.calc_mode` define como o plano é usado:

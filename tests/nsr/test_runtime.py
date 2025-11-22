@@ -16,11 +16,13 @@ from nsr import (
     build_struct,
     meta_summary_to_dict,
     MetaRoute,
+    MetaTransformResult,
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
+from nsr.lc_omega import MetaCalculation
 
 
 def _extract_ian_reply(outcome):
@@ -181,6 +183,23 @@ def test_meta_history_respects_limit():
     assert len(session.meta_history) == 2
     previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
     assert previews == ["O carro tem roda", "O carro anda rapido"]
+
+
+def test_prime_ops_from_meta_calc_enqueues_phi_sequence():
+    session = SessionCtx()
+    struct_node = struct(subject=entity("carro"))
+    meta = MetaTransformResult(
+        struct_node=struct_node,
+        route=MetaRoute.TEXT,
+        input_text="teste",
+        meta_calculation=MetaCalculation(operator="STATE_ASSERT", operands=()),
+    )
+    isr = initial_isr(struct_node, session)
+    default_labels = [op.label for op in list(isr.ops_queue)]
+    nsr_runtime._prime_ops_from_meta_calc(isr, struct_node, meta)
+    labels = [op.label for op in list(isr.ops_queue)]
+    assert labels[:4] == ["NORMALIZE", "ANSWER", "EXPLAIN", "SUMMARIZE"]
+    assert labels[4:7] == default_labels[:3]
 
 
 def test_run_struct_full_exposes_isr_and_quality():

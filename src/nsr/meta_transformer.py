@@ -19,6 +19,7 @@ from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .lc_omega import MetaCalculation
+from .meta_calculus_router import text_opcode_pipeline
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -48,6 +49,7 @@ class MetaTransformResult:
     language_hint: str | None = None
     calc_plan: "MetaCalculationPlan | None" = None
     lc_meta: Node | None = None
+    meta_calculation: MetaCalculation | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -183,6 +185,7 @@ class MetaTransformer:
             language_hint=language,
             calc_plan=text_plan,
             lc_meta=lc_meta_node,
+            meta_calculation=lc_parsed.calculus if lc_parsed else None,
         )
 
     def _effective_lexicon(self):
@@ -351,31 +354,17 @@ def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculatio
     return MetaCalculationPlan(route=route, program=program, description=description)
 
 
-_TEXT_PIPELINES: dict[str, Tuple[Opcode, ...]] = {
-    "STATE_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "STATE_ASSERT": (Opcode.PHI_NORMALIZE, Opcode.PHI_ANSWER, Opcode.PHI_EXPLAIN, Opcode.PHI_SUMMARIZE),
-    "FACT_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "COMMAND_ROUTE": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
-    "EMIT_GREETING": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_THANKS": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_FAREWELL": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-    "EMIT_CONFIRM": (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE),
-}
-_DEFAULT_TEXT_PIPELINE: Tuple[Opcode, ...] = (Opcode.PHI_NORMALIZE, Opcode.PHI_SUMMARIZE)
-
-
 def _text_phi_plan(calculus: MetaCalculation | None = None) -> MetaCalculationPlan:
-    operator = (calculus.operator if calculus else "").upper()
-    pipeline = _TEXT_PIPELINES.get(operator, _DEFAULT_TEXT_PIPELINE)
-    opcodes: list[Opcode] = list(pipeline)
+    opcodes: list[Opcode] = list(text_opcode_pipeline(calculus))
     constants: list[Node] = []
     if calculus is not None:
         opcodes.extend((Opcode.PUSH_CONST, Opcode.STORE_ANSWER))
         constants.append(_calculus_answer_node(calculus))
     opcodes.append(Opcode.HALT)
     instructions = [Instruction(opcode, 0) for opcode in opcodes]
+    operator_label = (calculus.operator if calculus else "").lower()
     description = (
-        "text_phi_pipeline" if not operator else f"text_phi_{operator.lower()}"
+        "text_phi_pipeline" if not operator_label else f"text_phi_{operator_label}"
     )
     program = Program(instructions=instructions, constants=constants)
     return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description=description)
