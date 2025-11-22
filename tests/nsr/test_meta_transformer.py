@@ -19,6 +19,11 @@ def test_meta_transformer_routes_math():
         Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "math_direct_answer"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_routes_logic():
@@ -29,6 +34,11 @@ def test_meta_transformer_routes_logic():
     assert result.preseed_answer is not None
     assert result.trace_label == "LOGIC[FACT]"
     assert session.logic_engine is not None
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "logic_direct_answer"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_routes_instinct():
@@ -39,6 +49,11 @@ def test_meta_transformer_routes_instinct():
     assert result.preseed_quality and result.preseed_quality > 0.8
     assert result.trace_label and result.trace_label.startswith("IAN[")
     assert session.language_hint == result.language_hint
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "instinct_direct_answer"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_falls_back_to_text_route():
@@ -71,6 +86,11 @@ def test_meta_transformer_falls_back_to_text_route():
     ]
     context_tags = [dict(node.fields)["tag"].label for node in result.preseed_context]
     assert "lc_meta" in context_tags
+    assert "meta_plan" in context_tags
+    plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
+    plan_fields = dict(plan_node.fields)
+    assert plan_fields["description"].label == "text_phi_pipeline"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_routes_code_snippet():
@@ -96,6 +116,11 @@ def soma(x, y):
         Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "code_direct_answer"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
@@ -131,6 +156,10 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
     plan_fields = dict(plan_node.fields)
     assert (plan_fields["chain"].label or "") == "NORMALIZE→INFER→SUMMARIZE"
+    assert plan_fields["description"].label == "text_phi_state_query"
+    assert plan_fields["digest"].label
+    assert int(plan_fields["program_len"].value) == 6
+    assert int(plan_fields["const_len"].value) == 1
     constants = result.calc_plan.program.constants
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
@@ -170,3 +199,19 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     assert '"label":"STATE_QUERY"' in calc_json
     assert summary_dict["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
     assert summary_dict["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]
+    assert summary_dict["phi_plan_description"] == "text_phi_state_query"
+    assert summary_dict["phi_plan_digest"]
+    assert summary_dict["phi_plan_program_len"] == 6
+    assert summary_dict["phi_plan_const_len"] == 1
+
+
+def test_meta_summary_includes_plan_metadata_for_math():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    meta_result = transformer.transform("2+2")
+    summary_nodes = build_meta_summary(meta_result, "4", meta_result.preseed_quality or 0.99, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["phi_plan_description"] == "math_direct_answer"
+    assert summary_dict["phi_plan_digest"]
+    assert summary_dict["phi_plan_program_len"] == 3
+    assert summary_dict["phi_plan_const_len"] == 1

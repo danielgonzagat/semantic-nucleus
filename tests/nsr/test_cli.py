@@ -93,6 +93,9 @@ def test_cli_includes_meta_summary(capsys):
     assert meta["route"] == "text"
     assert meta["input_size"] >= 1
     assert meta["answer"]
+    assert meta["phi_plan_description"]
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] >= 3
 
 
 def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
@@ -115,6 +118,23 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
     assert calc_payload["fields"]["operator"]["label"] == "STATE_QUERY"
     assert meta["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
     assert meta["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]
+    assert meta["phi_plan_description"] == "text_phi_state_query"
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] == 6
+    assert meta["phi_plan_const_len"] == 1
+
+
+def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
+    exit_code = nsr_cli.main(["2+2", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["phi_plan_description"] == "math_direct_answer"
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] == 3
+    assert meta["phi_plan_const_len"] == 1
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):

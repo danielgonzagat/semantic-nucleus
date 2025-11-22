@@ -6,9 +6,19 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import Enum
+from hashlib import blake2b
 from typing import Tuple
 
-from liu import Node, struct as liu_struct, entity, text as liu_text, number, to_json, list_node
+from liu import (
+    Node,
+    struct as liu_struct,
+    entity,
+    text as liu_text,
+    number,
+    to_json,
+    list_node,
+    fingerprint,
+)
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -82,18 +92,22 @@ class MetaTransformer:
         if math_hook:
             plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
             self.session.language_hint = math_hook.reply.language
+            preseed_context = self._with_meta_context(
+                math_hook.context_nodes,
+                MetaRoute.MATH,
+                math_hook.reply.language,
+                text_value,
+            )
+            plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
             return MetaTransformResult(
                 struct_node=math_hook.struct_node,
                 route=MetaRoute.MATH,
                 input_text=text_value,
                 trace_label=f"MATH[{math_hook.utterance.role}]",
                 preseed_answer=math_hook.answer_node,
-                preseed_context=self._with_meta_context(
-                    math_hook.context_nodes,
-                    MetaRoute.MATH,
-                    math_hook.reply.language,
-                    text_value,
-                ),
+                preseed_context=preseed_context,
                 preseed_quality=math_hook.quality,
                 language_hint=math_hook.reply.language,
                 calc_plan=plan,
@@ -104,18 +118,22 @@ class MetaTransformer:
             plan = _direct_answer_plan(MetaRoute.LOGIC, logic_hook.answer_node)
             self.session.logic_engine = logic_hook.result.engine
             self.session.logic_serialized = logic_hook.snapshot
+            preseed_context = self._with_meta_context(
+                logic_hook.context_nodes,
+                MetaRoute.LOGIC,
+                self.session.language_hint,
+                text_value,
+            )
+            plan_node = _meta_plan_node(MetaRoute.LOGIC, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
             return MetaTransformResult(
                 struct_node=logic_hook.struct_node,
                 route=MetaRoute.LOGIC,
                 input_text=text_value,
                 trace_label=logic_hook.trace_label,
                 preseed_answer=logic_hook.answer_node,
-                preseed_context=self._with_meta_context(
-                    logic_hook.context_nodes,
-                    MetaRoute.LOGIC,
-                    self.session.language_hint,
-                    text_value,
-                ),
+                preseed_context=preseed_context,
                 preseed_quality=logic_hook.quality,
                 calc_plan=plan,
             )
@@ -123,18 +141,22 @@ class MetaTransformer:
         code_hook = maybe_route_code(text_value)
         if code_hook:
             plan = _direct_answer_plan(MetaRoute.CODE, code_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                code_hook.context_nodes,
+                MetaRoute.CODE,
+                code_hook.language,
+                text_value,
+            )
+            plan_node = _meta_plan_node(MetaRoute.CODE, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
             return MetaTransformResult(
                 struct_node=code_hook.struct_node,
                 route=MetaRoute.CODE,
                 input_text=text_value,
                 trace_label=code_hook.trace_label,
                 preseed_answer=code_hook.answer_node,
-                preseed_context=self._with_meta_context(
-                    code_hook.context_nodes,
-                    MetaRoute.CODE,
-                    code_hook.language,
-                    text_value,
-                ),
+                preseed_context=preseed_context,
                 preseed_quality=code_hook.quality,
                 language_hint=code_hook.language,
                 calc_plan=plan,
@@ -144,18 +166,22 @@ class MetaTransformer:
         if instinct_hook:
             plan = _direct_answer_plan(MetaRoute.INSTINCT, instinct_hook.answer_node)
             self.session.language_hint = instinct_hook.reply_plan.language
+            preseed_context = self._with_meta_context(
+                instinct_hook.context_nodes,
+                MetaRoute.INSTINCT,
+                instinct_hook.reply_plan.language,
+                text_value,
+            )
+            plan_node = _meta_plan_node(MetaRoute.INSTINCT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
             return MetaTransformResult(
                 struct_node=instinct_hook.struct_node,
                 route=MetaRoute.INSTINCT,
                 input_text=text_value,
                 trace_label=f"IAN[{instinct_hook.utterance.role}]",
                 preseed_answer=instinct_hook.answer_node,
-                preseed_context=self._with_meta_context(
-                    instinct_hook.context_nodes,
-                    MetaRoute.INSTINCT,
-                    instinct_hook.reply_plan.language,
-                    text_value,
-                ),
+                preseed_context=preseed_context,
                 preseed_quality=instinct_hook.quality,
                 language_hint=instinct_hook.reply_plan.language,
                 calc_plan=plan,
@@ -184,7 +210,7 @@ class MetaTransformer:
             filtered = tuple((op.label or "") for op in ops if (op.label or ""))
             if filtered:
                 phi_plan_ops = filtered
-        plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops)
+        plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops, text_plan)
         if plan_context is not None:
             meta_context = tuple((*meta_context, plan_context))
         return MetaTransformResult(
@@ -282,19 +308,55 @@ def _meta_calc_node(calc_node: Node) -> Node:
     )
 
 
-def _meta_plan_node(route: MetaRoute, plan_ops: Tuple[str, ...] | None) -> Node | None:
-    if not plan_ops:
+def _meta_plan_node(
+    route: MetaRoute,
+    plan_ops: Tuple[str, ...] | None,
+    plan: MetaCalculationPlan | None = None,
+) -> Node | None:
+    include_ops = bool(plan_ops)
+    include_plan = plan is not None
+    if not include_ops and not include_plan:
         return None
-    ops_nodes = [entity(label) for label in plan_ops if label]
-    if not ops_nodes:
+    fields: dict[str, Node] = {
+        "tag": entity("meta_plan"),
+        "route": entity(route.value),
+    }
+    if plan_ops:
+        ops_nodes = [entity(label) for label in plan_ops if label]
+        if ops_nodes:
+            chain = "→".join(plan_ops)
+            fields["chain"] = liu_text(chain)
+            fields["ops"] = list_node(ops_nodes)
+    if plan is not None:
+        fields["description"] = entity(plan.description)
+        fields["program_len"] = number(len(plan.program.instructions))
+        fields["const_len"] = number(len(plan.program.constants))
+        fields["digest"] = entity(_plan_digest(plan))
+    if len(fields) == 2:
         return None
-    chain = "→".join(plan_ops)
-    return liu_struct(
-        tag=entity("meta_plan"),
-        route=entity(route.value),
-        chain=liu_text(chain),
-        ops=list_node(ops_nodes),
-    )
+    return liu_struct(**fields)
+
+
+def _plan_digest(plan: MetaCalculationPlan) -> str:
+    hasher = blake2b(digest_size=16)
+    hasher.update(plan.route.value.encode("utf-8"))
+    hasher.update(plan.description.encode("utf-8"))
+    for inst in plan.program.instructions:
+        hasher.update(f"{inst.opcode.name}:{inst.operand}".encode("utf-8"))
+    hasher.update(b"|")
+    for constant in plan.program.constants:
+        hasher.update(_constant_signature(constant).encode("utf-8"))
+    return hasher.hexdigest()
+
+
+def _constant_signature(value: object) -> str:
+    if isinstance(value, Node):
+        return fingerprint(value)
+    if value is None:
+        return "NULL"
+    if isinstance(value, (int, float, bool)):
+        return str(value)
+    return repr(value)
 
 
 def build_meta_summary(
@@ -311,7 +373,7 @@ def build_meta_summary(
     calc_node = _extract_meta_calculation(meta)
     if calc_node is not None:
         nodes.append(calc_node)
-    plan_node = _meta_plan_node(meta.route, meta.phi_plan_ops)
+    plan_node = _meta_plan_node(meta.route, meta.phi_plan_ops, meta.calc_plan)
     if plan_node is not None:
         nodes.append(plan_node)
     return tuple(nodes)
@@ -342,6 +404,14 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         plan_fields = _fields(plan_node)
         result["phi_plan_route"] = _label(plan_fields.get("route"))
         result["phi_plan_chain"] = _label(plan_fields.get("chain"))
+        result["phi_plan_description"] = _label(plan_fields.get("description"))
+        result["phi_plan_digest"] = _label(plan_fields.get("digest"))
+        prog_len = plan_fields.get("program_len")
+        if prog_len is not None:
+            result["phi_plan_program_len"] = int(_value(prog_len))
+        const_len = plan_fields.get("const_len")
+        if const_len is not None:
+            result["phi_plan_const_len"] = int(_value(const_len))
         ops_node = plan_fields.get("ops")
         if ops_node is not None and ops_node.kind.name == "LIST":
             result["phi_plan_ops"] = [(arg.label or "") for arg in ops_node.args]
