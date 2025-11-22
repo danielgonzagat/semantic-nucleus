@@ -148,8 +148,9 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
             session.language_hint = instinct_hook.reply_plan.language
         else:
             tokens = tokenize(text, lexicon)
-            struct0 = build_struct(tokens)
-            struct0 = _attach_language_field(struct0, session.language_hint or "pt")
+            language = (session.language_hint or "pt").lower()
+            struct0 = build_struct(tokens, language=language, text_input=text)
+            struct0 = _attach_language_field(struct0, language)
             preseed_answer = None
             trace_hint = None
             preseed_context = None

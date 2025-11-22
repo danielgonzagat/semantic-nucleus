@@ -45,7 +45,7 @@ def test_run_text_simple():
 def test_explain_operator_outputs_detailed_report():
     session = SessionCtx()
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     isr = initial_isr(struct_node, session)
     explained = apply_operator(isr, operation("EXPLAIN", struct_node), session)
     answer_node = dict(explained.answer.fields)["answer"]
@@ -272,7 +272,7 @@ def test_tokenize_skips_articles_and_handles_english_relations():
 
 def test_build_struct_includes_relation_nodes():
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     relations_field = dict(struct_node.fields).get("relations")
     assert relations_field is not None
     assert relations_field.kind is NodeKind.LIST
@@ -293,7 +293,7 @@ def test_answer_renders_relation_summary():
 def test_initial_isr_seeds_relations_into_state():
     session = SessionCtx()
     tokens = tokenize("O carro tem roda", DEFAULT_LEXICON)
-    struct_node = build_struct(tokens)
+    struct_node = build_struct(tokens, language="pt", text_input="O carro tem roda")
     outcome = run_struct_full(struct_node, session)
     assert any(rel.label == "HAS" for rel in outcome.isr.relations)
     assert any(rel.label == "HAS" for rel in outcome.equation.relations)

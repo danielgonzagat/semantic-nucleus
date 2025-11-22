@@ -47,7 +47,7 @@ custom = load_lexicon_file("lexicon_extra.json")
 session.lexicon = session.lexicon.merge(custom)
 ```
 
-Os pacotes embutidos fornecem sinônimos/qualificadores/palavras-rel para português, inglês, espanhol e francês.
+Os pacotes embutidos fornecem sinônimos/qualificadores/palavras-rel para português, inglês, espanhol, francês e italiano. Cada idioma conta com mais de 100 verbos/conjugações canônicas (pres/past/fut) alimentadas por `nsr.langpacks_verbs` e compartilhadas entre o IAN e o parser sintático determinístico.
 Arquivos JSON seguem o formato `{"synonyms": {...}, "pos_hint": {...}, "qualifiers": [...], "rel_words": {...}}`.
 
 ## 4. ΣVM snapshots

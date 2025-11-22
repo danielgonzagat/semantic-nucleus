@@ -38,6 +38,10 @@ FIELD_SIGNATURES: Dict[str, Sort] = {
     "return_": Sort.ANY,
     "binop": Sort.STRUCTURE,
     "metadata": Sort.CONTEXT,
+    "language": Sort.THING,
+    "sentence_type": Sort.THING,
+    "question_focus": Sort.THING,
+    "negation": Sort.LIST,
 }
 
 

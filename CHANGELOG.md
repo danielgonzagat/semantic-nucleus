@@ -13,6 +13,8 @@ Todas as mudanças relevantes neste repositório serão documentadas aqui.
   - `scripts/ian_bench.py` com thresholds (`--max-p95-ms`, `--max-peak-mib`) e medição de textos longos.
   - `scripts/langpack_dsl.py` para gerar pacotes a partir de uma DSL JSON.
 - Documentação ampliada (`docs/roadmap_official.md`, `docs/math_instinct.md`, `docs/security_checklist.md`) e README atualizado com roadmap v1.0→v2.0 e checklist de segurança.
+- Parser sintático Fase 1.1 implementado: `nsr.parser.build_struct` agora usa perfis (`nsr.grammar`) para identificar sujeito/verbo/objeto, tipo de sentença, negação e foco de pergunta em PT/EN/ES/FR/IT; `nsr.runtime.run_text_full` passa `language`/`text_input` e novos testes (`tests/nsr/test_parser.py`) cobrem cenários afirmativos/interrogativos/imperativos.
+- Lexicalizador expandido: `tokenize` preserva superfícies originais, `LANGUAGE_PACKS` inclui italiano e recebe automaticamente >100 verbos/conjugações por idioma via `nsr.langpacks_verbs`; grammars e LangPacks foram atualizados para garantir no mínimo 100 verbos canônicos em PT/EN/ES/FR/IT e alimentar o parser/IAN.
 
 ## [0.1.0] - 2025-11-21
 

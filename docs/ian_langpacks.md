@@ -49,6 +49,7 @@ Este guia explica como o instinto alfabético-numérico (IAN-Ω) manipula idioma
 2. **Atualizar `LANGUAGE_PACK_DATA`** em `nsr/langpacks.py`:
    - Preencher `lexemes`, `dialog_rules`, `conjugations`, `stopwords`, `syntactic_patterns`.
    - Utilize semânticas padrão (`GREETING_SIMPLE`, `ALL_THINGS`, `STATE_GOOD`, `YOU`, `QUESTION_HOW`, etc.) para garantir uniformidade.
+   - Cada pacote oficial deve expor **pelo menos 100 verbos canônicos** com tempos presente/passado/futuro (Romances também têm formas progressivas geradas por padrão). O módulo `nsr.langpacks_verbs` já exporta coleções prontas para PT/EN/ES/FR/IT.
 3. **Recarregar e validar**:
    - `python3 - <<'PY' ... from nsr.langpacks import get_language_pack ... PY`.
    - Atualize `tests/nsr/test_langpacks.py` com asserts para o novo código.
@@ -84,6 +85,7 @@ Recomendações:
 - Normalize sinônimos/variações no próprio `lexicon`.
 - Utilize sufixos `_PT`, `_EN`, etc. nos `trigger_role`/`reply_role` para que heurísticas detectem idioma automaticamente.
 - `surface_tokens` podem combinar literais e placeholders `:CONJ:lemma:tense:person:number`.
+- O módulo `nsr.grammar` descreve pronome↔pessoa/número, marcadores de negação e partículas interrogativas por idioma; mantenha os LangPacks coerentes com essas tabelas para que o parser sintático (`nsr.parser.build_struct`) continue determinístico.
 
 ## 5. Performance e escalabilidade
 
