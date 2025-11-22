@@ -12,7 +12,7 @@ from typing import Tuple, Sequence
 
 from metanucleus.core.evolution import MetaEvolution
 from metanucleus.core.liu import Node, NodeKind, op
-from metanucleus.core.state import MetaState, register_utterance_relation
+from metanucleus.core.state import MetaState, register_utterance_relation, reset_answer
 from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.test.testcore import run_test_suite, TestCase
 from metanucleus.utils.suites import load_suite_file, SuiteFormatError
@@ -42,6 +42,7 @@ class MetaRuntime:
             msg = self.code_adapter.to_liu(raw_input)
         else:
             msg = self.text_adapter.to_liu(raw_input, lang)
+        reset_answer(self.state)
         self._inject_message(msg)
         self.scheduler.run(self.state)
         output = self.renderer.render(self.state)
@@ -456,13 +457,28 @@ class MetaRuntime:
             del self.state.evolution_log[:-limit]
 
     def _handle_metrics_command(self) -> str:
+        metrics = self.state.metrics
+        avg_cost = (
+            metrics.semantic_cost_sum / metrics.semantic_events
+            if metrics.semantic_events
+            else 0.0
+        )
+        top_kind = _top_counter_entry(metrics.semantic_kind_counts)
+        top_intent = _top_counter_entry(metrics.intent_counts)
+        top_lang = _top_counter_entry(metrics.lang_counts)
         return (
             "[META-METRICS] "
             f"state_id={self.state.id} "
-            f"cycles={self.state.metrics.total_cycles} "
-            f"requests={self.state.metrics.total_requests} "
+            f"cycles={metrics.total_cycles} "
+            f"requests={metrics.total_requests} "
             f"context={len(self.state.isr.context)} "
             f"evolutions={len(self.state.evolution_log)} "
+            f"semantic_events={metrics.semantic_events} "
+            f"semantic_cost_avg={avg_cost:.2f} "
+            f"semantic_cost_max={metrics.semantic_cost_max:.2f} "
+            f"top_kind={top_kind or '-'} "
+            f"top_intent={top_intent or '-'} "
+            f"top_lang={top_lang or '-'} "
             f"last_updated={self.state.last_updated_at}"
         )
 
@@ -531,6 +547,13 @@ def _preview(node: Node | None) -> str:
 
 def _context_snippets(context: list[Node], limit: int) -> list[str]:
     return [_preview(node) for node in context[-limit:] if node]
+
+
+def _top_counter_entry(counts: dict[str, int]) -> str:
+    if not counts:
+        return ""
+    key, _ = max(counts.items(), key=lambda item: (item[1], item[0]))
+    return key
 
 
 def _safe_label(node: Node | None) -> str:

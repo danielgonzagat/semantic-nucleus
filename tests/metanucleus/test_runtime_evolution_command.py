@@ -129,3 +129,17 @@ def test_snapshot_command_writes_file(tmp_path):
     assert "importado" in output
     assert runtime.state.meta_history
     assert runtime.state.evolution_log
+
+
+def test_metrics_command_reports_semantic_stats():
+    runtime = MetaRuntime(state=MetaState())
+    runtime.handle_request("Oi Metanúcleo determinístico!")
+    runtime.handle_request("Quanto é 2 + 2?")
+
+    output = runtime.handle_request("/metrics")
+
+    assert "META-METRICS" in output
+    assert "semantic_events=2" in output
+    assert "semantic_cost_avg=" in output
+    assert "semantic_cost_max=" in output
+    assert "top_lang=pt" in output
