@@ -49,6 +49,8 @@ def test_facts_command_reports_relations(runtime):
     filtered = runtime.handle_request("/facts EQUALS")
     assert "SAID" not in filtered
     assert "EQUALS" in filtered
+    multi_filtered = runtime.handle_request("/facts SAID EQUALS")
+    assert "SAID" not in multi_filtered  # ambos filtros aplicados
 
 
 def test_state_command_shows_context(runtime):
@@ -81,3 +83,6 @@ def test_meta_command_reports_last_summary(runtime):
     meta_output = runtime.handle_request("/meta")
     assert "route=text" in meta_output
     assert "Oi Metanúcleo"[:5] in meta_output
+    runtime.handle_request("Outra frase simbólica.")
+    meta_multi = runtime.handle_request("/meta 2")
+    assert meta_multi.count("route=text") == 2

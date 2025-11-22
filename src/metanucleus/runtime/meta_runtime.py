@@ -49,10 +49,11 @@ class MetaRuntime:
     def _handle_control(self, command: str) -> str:
         if command.startswith("/facts"):
             relations = self.state.isr.relations
-            parts = command.split(maxsplit=1)
-            if len(parts) == 2:
-                filter_tag = parts[1].upper()
-                relations = {rel for rel in relations if rel[0].upper() == filter_tag}
+            parts = command.split()
+            filters = [token.upper() for token in parts[1:]]
+            if filters:
+                for tag in filters:
+                    relations = {rel for rel in relations if rel[0].upper() == tag}
             relations_sorted = sorted(f"{name}{args}" for name, args in relations)
             if not relations_sorted:
                 return "[META] Nenhum fato registrado."
@@ -71,8 +72,12 @@ class MetaRuntime:
         if command == "/goals":
             goals = [g.label or g.kind.name for g in self.state.isr.ops_queue[:5]]
             return "[META] Goals/Ops: " + ", ".join(goals or ["(vazio)"])
-        if command == "/meta":
-            return self._format_meta()
+        if command.startswith("/meta"):
+            parts = command.split()
+            limit = 1
+            if len(parts) == 2 and parts[1].isdigit():
+                limit = max(1, min(10, int(parts[1])))
+            return self._format_meta(limit)
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -92,17 +97,15 @@ class MetaRuntime:
             return "[META] Contexto vazio."
         return "[META] Contexto: " + " | ".join(snippets)
 
-    def _format_meta(self) -> str:
+    def _format_meta(self, limit: int) -> str:
         if not self.state.meta_history:
             return "[META] Nenhum meta registrado."
-        last = self.state.meta_history[-1]
-        return (
-            "[META] MetaSummary:"
-            f" route={last.get('route','')};"
-            f" lang={last.get('lang','')};"
-            f" input={last.get('input','')};"
-            f" answer={last.get('answer','')}"
-        )
+        entries = self.state.meta_history[-limit:]
+        lines = [
+            f"route={entry.get('route','')}; lang={entry.get('lang','')}; input={entry.get('input','')}; answer={entry.get('answer','')}"
+            for entry in entries
+        ]
+        return "[META] MetaSummary:\n" + "\n".join(lines)
 
     def _record_meta_summary(self, msg: Node, output: str) -> None:
         if msg.kind is not NodeKind.STRUCT:
