@@ -279,6 +279,57 @@ def _fold_constants(node: ast.AST) -> ast.AST:
     return node
 
 
+def _flatten_mul(node: ast.AST, factors: List[ast.AST]) -> None:
+    if isinstance(node, ast.BinOp) and isinstance(node.op, ast.Mult):
+        _flatten_mul(node.left, factors)
+        _flatten_mul(node.right, factors)
+    else:
+        factors.append(node)
+
+
+def _build_mul_chain(factors: List[ast.AST]) -> ast.AST:
+    if not factors:
+        return ast.Constant(value=1)
+    expr = factors[0]
+    for factor in factors[1:]:
+        expr = ast.BinOp(left=expr, op=ast.Mult(), right=factor)
+    return expr
+
+
+def _factorize_multiplication(node: ast.AST) -> ast.AST:
+    if isinstance(node, ast.BinOp):
+        node.left = _factorize_multiplication(node.left)
+        node.right = _factorize_multiplication(node.right)
+        if isinstance(node.op, ast.Mult):
+            factors: List[ast.AST] = []
+            _flatten_mul(node, factors)
+            grouped: Dict[str, Tuple[ast.AST, int]] = {}
+            for factor in factors:
+                key = ast.dump(factor, include_attributes=False)
+                entry = grouped.get(key)
+                if entry is None:
+                    grouped[key] = (factor, 1)
+                else:
+                    grouped[key] = (entry[0], entry[1] + 1)
+            new_factors: List[ast.AST] = []
+            for base, count in grouped.values():
+                if count == 1:
+                    new_factors.append(base)
+                else:
+                    power = ast.BinOp(
+                        left=base,
+                        op=ast.Pow(),
+                        right=ast.Constant(value=count),
+                    )
+                    new_factors.append(power)
+            return _build_mul_chain(new_factors)
+    elif isinstance(node, ast.Expr):
+        node.value = _factorize_multiplication(node.value)
+    elif isinstance(node, ast.Return) and node.value is not None:
+        node.value = _factorize_multiplication(node.value)
+    return node
+
+
 def _collect_liu_kinds(node: Node, kinds: List[str]) -> None:
     if node.kind is NodeKind.STRUCT:
         kind_field = node.fields.get("kind")
@@ -330,7 +381,9 @@ class MetaEvolution:
         liu_repr = _liu_signature(python_code_to_liu(func_source))
 
         simplified_expr = _fold_constants(copy.deepcopy(original_expr))
-        meta_terms = _reduce_terms(_collect_terms(simplified_expr))
+        factored_expr = _factorize_multiplication(simplified_expr)
+        factored_expr = _fold_constants(factored_expr)
+        meta_terms = _reduce_terms(_collect_terms(factored_expr))
         optimized_expr = _build_expression(meta_terms)
 
         if ast.dump(original_expr, include_attributes=False) == ast.dump(
