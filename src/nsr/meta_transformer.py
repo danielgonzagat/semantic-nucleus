@@ -29,6 +29,7 @@ from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
+from .code_ast import build_python_ast_meta
 from .lc_omega import MetaCalculation
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
@@ -63,6 +64,7 @@ class MetaTransformResult:
     meta_calculation: MetaCalculation | None = None
     phi_plan_ops: Tuple[str, ...] | None = None
     language_profile: Node | None = None
+    code_ast: Node | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -96,6 +98,7 @@ class MetaTransformer:
         if detection.category == "text" and detection.language:
             language_hint = detection.language.lower()
             self.session.language_hint = language_hint
+        should_build_code_ast = detection.category == "code" and detection.dialect == "python"
 
         math_hook = maybe_route_math(text_value)
         if math_hook:
@@ -122,6 +125,7 @@ class MetaTransformer:
                 language_hint=math_hook.reply.language,
                 calc_plan=plan,
                 language_profile=language_profile_node,
+                code_ast=None,
             )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
@@ -149,6 +153,7 @@ class MetaTransformer:
                 preseed_quality=logic_hook.quality,
                 calc_plan=plan,
                 language_profile=language_profile_node,
+                code_ast=None,
             )
 
         code_hook = maybe_route_code(text_value)
@@ -175,6 +180,7 @@ class MetaTransformer:
                 language_hint=code_hook.language,
                 calc_plan=plan,
                 language_profile=language_profile_node,
+                code_ast=code_hook.ast_node,
             )
 
         instinct_hook = maybe_route_text(text_value)
@@ -202,6 +208,7 @@ class MetaTransformer:
                 language_hint=instinct_hook.reply_plan.language,
                 calc_plan=plan,
                 language_profile=language_profile_node,
+                code_ast=None,
             )
 
         language = (language_hint or "pt").lower()
@@ -228,6 +235,11 @@ class MetaTransformer:
             filtered = tuple((op.label or "") for op in ops if (op.label or ""))
             if filtered:
                 phi_plan_ops = filtered
+        fallback_code_ast = None
+        if should_build_code_ast:
+            fallback_code_ast = build_python_ast_meta(text_value)
+            if fallback_code_ast is not None:
+                meta_context = tuple((*meta_context, fallback_code_ast))
         plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops, text_plan)
         if plan_context is not None:
             meta_context = tuple((*meta_context, plan_context))
@@ -242,6 +254,7 @@ class MetaTransformer:
             meta_calculation=lc_parsed.calculus if lc_parsed else None,
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
+            code_ast=fallback_code_ast,
         )
 
     def _effective_lexicon(self):
@@ -400,6 +413,10 @@ def build_meta_summary(
     plan_node = _meta_plan_node(meta.route, meta.phi_plan_ops, meta.calc_plan)
     if plan_node is not None:
         nodes.append(plan_node)
+    if meta.language_profile is not None:
+        nodes.append(meta.language_profile)
+    if meta.code_ast is not None:
+        nodes.append(meta.code_ast)
     return tuple(nodes)
 
 
@@ -439,6 +456,26 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         ops_node = plan_fields.get("ops")
         if ops_node is not None and ops_node.kind.name == "LIST":
             result["phi_plan_ops"] = [(arg.label or "") for arg in ops_node.args]
+    profile_node = nodes.get("language_profile")
+    if profile_node is not None:
+        profile_fields = _fields(profile_node)
+        result["language_category"] = _label(profile_fields.get("category"))
+        result["language_detected"] = _label(profile_fields.get("language"))
+        result["language_dialect"] = _label(profile_fields.get("dialect"))
+        result["language_confidence"] = _value(profile_fields.get("confidence"))
+        hints_node = profile_fields.get("hints")
+        if hints_node is not None and hints_node.kind.name == "LIST":
+            result["language_hints"] = [(arg.label or "") for arg in hints_node.args]
+    code_ast_node = nodes.get("code_ast")
+    if code_ast_node is not None:
+        ast_fields = _fields(code_ast_node)
+        result["code_ast_language"] = _label(ast_fields.get("language"))
+        count_node = ast_fields.get("node_count")
+        if count_node is not None:
+            result["code_ast_node_count"] = int(_value(count_node))
+        truncated_node = ast_fields.get("truncated")
+        if truncated_node is not None:
+            result["code_ast_truncated"] = (_label(truncated_node).lower() == "true")
     return result
 
 

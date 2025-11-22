@@ -20,6 +20,8 @@ Além disso, sempre que o `lc_meta` contém um `meta_calculation`, o plano ΣVM 
 
 Antes mesmo de decidir a rota, o `language_detector` aplica heurísticas determinísticas sobre o texto bruto para identificar idioma natural e dialetos de código (Python/Rust/Elixir/JS). O resultado vira um nó `language_profile` anexado ao contexto inicial, alimenta `SessionCtx.language_hint` e garante que o parser/tokenizador use o léxico correto, além de sinalizar quando o conteúdo provavelmente é código antes do `code_bridge`.
 
+Quando o perfil aponta para código Python (mesmo sem passar pelo `code_bridge`), geramos um `code_ast` LIU via `nsr.code_ast.build_python_ast_meta`: o AST serializado inclui o tronco completo (limitado a 512 nós), contagem de tipos e marcação de truncamento. Esse nó acompanha o contexto e o `meta_summary`, garantindo que entradas de código já entrem no Meta-LER como estrutura auditável e não apenas como texto.
+
 Planos ΣVM emitidos por qualquer rota (MATH/LOGIC/CODE/INSTINCT/TEXT) agora geram um `meta_plan` rico em metadados tanto no contexto inicial quanto no `meta_summary`. Esse nó inclui: descrição humana (`phi_plan_description`), digest BLAKE2b das instruções+constantes (`phi_plan_digest`), contagem de instruções (`phi_plan_program_len`), contagem de constantes (`phi_plan_const_len`) e, sempre que existir, a cadeia Φ (`phi_plan_chain` + `phi_plan_ops`). O CLI expõe os mesmos campos via `--include-meta`, permitindo auditar o bytecode despachado para o hardware independentemente da rota.
 
 O `RunOutcome` expõe diretamente o `lc_meta`, e o CLI pode serializá-lo via `--include-lc-meta`, facilitando auditorias sobre quais tokens/semânticas no LC-Ω originaram determinado meta-cálculo.

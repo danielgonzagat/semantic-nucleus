@@ -96,6 +96,8 @@ def test_cli_includes_meta_summary(capsys):
     assert meta["phi_plan_description"]
     assert meta["phi_plan_digest"]
     assert meta["phi_plan_program_len"] >= 3
+    assert meta["language_category"] == "text"
+    assert meta["language_detected"] in {"pt", "en"}
 
 
 def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
@@ -122,6 +124,8 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
     assert meta["phi_plan_digest"]
     assert meta["phi_plan_program_len"] == 6
     assert meta["phi_plan_const_len"] == 1
+    assert meta["language_category"] == "text"
+    assert meta["language_detected"] == "pt"
 
 
 def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
@@ -135,6 +139,22 @@ def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
     assert meta["phi_plan_digest"]
     assert meta["phi_plan_program_len"] == 3
     assert meta["phi_plan_const_len"] == 1
+    assert meta["language_category"] in {"text", "unknown"}
+
+
+def test_cli_meta_summary_exposes_code_ast(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["code_ast_language"] == "python"
+    assert meta["code_ast_node_count"] >= 1
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):

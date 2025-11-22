@@ -10,6 +10,7 @@ from typing import Tuple
 from liu import Node, entity, struct as liu_struct, text as liu_text, list_node, number
 
 from frontend_python.compiler import compile_source
+from .code_ast import build_python_ast_meta
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,7 @@ class CodeHook:
     context_nodes: Tuple[Node, ...]
     quality: float
     trace_label: str
+    ast_node: Node | None = None
 
 
 PYTHON_KEYWORDS = (
@@ -49,7 +51,8 @@ def maybe_route_code(text_value: str, module_name: str = "input") -> CodeHook | 
         return None
     struct_node = _build_struct(relations, module_name)
     answer_node = _build_answer(relations, module_name)
-    context_nodes = _build_context(relations, module_name)
+    ast_node = build_python_ast_meta(text_value)
+    context_nodes = _build_context(relations, module_name, ast_node)
     return CodeHook(
         language="code/python",
         module=module_name,
@@ -58,6 +61,7 @@ def maybe_route_code(text_value: str, module_name: str = "input") -> CodeHook | 
         context_nodes=context_nodes,
         quality=0.88,
         trace_label="CODE[PYTHON]",
+        ast_node=ast_node,
     )
 
 
@@ -93,7 +97,7 @@ def _build_answer(relations: Tuple[Node, ...], module_name: str) -> Node:
     )
 
 
-def _build_context(relations: Tuple[Node, ...], module_name: str) -> Tuple[Node, ...]:
+def _build_context(relations: Tuple[Node, ...], module_name: str, ast_node: Node | None) -> Tuple[Node, ...]:
     context: list[Node] = [
         liu_struct(
             tag=entity("code_stats"),
@@ -111,6 +115,8 @@ def _build_context(relations: Tuple[Node, ...], module_name: str) -> Tuple[Node,
                 preview=liu_text(_preview_relation(rel)),
             )
         )
+    if ast_node is not None:
+        context.append(ast_node)
     return tuple(context)
 
 

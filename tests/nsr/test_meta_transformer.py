@@ -138,6 +138,8 @@ def soma(x, y):
     assert plan_fields["description"].label == "code_direct_answer"
     assert plan_fields["digest"].label
     assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
+    assert any(dict(node.fields)["tag"].label == "code_ast" for node in result.preseed_context)
+    assert result.code_ast is not None
 
 
 def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
@@ -220,6 +222,8 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     assert summary_dict["phi_plan_digest"]
     assert summary_dict["phi_plan_program_len"] == 6
     assert summary_dict["phi_plan_const_len"] == 1
+    assert summary_dict["language_category"] == "text"
+    assert summary_dict["language_detected"] == "pt"
 
 
 def test_meta_summary_includes_plan_metadata_for_math():
@@ -232,3 +236,17 @@ def test_meta_summary_includes_plan_metadata_for_math():
     assert summary_dict["phi_plan_digest"]
     assert summary_dict["phi_plan_program_len"] == 3
     assert summary_dict["phi_plan_const_len"] == 1
+
+
+def test_meta_summary_includes_code_ast_data():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    source = """
+def soma(x, y):
+    return x + y
+"""
+    meta_result = transformer.transform(source)
+    summary_nodes = build_meta_summary(meta_result, "Resumo", meta_result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["code_ast_language"] == "python"
+    assert summary_dict["code_ast_node_count"] >= 1
