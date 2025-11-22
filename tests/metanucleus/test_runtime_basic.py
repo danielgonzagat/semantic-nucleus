@@ -37,3 +37,6 @@ def test_question_receives_question_reply(runtime):
 def test_math_question_returns_result(runtime):
     output = runtime.handle_request("Quanto é 10 + 5?")
     assert "10 + 5 = 15" in output or "resultado é 15" in output
+    facts = runtime.state.isr.relations
+    assert any(name == "EQUALS" for name, _ in facts)
+    assert any(name == "SAID" for name, _ in facts)

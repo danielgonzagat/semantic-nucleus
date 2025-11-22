@@ -8,8 +8,8 @@ import ast
 import operator
 from typing import Tuple
 
-from .liu import Node, NodeKind, struct, text, op, number
-from .state import MetaState
+from .liu import Node, NodeKind, struct, text, op, number, rel
+from .state import MetaState, _rel_signature
 
 
 def apply_phi(state: MetaState, operator: Node) -> None:
@@ -251,12 +251,19 @@ def phi_calculus(state: MetaState, args: Tuple[Node, ...]) -> None:
         value = _safe_eval(expr)
     except ValueError:
         return
-    msg.fields["calculus"] = struct(
+    calculus_struct = struct(
         kind=text("calculus"),
         expression=text(expr),
         result=number(value),
     )
-    msg.fields["equivalence"] = text(f"{expr} = {value}")
+    msg.fields["calculus"] = calculus_struct
+
+    equivalence_text = f"{expr} = {value}"
+    msg.fields["equivalence"] = text(equivalence_text)
+    # registra relação simbólica
+    fact = rel("EQUALS", text(expr), number(value))
+    state.isr.relations.add(_rel_signature(fact))
+
     state.isr.quality = min(1.0, state.isr.quality + 0.08)
 
 

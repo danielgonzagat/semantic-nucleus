@@ -5,9 +5,9 @@ Estado determinístico do Metanúcleo.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import List, Set
+from typing import List, Set, Tuple
 
-from .liu import Node, NodeKind, nil
+from .liu import Node, NodeKind, nil, rel, text, entity
 
 
 @dataclass(slots=True)
@@ -17,7 +17,7 @@ class ISR:
     """
 
     ontology: Set[Node] = field(default_factory=set)
-    relations: Set[Node] = field(default_factory=set)
+    relations: Set[Tuple[str, Tuple[str, ...]]] = field(default_factory=set)
     context: List[Node] = field(default_factory=list)
     goals: List[Node] = field(default_factory=list)
     ops_queue: List[Node] = field(default_factory=list)
@@ -50,3 +50,35 @@ class MetaState:
 def reset_answer(state: MetaState) -> None:
     state.isr.answer = nil()
     state.isr.quality = 0.0
+
+
+def register_utterance_relation(state: MetaState, msg: Node) -> None:
+    """
+    Registra um fato SAID(user, utterance_preview) no conjunto de relações.
+    """
+
+    preview = ""
+    if msg.kind is NodeKind.STRUCT:
+        content = msg.fields.get("content") or msg.fields.get("raw")
+        if content and content.kind is NodeKind.TEXT and content.label:
+            preview = content.label
+    if not preview and msg.label:
+        preview = msg.label
+    if not preview:
+        preview = msg.kind.name.lower()
+    relation = rel("SAID", entity("user"), text(preview))
+    state.isr.relations.add(_rel_signature(relation))
+
+
+def _rel_signature(rel_node: Node) -> Tuple[str, Tuple[str, ...]]:
+    labels = []
+    for arg in rel_node.args:
+        if arg.kind is NodeKind.TEXT and arg.label:
+            labels.append(arg.label)
+        elif arg.kind is NodeKind.NUMBER and arg.value_num is not None:
+            labels.append(str(arg.value_num))
+        elif arg.label:
+            labels.append(arg.label)
+        else:
+            labels.append(arg.kind.name.lower())
+    return rel_node.label or "REL", tuple(labels)

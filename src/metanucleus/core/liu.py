@@ -64,3 +64,7 @@ def list_node(*items: Node) -> Node:
 
 def op(name: str, *args: Node) -> Node:
     return Node(kind=NodeKind.OP, label=name, args=list(args))
+
+
+def rel(name: str, *args: Node) -> Node:
+    return Node(kind=NodeKind.REL, label=name, args=list(args))

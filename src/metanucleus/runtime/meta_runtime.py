@@ -8,7 +8,7 @@ from dataclasses import dataclass, field
 from typing import Tuple
 
 from metanucleus.core.liu import Node, NodeKind, op
-from metanucleus.core.state import MetaState
+from metanucleus.core.state import MetaState, register_utterance_relation
 from .adapters import TextInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
 from .scheduler import Scheduler
@@ -34,6 +34,7 @@ class MetaRuntime:
     def _inject_message(self, msg: Node) -> None:
         isr = self.state.isr
         isr.context.append(msg)
+        register_utterance_relation(self.state, msg)
         # manter fila determinística: normalize → answer
         isr.ops_queue.append(op("NORMALIZE"))
         isr.ops_queue.append(op("INTENT", msg))
