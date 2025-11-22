@@ -5,9 +5,11 @@ TESTCORE v1.0 — harness determinístico para evolução supervisionada.
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
+import difflib
 from typing import Any, List, Optional, TYPE_CHECKING
 
 from metanucleus.core.liu import Node, NodeKind
+from metanucleus.core.ast_bridge import python_code_to_liu, liu_to_python_code
 
 if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
@@ -198,3 +200,28 @@ def _generate_patch(testcase: TestCase, diffs: List[FieldDiff]) -> Optional[Patc
         reason="Diferenças estruturais detectadas",
         hints={"diffs": [asdict(d) for d in diffs]},
     )
+
+
+def compare_code_versions(original_code: str, candidate_code: str) -> dict[str, Any]:
+    """
+    Compara duas versões de código usando o bridge LIU↔AST e retorna
+    um relatório com equivalência estrutural e diff textual.
+    """
+    liu_original = python_code_to_liu(original_code)
+    liu_candidate = python_code_to_liu(candidate_code)
+    equivalent = liu_original == liu_candidate
+    diff = "\n".join(
+        difflib.unified_diff(
+            original_code.splitlines(),
+            candidate_code.splitlines(),
+            fromfile="original",
+            tofile="candidate",
+            lineterm="",
+        )
+    )
+    reconstructed = liu_to_python_code(liu_candidate)
+    return {
+        "equivalent": equivalent,
+        "diff": diff,
+        "candidate_reconstructed": reconstructed,
+    }

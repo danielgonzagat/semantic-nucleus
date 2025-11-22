@@ -25,3 +25,10 @@ def test_code_input_still_produces_answer(runtime):
     code = "def inc(x): return x + 1"
     output = runtime.handle_request(code)
     assert "code snippet" in output.lower() or "trecho de código" in output.lower()
+
+
+def test_codeplan_command_shows_structure(runtime):
+    runtime.handle_request("def soma(a, b): return a + b")
+    output = runtime.handle_request("/codeplan")
+    assert "[CODEPLAN]" in output
+    assert "def soma" in output

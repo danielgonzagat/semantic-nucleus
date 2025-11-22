@@ -114,6 +114,11 @@ def phi_structure(state: MetaState, args: tuple[Node, ...]) -> None:
         ast_node = _field(msg, "ast")
         if ast_node:
             msg = _with_field(msg, "structure", ast_node)
+            prev = _find_previous_code_snippet(state.isr.context, msg)
+            if prev:
+                diff_text = _code_diff_text(prev, msg)
+                if diff_text:
+                    msg = _with_field(msg, "diff_with_previous", text(diff_text))
     else:
         tokens_node = _field(msg, "tokens")
         if tokens_node is None or tokens_node.kind is not NodeKind.STRUCT:
@@ -307,12 +312,15 @@ def phi_answer(state: MetaState, args: tuple[Node, ...]) -> None:
 
     if _is_code_snippet(msg):
         ast_node = _field(msg, "structure") or _field(msg, "ast")
+        diff_node = _field(msg, "diff_with_previous")
         if ast_node:
             ans_text = (
                 "Recebi um trecho de código e o representei em LIU. Posso compará-lo ou otimizá-lo em seguida."
                 if lang == "pt"
                 else "I received a code snippet and mapped it into LIU. I can compare or optimize it next."
             )
+            if diff_node and diff_node.kind is NodeKind.TEXT and diff_node.label:
+                ans_text += f"\nDiff:\n{diff_node.label}"
         else:
             ans_text = (
                 "Recebi um código, mas não consegui analisá-lo completamente."
@@ -506,6 +514,38 @@ def _extract_math_expr(raw: str) -> str:
     allowed = set("0123456789+-*/().,% ")
     cleaned = "".join(ch for ch in snippet if ch in allowed)
     return cleaned.strip()
+
+
+def _find_previous_code_snippet(context: list[Node], current: Node) -> Optional[Node]:
+    for node in reversed(context):
+        if node is current:
+            continue
+        if node.kind is NodeKind.STRUCT and _is_code_snippet(node):
+            return node
+    return None
+
+
+def _code_diff_text(previous: Node, current: Node) -> str:
+    from metanucleus.core.ast_bridge import liu_to_python_code
+    import difflib
+
+    prev_struct = previous.fields.get("structure") or previous.fields.get("ast")
+    curr_struct = current.fields.get("structure") or current.fields.get("ast")
+    if not prev_struct or not curr_struct:
+        return ""
+
+    prev_code = liu_to_python_code(prev_struct).splitlines()
+    curr_code = liu_to_python_code(curr_struct).splitlines()
+    diff_lines = list(
+        difflib.unified_diff(
+            prev_code,
+            curr_code,
+            fromfile="previous",
+            tofile="current",
+            lineterm="",
+        )
+    )
+    return "\n".join(diff_lines[:80])
 
 
 _BIN_OPS = {

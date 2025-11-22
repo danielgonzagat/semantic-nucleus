@@ -85,6 +85,8 @@ class MetaRuntime:
             if len(parts) == 2 and parts[1].isdigit():
                 limit = max(1, min(10, int(parts[1])))
             return self._format_meta(limit)
+        if command.startswith("/codeplan"):
+            return self._format_code_plan()
         if command.startswith("/testcore"):
             return self._handle_testcore_command(command)
         return f"[META] Comando desconhecido: {command}"
@@ -141,6 +143,32 @@ class MetaRuntime:
         limit = 10
         if len(self.state.meta_history) > limit:
             del self.state.meta_history[:-limit]
+
+    def _format_code_plan(self) -> str:
+        code_node = next(
+            (
+                node
+                for node in reversed(self.state.isr.context)
+                if node.kind is NodeKind.STRUCT
+                and node.fields.get("kind")
+                and node.fields["kind"].kind is NodeKind.TEXT
+                and node.fields["kind"].label == "code_snippet"
+            ),
+            None,
+        )
+        if code_node is None:
+            return "[CODEPLAN] Nenhum code_snippet recente."
+
+        from metanucleus.core.ast_bridge import liu_to_python_code
+
+        structure = code_node.fields.get("structure") or code_node.fields.get("ast")
+        summary_lines = [f"[CODEPLAN] lang={_safe_label(code_node.fields.get('code_lang'))}"]
+        if structure:
+            summary_lines.append("AST summary:")
+            summary_lines.append(liu_to_python_code(structure))
+        else:
+            summary_lines.append("Sem AST disponível.")
+        return "\n".join(summary_lines)
 
     def _handle_testcore_command(self, command: str) -> str:
         tokens = command.split()
@@ -221,3 +249,9 @@ def _preview(node: Node | None) -> str:
 
 def _context_snippets(context: list[Node], limit: int) -> list[str]:
     return [_preview(node) for node in context[-limit:] if node]
+
+
+def _safe_label(node: Node | None) -> str:
+    if node and node.kind is NodeKind.TEXT and node.label:
+        return node.label
+    return ""
