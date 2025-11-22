@@ -5,7 +5,9 @@ Estado determinístico do Metanúcleo.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import time
 from typing import List, Set, Tuple, Dict
+from uuid import uuid4
 
 from .liu import Node, NodeKind, nil, rel, text, entity
 
@@ -29,6 +31,12 @@ class ISR:
 class Metrics:
     total_cycles: int = 0
     total_requests: int = 0
+    semantic_events: int = 0
+    semantic_cost_sum: float = 0.0
+    semantic_cost_max: float = 0.0
+    semantic_kind_counts: Dict[str, int] = field(default_factory=dict)
+    intent_counts: Dict[str, int] = field(default_factory=dict)
+    lang_counts: Dict[str, int] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -46,6 +54,13 @@ class MetaState:
     metrics: Metrics = field(default_factory=Metrics)
     config: Config = field(default_factory=Config)
     meta_history: List[Dict[str, str]] = field(default_factory=list)
+    evolution_log: List[Dict[str, str]] = field(default_factory=list)
+    id: str = field(default_factory=lambda: str(uuid4()))
+    created_at: float = field(default_factory=time)
+    last_updated_at: float = field(default_factory=time)
+
+    def touch(self) -> None:
+        self.last_updated_at = time()
 
 
 def reset_answer(state: MetaState) -> None:
@@ -69,6 +84,29 @@ def register_utterance_relation(state: MetaState, msg: Node) -> None:
         preview = msg.kind.name.lower()
     relation = rel("SAID", entity("user"), text(preview))
     state.isr.relations.add(_rel_signature(relation))
+
+
+def register_semantic_metrics(
+    state: MetaState,
+    *,
+    semantic_kind: str,
+    semantic_cost: float,
+    intent: str,
+    lang: str,
+) -> None:
+    metrics = state.metrics
+    metrics.semantic_events += 1
+    metrics.semantic_cost_sum += float(semantic_cost)
+    metrics.semantic_cost_max = max(metrics.semantic_cost_max, float(semantic_cost))
+
+    if semantic_kind:
+        metrics.semantic_kind_counts[semantic_kind] = (
+            metrics.semantic_kind_counts.get(semantic_kind, 0) + 1
+        )
+    if intent:
+        metrics.intent_counts[intent] = metrics.intent_counts.get(intent, 0) + 1
+    if lang:
+        metrics.lang_counts[lang] = metrics.lang_counts.get(lang, 0) + 1
 
 
 def _rel_signature(rel_node: Node) -> Tuple[str, Tuple[str, ...]]:

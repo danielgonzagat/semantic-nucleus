@@ -11,7 +11,7 @@ from typing import Iterable, List, Optional
 from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
 
 from .liu import Node, NodeKind, struct, text, op, number, rel
-from .state import MetaState, _rel_signature
+from .state import MetaState, _rel_signature, register_semantic_metrics
 
 
 def apply_phi(state: MetaState, operator_node: Node) -> None:
@@ -178,6 +178,13 @@ def phi_semantics(state: MetaState, args: tuple[Node, ...]) -> None:
     msg = _with_field(msg, "semantics", semantics_struct)
     state.isr.context.append(msg)
     state.isr.quality = min(1.0, state.isr.quality + 0.04)
+    register_semantic_metrics(
+        state,
+        semantic_kind=semantic_kind,
+        semantic_cost=float(semantic_cost),
+        intent=intent,
+        lang=lang,
+    )
 
 
 def phi_calculus(state: MetaState, args: tuple[Node, ...]) -> None:

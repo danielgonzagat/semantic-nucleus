@@ -18,6 +18,9 @@ dev = [
     "cryptography>=43.0.0",
 ]
 
+[project.scripts]
+metanucleus = "metanucleus.cli:main"
+
 [build-system]
 requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
