@@ -1,3 +1,5 @@
+import pytest
+
 from nsr import MetaTransformer, MetaRoute, SessionCtx
 from svm.opcodes import Opcode
 
@@ -90,3 +92,28 @@ def soma(x, y):
         Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
+
+
+def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+
+    result = transformer.transform("como você está?")
+    assert result.route is MetaRoute.TEXT
+    assert result.calc_plan is not None
+    opcodes = [inst.opcode for inst in result.calc_plan.program.instructions]
+    assert opcodes == [
+        Opcode.PHI_NORMALIZE,
+        Opcode.PHI_INFER,
+        Opcode.PHI_SUMMARIZE,
+        Opcode.HALT,
+    ]
+    assert result.calc_plan.description == "text_phi_state_query"

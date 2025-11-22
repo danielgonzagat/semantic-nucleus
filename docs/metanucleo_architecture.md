@@ -16,6 +16,8 @@ Cada rota devolve um `MetaTransformResult` com a `struct_node`, contexto pré-se
 
 O fallback textual não é mais “cego”: antes de despachar para o loop Φ, o MetaTransformer executa `lc_parse` e constrói um `lc_meta` LIU usando `nsr.meta_structures`. Esse pacote traz tokens normalizados, sequência semântica, termo LC-Ω e, quando identificado, o `meta_calculation` correspondente (`STATE_QUERY`, `FACT_QUERY`, `COMMAND_ROUTE`, etc.). Tanto a STRUCT inicial quanto o contexto pré-semeado carregam o `lc_meta`, garantindo que Meta-LER entregue ao próximo estágio uma visão explícita do meta-cálculo planejado, mesmo quando ainda não existe `preseed_answer`.
 
+Além disso, sempre que o `lc_meta` contém um `meta_calculation`, o plano ΣVM emitido para a rota TEXT é parametrizado por esse operador (ex.: consultas usam `Φ_NORMALIZE → Φ_INFER → Φ_SUMMARIZE`, afirmações carregam `Φ_NORMALIZE → Φ_ANSWER → Φ_EXPLAIN → Φ_SUMMARIZE`). Assim, o estágio Meta-LER já informa ao executor de hardware exatamente qual sequência de Φ deve ser disparada, reforçando o acoplamento Meta-LER → Meta-CALCULAR.
+
 Quando a rota já fornece um `preseed_answer`, o `MetaTransformResult` também embute um `MetaCalculationPlan`. Este plano descreve um programa ΣVM mínimo (atualmente: `PUSH_CONST → STORE_ANSWER → HALT`) que reproduz, em nível de hardware simbólico, o mesmo resultado pré-semeado. É o primeiro passo concreto da etapa **Meta-CALCULAR**, permitindo despachar diretamente para a ΣVM qualquer meta-resposta determinística sem depender do loop Φ. O runtime executa esse plano via `execute_meta_plan`, registrando o snapshot completo na nova estrutura `MetaCalculationResult`.
 
 O `Config.calc_mode` define como o plano é usado:
