@@ -73,6 +73,10 @@ flowchart LR
 - `SessionCtx.meta_history` mantém a lista dos últimos `meta_summary`; ajuste `Config.meta_history_limit` (padrão 64) para controlar a retenção determinística por sessão.
 - A arquitetura completa (macro visão, pipeline interno e topologia cognitiva) está detalhada em [`docs/metanucleo_architecture.md`](docs/metanucleo_architecture.md).
 
+### Próximo passo público
+
+- Conectar o `meta_calculation` exportado ao orquestrador: o runtime passará a alimentar operadores Φ diretamente com os termos LC-Ω, usando o `lc_meta_calc` como gatilho determinístico. O objetivo é que o hardware reconheça consultas/afirmações e dispare sequências específicas sem intervenção extra.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
