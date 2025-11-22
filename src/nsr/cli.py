@@ -8,11 +8,10 @@ import argparse
 import json
 import sys
 from pathlib import Path
-from typing import Any, Dict, List
-
-from liu.serialize import to_json as node_to_json
+from typing import Any, Dict
 
 from . import SessionCtx, run_text_full
+from .meta_transformer import meta_summary_to_dict
 
 
 def _build_parser() -> argparse.ArgumentParser:
@@ -116,7 +115,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.include_explanation:
         payload["explanation"] = outcome.explanation
     if args.include_meta and outcome.meta_summary:
-        payload["meta_summary"] = [_node_to_obj(node) for node in outcome.meta_summary]
+        payload["meta_summary"] = meta_summary_to_dict(outcome.meta_summary)
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
@@ -127,7 +126,3 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
-
-
-def _node_to_obj(node) -> Dict[str, Any]:
-    return json.loads(node_to_json(node))

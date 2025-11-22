@@ -79,5 +79,6 @@ def test_cli_includes_meta_summary(capsys):
     data = json.loads(captured)
     meta = data.get("meta_summary")
     assert meta is not None
-    tags = [entry["fields"]["tag"]["label"] for entry in meta]
-    assert tags == ["meta_route", "meta_input", "meta_output"]
+    assert meta["route"] == "text"
+    assert meta["input_size"] >= 1
+    assert meta["answer"]

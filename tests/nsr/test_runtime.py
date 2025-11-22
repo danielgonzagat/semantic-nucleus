@@ -17,6 +17,7 @@ from nsr import (
 )
 from nsr.operators import apply_operator
 from nsr.runtime import _state_signature, HaltReason
+from nsr.meta_transformer import meta_summary_to_dict
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 
@@ -145,14 +146,11 @@ def test_run_text_full_includes_meta_summary():
     outcome = run_text_full("Um carro existe", session)
     summary = outcome.meta_summary
     assert summary is not None
-    tags = [dict(node.fields)["tag"].label for node in summary]
-    assert tags == ["meta_route", "meta_input", "meta_output"]
-    route_fields = dict(summary[0].fields)
-    assert (route_fields["route"].label or "") == "text"
-    input_fields = dict(summary[1].fields)
-    assert input_fields["size"].value >= 1
-    output_fields = dict(summary[2].fields)
-    assert "answer" in output_fields
+    meta_dict = meta_summary_to_dict(summary)
+    assert meta_dict["route"] == "text"
+    assert meta_dict["input_size"] >= 1
+    assert meta_dict["answer"]
+    assert meta_dict["quality"] >= 0.0
 
 
 def test_run_text_with_explanation_returns_triple():

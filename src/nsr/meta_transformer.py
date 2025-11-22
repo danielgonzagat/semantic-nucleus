@@ -165,7 +165,14 @@ def attach_language_field(node: Node, language: str | None) -> Node:
     return liu_struct(**fields)
 
 
-__all__ = ["MetaTransformer", "MetaTransformResult", "MetaRoute", "attach_language_field", "build_meta_summary"]
+__all__ = [
+    "MetaTransformer",
+    "MetaTransformResult",
+    "MetaRoute",
+    "attach_language_field",
+    "build_meta_summary",
+    "meta_summary_to_dict",
+]
 
 
 def _meta_route_node(route: MetaRoute, language: str | None) -> Node:
@@ -207,3 +214,37 @@ def build_meta_summary(
         _meta_input_node(meta.input_text),
         _meta_output_node(answer_text, quality, halt_reason),
     )
+
+
+def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
+    nodes = {dict(node.fields)["tag"].label: node for node in summary}
+    route_fields = _fields(nodes["meta_route"])
+    input_fields = _fields(nodes["meta_input"])
+    output_fields = _fields(nodes["meta_output"])
+    return {
+        "route": _label(route_fields["route"]),
+        "language": _label(route_fields.get("language")),
+        "input_size": _value(input_fields["size"]),
+        "input_preview": _label(input_fields["preview"]),
+        "answer": _label(output_fields["answer"]),
+        "quality": _value(output_fields["quality"]),
+        "halt": _label(output_fields["halt"]),
+    }
+
+
+def _fields(node: Node) -> dict[str, Node]:
+    return {key: value for key, value in node.fields}
+
+
+def _label(node: Node | None) -> str:
+    if node is None:
+        return ""
+    return node.label or ""
+
+
+def _value(node: Node | None) -> float:
+    if node is None:
+        return 0.0
+    if node.value is not None:
+        return float(node.value)
+    return 0.0
