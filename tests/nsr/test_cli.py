@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 import nsr.cli as nsr_cli
 
 
@@ -93,6 +95,12 @@ def test_cli_includes_meta_summary(capsys):
     assert meta["route"] == "text"
     assert meta["input_size"] >= 1
     assert meta["answer"]
+    assert meta["phi_plan_description"]
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] >= 3
+    assert meta["language_category"] == "text"
+    assert meta["language_detected"] in {"pt", "en"}
+    assert len(meta["meta_digest"]) == 32
 
 
 def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
@@ -115,6 +123,90 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
     assert calc_payload["fields"]["operator"]["label"] == "STATE_QUERY"
     assert meta["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
     assert meta["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]
+    assert meta["phi_plan_description"] == "text_phi_state_query"
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] == 6
+    assert meta["phi_plan_const_len"] == 1
+    assert meta["language_category"] == "text"
+    assert meta["language_detected"] == "pt"
+
+
+def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
+    exit_code = nsr_cli.main(["2+2", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["phi_plan_description"] == "math_direct_answer"
+    assert meta["phi_plan_digest"]
+    assert meta["phi_plan_program_len"] == 3
+    assert meta["phi_plan_const_len"] == 1
+    assert meta["language_category"] in {"text", "unknown"}
+    assert "math_ast_operator" in meta
+    assert meta["math_ast_language"] in {"pt", "und"}
+    assert meta["math_ast_operand_count"] >= 1
+
+
+def test_cli_meta_summary_exposes_code_ast(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["code_ast_language"] == "python"
+    assert meta["code_ast_node_count"] >= 1
+
+
+def test_cli_meta_summary_reports_rust_ast(capsys):
+    code = """
+fn soma(x: i32, y: i32) -> i32 {
+    x + y
+}
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    assert meta["code_ast_language"] == "rust"
+    assert meta["code_ast_node_count"] >= 1
+
+
+def test_cli_accepts_expect_meta_digest(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["meta_digest"]
+    exit_code = nsr_cli.main(
+        ["Um carro existe", "--format", "json", "--include-meta", "--expect-meta-digest", digest]
+    )
+    assert exit_code == 0
+
+
+def test_cli_expect_meta_digest_fails_on_mismatch(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["meta_digest"]
+    bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
+    with pytest.raises(SystemExit):
+        nsr_cli.main(
+            [
+                "Um carro existe",
+                "--format",
+                "json",
+                "--include-meta",
+                "--expect-meta-digest",
+                bad_digest,
+            ]
+        )
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):

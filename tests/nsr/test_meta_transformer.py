@@ -19,6 +19,30 @@ def test_meta_transformer_routes_math():
         Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "math_direct_answer"
+    assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
+    math_ast_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "math_ast"]
+    assert math_ast_nodes
+    math_ast_fields = dict(math_ast_nodes[0].fields)
+    assert math_ast_fields["language"].label in {"pt", "und"}
+    assert math_ast_fields["expression"].label.replace(" ", "") == "2+2"
+    assert result.math_ast is not None
+
+
+def test_language_detection_updates_hint_and_context(monkeypatch):
+    monkeypatch.setattr("nsr.meta_transformer.maybe_route_math", lambda *args, **kwargs: None)
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    result = transformer.transform("The car is blue and you know it.")
+    assert session.language_hint == "en"
+    language_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "language_profile"]
+    assert language_nodes
+    profile_fields = dict(language_nodes[0].fields)
+    assert profile_fields["language"].label == "en"
 
 
 def test_meta_transformer_routes_logic():
@@ -29,6 +53,12 @@ def test_meta_transformer_routes_logic():
     assert result.preseed_answer is not None
     assert result.trace_label == "LOGIC[FACT]"
     assert session.logic_engine is not None
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "logic_direct_answer"
+    assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
 
 
 def test_meta_transformer_routes_instinct():
@@ -39,6 +69,12 @@ def test_meta_transformer_routes_instinct():
     assert result.preseed_quality and result.preseed_quality > 0.8
     assert result.trace_label and result.trace_label.startswith("IAN[")
     assert session.language_hint == result.language_hint
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "instinct_direct_answer"
+    assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
 
 
 def test_meta_transformer_falls_back_to_text_route():
@@ -71,6 +107,12 @@ def test_meta_transformer_falls_back_to_text_route():
     ]
     context_tags = [dict(node.fields)["tag"].label for node in result.preseed_context]
     assert "lc_meta" in context_tags
+    assert "meta_plan" in context_tags
+    assert "language_profile" in context_tags
+    plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
+    plan_fields = dict(plan_node.fields)
+    assert plan_fields["description"].label == "text_phi_pipeline"
+    assert plan_fields["digest"].label
 
 
 def test_meta_transformer_routes_code_snippet():
@@ -96,6 +138,14 @@ def soma(x, y):
         Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
+    plan_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan"]
+    assert len(plan_nodes) == 1
+    plan_fields = dict(plan_nodes[0].fields)
+    assert plan_fields["description"].label == "code_direct_answer"
+    assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
+    assert any(dict(node.fields)["tag"].label == "code_ast" for node in result.preseed_context)
+    assert result.code_ast is not None
 
 
 def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
@@ -131,6 +181,10 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
     plan_fields = dict(plan_node.fields)
     assert (plan_fields["chain"].label or "") == "NORMALIZE→INFER→SUMMARIZE"
+    assert plan_fields["description"].label == "text_phi_state_query"
+    assert plan_fields["digest"].label
+    assert int(plan_fields["program_len"].value) == 6
+    assert int(plan_fields["const_len"].value) == 1
     constants = result.calc_plan.program.constants
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
@@ -170,3 +224,59 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     assert '"label":"STATE_QUERY"' in calc_json
     assert summary_dict["phi_plan_chain"] == "NORMALIZE→INFER→SUMMARIZE"
     assert summary_dict["phi_plan_ops"] == ["NORMALIZE", "INFER", "SUMMARIZE"]
+    assert summary_dict["phi_plan_description"] == "text_phi_state_query"
+    assert summary_dict["phi_plan_digest"]
+    assert summary_dict["phi_plan_program_len"] == 6
+    assert summary_dict["phi_plan_const_len"] == 1
+    assert summary_dict["language_category"] == "text"
+    assert summary_dict["language_detected"] == "pt"
+    assert len(summary_dict["meta_digest"]) == 32
+
+
+def test_meta_summary_includes_plan_metadata_for_math():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    meta_result = transformer.transform("2+2")
+    summary_nodes = build_meta_summary(meta_result, "4", meta_result.preseed_quality or 0.99, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["phi_plan_description"] == "math_direct_answer"
+    assert summary_dict["phi_plan_digest"]
+    assert summary_dict["phi_plan_program_len"] == 3
+    assert summary_dict["phi_plan_const_len"] == 1
+    assert summary_dict["math_ast_operator"] == "EXPRESSION"
+    assert summary_dict["math_ast_language"] in {"pt", "und"}
+    assert summary_dict["math_ast_operand_count"] >= 1
+
+
+def test_meta_summary_includes_code_ast_data():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    source = """
+def soma(x, y):
+    return x + y
+"""
+    meta_result = transformer.transform(source)
+    summary_nodes = build_meta_summary(meta_result, "Resumo", meta_result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["code_ast_language"] == "python"
+    assert summary_dict["code_ast_node_count"] >= 1
+
+
+def test_meta_transformer_routes_rust_code():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    rust_source = """
+fn soma(x: i32, y: i32) -> i32 {
+    x + y
+}
+"""
+    result = transformer.transform(rust_source)
+    assert result.route is MetaRoute.CODE
+    assert result.trace_label == "CODE[RUST]"
+    assert result.code_ast is not None
+    ast_fields = dict(result.code_ast.fields)
+    assert ast_fields["language"].label == "rust"
+    summary_nodes = build_meta_summary(result, "Resumo", result.preseed_quality or 0.88, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["code_ast_language"] == "rust"
+    assert summary_dict["code_ast_node_count"] >= 1

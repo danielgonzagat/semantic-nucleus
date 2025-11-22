@@ -107,6 +107,9 @@ class RunOutcome:
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
+    language_profile: Node | None = None
+    code_ast: Node | None = None
+    math_ast: Node | None = None
 
     @property
     def quality(self) -> float:
@@ -225,6 +228,9 @@ def run_struct_full(
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
+            language_profile=meta_info.language_profile if meta_info else None,
+                code_ast=meta_info.code_ast if meta_info else None,
+                math_ast=meta_info.math_ast if meta_info else None,
         )
     steps = 0
     seen_signatures = set()
@@ -345,6 +351,9 @@ def run_struct_full(
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,
+        language_profile=meta_info.language_profile if meta_info else None,
+        code_ast=meta_info.code_ast if meta_info else None,
+        math_ast=meta_info.math_ast if meta_info else None,
     )
 
 
@@ -472,6 +481,9 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         calc_plan=plan,
         calc_result=calc_result,
         lc_meta=meta.lc_meta,
+        language_profile=meta.language_profile,
+        code_ast=meta.code_ast,
+        math_ast=meta.math_ast,
     )
 
 

@@ -45,6 +45,9 @@ from .meta_structures import (
     lc_term_to_node,
     meta_calculation_to_node,
 )
+from .language_detector import detect_language_profile
+from .code_ast import build_python_ast_meta, build_rust_ast_meta
+from .math_ast import build_math_ast_node
 
 __all__ = [
     "run_text",
@@ -103,4 +106,8 @@ __all__ = [
     "build_lc_meta_struct",
     "lc_term_to_node",
     "meta_calculation_to_node",
+    "detect_language_profile",
+    "build_python_ast_meta",
+    "build_math_ast_node",
+    "build_rust_ast_meta",
 ]

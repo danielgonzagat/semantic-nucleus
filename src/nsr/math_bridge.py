@@ -11,6 +11,7 @@ from liu import entity, number, struct, text, Node
 
 from .math_core import MathInstruction, MathCoreResult, evaluate_math_phrase
 from .math_instinct import MathInstinct, MathReply, MathUtterance
+from .math_ast import build_math_ast_node
 
 
 @dataclass(frozen=True, slots=True)
@@ -23,6 +24,7 @@ class MathHook:
     context_nodes: Tuple[Node, ...]
     quality: float
     instruction: MathInstruction | None = None
+    math_ast: Node | None = None
 
 
 def maybe_route_math(text_value: str, instinct: MathInstinct | None = None) -> MathHook | None:
@@ -86,6 +88,7 @@ def _core_hook(result: MathCoreResult) -> MathHook:
     struct_node = _instruction_struct(instruction)
     answer_node = _reply_struct(reply)
     term = instruction.as_term()
+    math_ast = build_math_ast_node(instruction, value=result.value)
     context_nodes = (
         struct(tag=entity("math_instruction"), operation=entity(instruction.operation.upper()), language=entity(instruction.language)),
         struct(tag=entity("math_expression"), expression=text(instruction.expression)),
@@ -94,6 +97,7 @@ def _core_hook(result: MathCoreResult) -> MathHook:
             operator=text(term.label or ""),
             operand_count=number(len(term.children)),
         ),
+        math_ast,
     )
     return MathHook(
         instinct=None,
@@ -104,6 +108,7 @@ def _core_hook(result: MathCoreResult) -> MathHook:
         answer_node=answer_node,
         context_nodes=context_nodes,
         quality=0.99,
+        math_ast=math_ast,
     )
 
 
