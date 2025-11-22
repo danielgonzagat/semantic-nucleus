@@ -36,4 +36,5 @@ class MetaRuntime:
         isr.context.append(msg)
         # manter fila determinística: normalize → answer
         isr.ops_queue.append(op("NORMALIZE"))
+        isr.ops_queue.append(op("INTENT", msg))
         isr.ops_queue.append(op("ANSWER", msg))

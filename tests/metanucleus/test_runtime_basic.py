@@ -8,7 +8,11 @@ def runtime():
     return MetaRuntime(state=MetaState())
 
 
-def test_runtime_echoes_text(runtime):
-    output = runtime.handle_request("Oi Metanúcleo, teste determinístico.")
-    assert "[META]" in output
-    assert "Oi Metanúcleo"[:5] in output
+def test_runtime_handles_statement(runtime):
+    output = runtime.handle_request("Processo determinístico em curso.")
+    assert "[META] Recebi" in output
+
+
+def test_runtime_handles_greeting(runtime):
+    output = runtime.handle_request("Oi Metanúcleo!")
+    assert "Olá! Sou o Metanúcleo" in output
