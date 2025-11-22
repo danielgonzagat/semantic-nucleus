@@ -6,8 +6,10 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 import json
+from pathlib import Path
 from typing import Tuple
 
+from metanucleus.core.evolution import MetaEvolution
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation
 from metanucleus.core.sandbox import MetaSandbox
@@ -89,6 +91,8 @@ class MetaRuntime:
             return self._format_code_plan()
         if command.startswith("/testcore"):
             return self._handle_testcore_command(command)
+        if command.startswith("/evolve"):
+            return self._handle_evolve_command(command)
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -231,6 +235,60 @@ class MetaRuntime:
                 line += f" | suggestion={result.patch.module}"
             lines.append(line)
         return "\n".join(lines)
+
+    def _handle_evolve_command(self, command: str) -> str:
+        """
+        Executa o pipeline de meta-evolução para um alvo em disco.
+        Uso: /evolve caminho/para/arquivo.py:funcao
+        """
+        parts = command.split(maxsplit=1)
+        if len(parts) == 1:
+            return "[META-EVOLVE] Uso: /evolve caminho/arquivo.py:funcao"
+
+        target_spec = parts[1].strip()
+        if ":" not in target_spec:
+            return "[META-EVOLVE] Formato inválido. Use caminho/arquivo.py:funcao"
+
+        path_str, func_name = target_spec.split(":", 1)
+        if not func_name:
+            return "[META-EVOLVE] Nome da função ausente."
+
+        path = Path(path_str).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+
+        if not path.exists():
+            return f"[META-EVOLVE] Arquivo não encontrado: {path}"
+
+        try:
+            result = MetaEvolution().evolve_file(path, func_name)
+        except Exception as exc:  # pragma: no cover - proteção adicional
+            return f"[META-EVOLVE] Erro durante evolução: {exc}"
+
+        if not result.success:
+            return f"[META-EVOLVE] Nenhuma otimização aplicada ({result.reason})."
+
+        patch_path = path.with_suffix(path.suffix + ".meta.patch")
+        diff_text = result.diff or ""
+        patch_path.write_text(diff_text, encoding="utf-8")
+
+        analysis = result.analysis
+        summary_lines = [
+            "[META-EVOLVE] Evolução bem-sucedida.",
+            f"  alvo: {path}:{func_name}",
+            f"  patch: {patch_path}",
+        ]
+        if analysis:
+            summary_lines.append(
+                f"  custo: {analysis.cost_before} → {analysis.cost_after}"
+            )
+        summary_lines.append("  diff preview:")
+        preview = "\n".join(diff_text.splitlines()[:10]) or "(diff vazio)"
+        summary_lines.append(preview)
+        summary_lines.append(
+            "Revise o patch gerado manualmente antes de aplicar ao repositório."
+        )
+        return "\n".join(summary_lines)
 
 
 def _preview(node: Node | None) -> str:
