@@ -43,6 +43,14 @@ def test_maybe_route_text_builds_struct_and_answer():
     fields = dict(hook.answer_node.fields)
     assert "answer" in fields
     assert fields["answer"].label == "tudo bem, e você?"
+    assert hook.context_nodes
+    tags = []
+    for node in hook.context_nodes:
+        node_fields = dict(node.fields)
+        tag_node = node_fields.get("tag")
+        if tag_node is not None and tag_node.label:
+            tags.append(tag_node.label)
+    assert "ian_reply" in tags
 
 
 def test_verbose_health_question_response():

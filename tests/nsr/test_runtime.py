@@ -325,6 +325,22 @@ def test_run_text_handles_verbose_health_question():
     assert any("IAN[QUESTION_HEALTH_VERBOSE" in step for step in trace.steps)
 
 
+def test_run_text_full_short_circuits_for_ian():
+    session = SessionCtx()
+    outcome = run_text_full("como você está?", session)
+    assert outcome.halt_reason is HaltReason.QUALITY_THRESHOLD
+    assert outcome.finalized is True
+    assert outcome.quality >= session.config.min_quality
+    has_reply_context = False
+    for node in outcome.isr.context:
+        node_fields = dict(node.fields)
+        tag = node_fields.get("tag")
+        if tag is not None and tag.label == "ian_reply":
+            has_reply_context = "plan_role" in node_fields
+            break
+    assert has_reply_context
+
+
 def test_code_eval_pure_binop_enriches_context():
     session = SessionCtx()
     base = struct(subject=entity("carro"))

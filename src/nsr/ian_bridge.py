@@ -5,7 +5,7 @@ Acoplamento entre o instinto IAN-Ω e o núcleo LIU/NSR.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterable
+from typing import Iterable, Tuple
 
 from liu import entity, list_node, number, struct, text, Node
 
@@ -19,6 +19,8 @@ class InstinctHook:
     reply_plan: ReplyPlan
     struct_node: Node
     answer_node: Node
+    context_nodes: Tuple[Node, ...]
+    quality: float
 
 
 def maybe_route_text(text_value: str, instinct: IANInstinct | None = None) -> InstinctHook | None:
@@ -28,13 +30,17 @@ def maybe_route_text(text_value: str, instinct: IANInstinct | None = None) -> In
         return None
     reply_plan = instinct.plan_reply(utterance)
     struct_node = utterance_to_struct(utterance)
-    answer_node = reply_plan_to_answer(reply_plan, instinct)
+    rendered = instinct.render(reply_plan)
+    answer_node = reply_plan_to_answer(reply_plan, instinct, rendered)
+    context_nodes = context_nodes_for_interaction(utterance, reply_plan, rendered, instinct)
     return InstinctHook(
         instinct=instinct,
         utterance=utterance,
         reply_plan=reply_plan,
         struct_node=struct_node,
         answer_node=answer_node,
+        context_nodes=context_nodes,
+        quality=0.85,
     )
 
 
@@ -51,13 +57,15 @@ def utterance_to_struct(utterance: Utterance) -> Node:
     )
 
 
-def reply_plan_to_answer(plan: ReplyPlan, instinct: IANInstinct | None = None) -> Node:
+def reply_plan_to_answer(
+    plan: ReplyPlan, instinct: IANInstinct | None = None, rendered: str | None = None
+) -> Node:
     """
     Constrói STRUCT de resposta com texto renderizado + códigos numéricos.
     """
 
     instinct = instinct or DEFAULT_INSTINCT
-    rendered = instinct.render(plan)
+    rendered = rendered or instinct.render(plan)
     token_nodes = tuple(_plan_token_struct(surface, codes) for surface, codes in zip(plan.tokens, plan.token_codes))
     return struct(
         answer=text(rendered),
@@ -65,6 +73,31 @@ def reply_plan_to_answer(plan: ReplyPlan, instinct: IANInstinct | None = None) -
         plan_semantics=entity(plan.semantics.lower()),
         plan_tokens=list_node(token_nodes),
     )
+
+
+def context_nodes_for_interaction(
+    utterance: Utterance,
+    plan: ReplyPlan,
+    rendered: str,
+    instinct: IANInstinct | None = None,
+) -> Tuple[Node, ...]:
+    instinct = instinct or DEFAULT_INSTINCT
+    utter_tokens = tuple(_token_struct(token) for token in utterance.tokens)
+    plan_tokens = tuple(_plan_token_struct(surface, codes) for surface, codes in zip(plan.tokens, plan.token_codes))
+    utter_struct = struct(
+        tag=entity("ian_utterance"),
+        intent=entity(utterance.role.lower()),
+        semantics=entity(utterance.semantics.lower()),
+        tokens=list_node(utter_tokens),
+    )
+    reply_struct = struct(
+        tag=entity("ian_reply"),
+        plan_role=entity(plan.role.lower()),
+        plan_semantics=entity(plan.semantics.lower()),
+        answer=text(rendered),
+        plan_tokens=list_node(plan_tokens),
+    )
+    return (utter_struct, reply_struct)
 
 
 def _token_struct(token) -> Node:
@@ -95,4 +128,5 @@ __all__ = [
     "maybe_route_text",
     "utterance_to_struct",
     "reply_plan_to_answer",
+    "context_nodes_for_interaction",
 ]
