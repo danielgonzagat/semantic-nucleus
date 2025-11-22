@@ -36,6 +36,7 @@ from .ian_bridge import (
 from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
+from .logic_bridge import LogicBridgeResult, maybe_route_logic as logic_route
 
 __all__ = [
     "run_text",
@@ -78,4 +79,6 @@ __all__ = [
     "LogicRule",
     "logic_negate",
     "logic_normalize",
+    "LogicBridgeResult",
+    "logic_route",
 ]

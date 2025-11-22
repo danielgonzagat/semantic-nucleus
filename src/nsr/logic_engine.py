@@ -6,10 +6,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import Iterable, List, Set, Tuple
+import unicodedata
 
 
 def normalize_statement(text: str) -> str:
-    normalized = " ".join(text.strip().upper().split())
+    stripped = _strip_accents(text)
+    normalized = " ".join(stripped.strip().upper().split())
     return normalized
 
 
@@ -18,6 +20,11 @@ def negate(statement: str) -> str:
     if statement.startswith("NOT "):
         return statement[4:]
     return f"NOT {statement}"
+
+
+def _strip_accents(value: str) -> str:
+    decomposed = unicodedata.normalize("NFD", value)
+    return "".join(ch for ch in decomposed if not unicodedata.combining(ch))
 
 
 @dataclass(frozen=True)
