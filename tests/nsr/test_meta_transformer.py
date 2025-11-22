@@ -115,6 +115,12 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
         Opcode.PHI_NORMALIZE,
         Opcode.PHI_INFER,
         Opcode.PHI_SUMMARIZE,
+        Opcode.PUSH_CONST,
+        Opcode.STORE_ANSWER,
         Opcode.HALT,
     ]
     assert result.calc_plan.description == "text_phi_state_query"
+    constants = result.calc_plan.program.constants
+    assert len(constants) == 1
+    calc_payload = dict(constants[0].fields)["payload"]
+    assert dict(calc_payload.fields)["operator"].label == "STATE_QUERY"

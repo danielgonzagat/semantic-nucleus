@@ -17,7 +17,7 @@ from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .parser import build_struct
 from .state import SessionCtx
-from .meta_structures import maybe_build_lc_meta_struct
+from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .lc_omega import MetaCalculation
 from svm.vm import Program
 from svm.bytecode import Instruction
@@ -339,9 +339,22 @@ _DEFAULT_TEXT_PIPELINE: Tuple[Opcode, ...] = (Opcode.PHI_NORMALIZE, Opcode.PHI_S
 def _text_phi_plan(calculus: MetaCalculation | None = None) -> MetaCalculationPlan:
     operator = (calculus.operator if calculus else "").upper()
     pipeline = _TEXT_PIPELINES.get(operator, _DEFAULT_TEXT_PIPELINE)
-    instructions = [Instruction(opcode, 0) for opcode in (*pipeline, Opcode.HALT)]
+    opcodes: list[Opcode] = list(pipeline)
+    constants: list[Node] = []
+    if calculus is not None:
+        opcodes.extend((Opcode.PUSH_CONST, Opcode.STORE_ANSWER))
+        constants.append(_calculus_answer_node(calculus))
+    opcodes.append(Opcode.HALT)
+    instructions = [Instruction(opcode, 0) for opcode in opcodes]
     description = (
         "text_phi_pipeline" if not operator else f"text_phi_{operator.lower()}"
     )
-    program = Program(instructions=instructions, constants=[])
+    program = Program(instructions=instructions, constants=constants)
     return MetaCalculationPlan(route=MetaRoute.TEXT, program=program, description=description)
+
+
+def _calculus_answer_node(calculus: MetaCalculation) -> Node:
+    return liu_struct(
+        tag=entity("lc_meta_calc"),
+        payload=meta_calculation_to_node(calculus),
+    )
