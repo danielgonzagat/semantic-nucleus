@@ -23,6 +23,7 @@ class MetaCalculationResult:
     answer: Node | None
     snapshot: Dict[str, Any] | None
     error: str | None = None
+    consistent: bool = True
 
 
 def execute_meta_plan(
@@ -39,9 +40,15 @@ def execute_meta_plan(
         vm.load(plan.program, initial_struct=struct_node, session=session)
         answer = vm.run()
         snapshot = vm.snapshot()
-        return MetaCalculationResult(plan=plan, answer=answer, snapshot=snapshot)
+        return MetaCalculationResult(plan=plan, answer=answer, snapshot=snapshot, consistent=True)
     except Exception as exc:  # determinístico: captura para auditoria
-        return MetaCalculationResult(plan=plan, answer=None, snapshot=None, error=str(exc))
+        return MetaCalculationResult(
+            plan=plan,
+            answer=None,
+            snapshot=None,
+            error=str(exc),
+            consistent=False,
+        )
 
 
 __all__ = ["MetaCalculationResult", "execute_meta_plan"]

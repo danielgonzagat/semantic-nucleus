@@ -343,6 +343,7 @@ def test_run_text_handles_english_relation_sentence():
     assert outcome.calc_plan.route is MetaRoute.TEXT
     assert outcome.calc_result is not None
     assert outcome.calc_result.error is None
+    assert outcome.calc_result.consistent is True
 
 
 def test_run_text_handles_spanish_relation_sentence():
@@ -533,6 +534,7 @@ def test_run_text_full_provides_calc_plan_for_math():
     assert outcome.calc_result is not None
     assert outcome.calc_result.error is None
     assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+    assert outcome.calc_result.consistent is True
 
 
 def test_run_text_full_provides_calc_plan_for_code():
@@ -544,6 +546,7 @@ def test_run_text_full_provides_calc_plan_for_code():
     assert outcome.calc_result is not None
     assert outcome.calc_result.error is None
     assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
+    assert outcome.calc_result.consistent is True
 
 
 def test_code_eval_pure_binop_enriches_context():

@@ -127,6 +127,7 @@ def main(argv: list[str] | None = None) -> int:
         calc_payload: Dict[str, Any] = {
             "plan": outcome.calc_result.plan.description,
             "error": outcome.calc_result.error,
+            "consistent": outcome.calc_result.consistent,
         }
         if outcome.calc_result.answer is not None:
             calc_payload["answer"] = to_json(outcome.calc_result.answer)

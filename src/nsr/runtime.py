@@ -4,7 +4,7 @@ Orquestrador do NSR: LxU → PSE → loop Φ → resposta.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace as dc_replace
 from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
@@ -22,7 +22,7 @@ from .operators import apply_operator
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
-from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, build_meta_summary
+from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, MetaRoute, build_meta_summary
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 
 
@@ -192,6 +192,7 @@ def run_struct_full(
         calc_result = (
             execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
         )
+        calc_result = _validate_calc_result(calc_result, isr, trace)
         summary = (
             build_meta_summary(meta_info, _answer_text(isr), isr.quality, HaltReason.QUALITY_THRESHOLD.value)
             if meta_info
@@ -304,6 +305,7 @@ def run_struct_full(
     calc_result = (
         execute_meta_plan(calc_plan, struct_node, session) if calc_plan else None
     )
+    calc_result = _validate_calc_result(calc_result, isr, trace)
     meta_summary = (
         build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
     )
@@ -349,6 +351,28 @@ def _nodes_digest(nodes: Iterable[Node]) -> str:
     for node in items:
         hasher.update(fingerprint(node).encode("utf-8"))
     return hasher.hexdigest()
+
+
+def _validate_calc_result(
+    calc_result: MetaCalculationResult | None,
+    isr: ISR,
+    trace: Trace,
+) -> MetaCalculationResult | None:
+    if calc_result is None:
+        return None
+    if calc_result.answer is None or not isr.answer.fields:
+        return calc_result
+    if calc_result.plan.route is MetaRoute.TEXT:
+        return calc_result
+    expected = fingerprint(isr.answer)
+    actual = fingerprint(calc_result.answer)
+    if expected == actual:
+        return calc_result
+    trace.invariant_failures.append(
+        f"CALC_PLAN_MISMATCH q={isr.quality:.2f} expected={expected} actual={actual}"
+    )
+    updated_error = calc_result.error or "calc_plan_mismatch"
+    return dc_replace(calc_result, error=updated_error, consistent=False)
 
 
 def _audit_state(
