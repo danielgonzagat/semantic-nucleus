@@ -11,7 +11,7 @@ O estágio Meta-LER recebe texto cru e determina, de maneira determinística, qu
 - **Instinto Linguístico** (`MetaRoute.INSTINCT`): aciona o IAN-Ω quando a frase corresponde a um instinto nativo (saudações, diagnósticos etc.).
 - **Parser textual** (`MetaRoute.TEXT`): cai no LxU + PSE e produz um `STRUCT` LIU completo, anexando metadados de idioma.
 
-Cada rota devolve um `MetaTransformResult` com a `struct_node`, contexto pré-semeado, qualidade estimada e etiqueta de trace (`trace_label`). O `run_text_full` usa esse resultado para alimentar o ISR inicial e manter o pipeline sempre auditável.
+Cada rota devolve um `MetaTransformResult` com a `struct_node`, contexto pré-semeado (sempre carrega `meta_route` + `meta_input` para auditoria), qualidade estimada e etiqueta de trace (`trace_label`). O `run_text_full` usa esse resultado para alimentar o ISR inicial e manter o pipeline sempre auditável.
 
 ## Macro Arquitetura Oficial
 

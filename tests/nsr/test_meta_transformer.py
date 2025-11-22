@@ -38,6 +38,10 @@ def test_meta_transformer_falls_back_to_text_route():
     assert result.route is MetaRoute.TEXT
     assert result.preseed_answer is None
     assert result.trace_label is None
+    assert result.preseed_context is not None
+    tags = {dict(node.fields)["tag"].label for node in result.preseed_context}
+    assert "meta_route" in tags
+    assert "meta_input" in tags
     language_field = dict(result.struct_node.fields).get("language")
     assert language_field is not None
     assert (language_field.label or "").startswith("pt")

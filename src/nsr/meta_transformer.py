@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-from liu import Node, struct as liu_struct, entity
+from liu import Node, struct as liu_struct, entity, text as liu_text, number
 
 from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
@@ -64,7 +64,12 @@ class MetaTransformer:
                 route=MetaRoute.MATH,
                 trace_label=f"MATH[{math_hook.utterance.role}]",
                 preseed_answer=math_hook.answer_node,
-                preseed_context=math_hook.context_nodes,
+                preseed_context=self._with_meta_context(
+                    math_hook.context_nodes,
+                    MetaRoute.MATH,
+                    math_hook.reply.language,
+                    text_value,
+                ),
                 preseed_quality=math_hook.quality,
                 language_hint=math_hook.reply.language,
             )
@@ -78,7 +83,12 @@ class MetaTransformer:
                 route=MetaRoute.LOGIC,
                 trace_label=logic_hook.trace_label,
                 preseed_answer=logic_hook.answer_node,
-                preseed_context=logic_hook.context_nodes,
+                preseed_context=self._with_meta_context(
+                    logic_hook.context_nodes,
+                    MetaRoute.LOGIC,
+                    self.session.language_hint,
+                    text_value,
+                ),
                 preseed_quality=logic_hook.quality,
             )
 
@@ -90,7 +100,12 @@ class MetaTransformer:
                 route=MetaRoute.INSTINCT,
                 trace_label=f"IAN[{instinct_hook.utterance.role}]",
                 preseed_answer=instinct_hook.answer_node,
-                preseed_context=instinct_hook.context_nodes,
+                preseed_context=self._with_meta_context(
+                    instinct_hook.context_nodes,
+                    MetaRoute.INSTINCT,
+                    instinct_hook.reply_plan.language,
+                    text_value,
+                ),
                 preseed_quality=instinct_hook.quality,
                 language_hint=instinct_hook.reply_plan.language,
             )
@@ -103,6 +118,12 @@ class MetaTransformer:
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
+            preseed_context=self._with_meta_context(
+                None,
+                MetaRoute.TEXT,
+                language,
+                text_value,
+            ),
             language_hint=language,
         )
 
@@ -111,6 +132,20 @@ class MetaTransformer:
         if lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words:
             return lexicon
         return DEFAULT_LEXICON
+
+    def _with_meta_context(
+        self,
+        base_context: Tuple[Node, ...] | None,
+        route: MetaRoute,
+        language: str | None,
+        text_value: str,
+    ) -> Tuple[Node, ...]:
+        route_node = _meta_route_node(route, language)
+        input_node = _meta_input_node(text_value)
+        extra = (route_node, input_node)
+        if base_context:
+            return tuple((*base_context, *extra))
+        return extra
 
 
 def attach_language_field(node: Node, language: str | None) -> Node:
@@ -126,3 +161,22 @@ def attach_language_field(node: Node, language: str | None) -> Node:
 
 
 __all__ = ["MetaTransformer", "MetaTransformResult", "MetaRoute", "attach_language_field"]
+
+
+def _meta_route_node(route: MetaRoute, language: str | None) -> Node:
+    fields: dict[str, Node] = {
+        "tag": entity("meta_route"),
+        "route": entity(route.value),
+    }
+    if language:
+        fields["language"] = entity(language)
+    return liu_struct(**fields)
+
+
+def _meta_input_node(text_value: str) -> Node:
+    preview = text_value if len(text_value) <= 120 else text_value[:117] + "..."
+    return liu_struct(
+        tag=entity("meta_input"),
+        size=number(len(text_value)),
+        preview=liu_text(preview),
+    )

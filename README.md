@@ -60,7 +60,7 @@ flowchart LR
 ### Meta-LER determinístico
 
 - O módulo `nsr.meta_transformer.MetaTransformer` concentra o estágio **Meta-LER** do pipeline, decidindo de forma determinística qual rota aplicar (Math-Core, Logic-Bridge, IAN-Ω ou parser LIU).
-- Cada transformação gera um `MetaTransformResult` com `struct_node`, contexto pré-semeado e `trace_label`, garantindo rastreabilidade total antes do loop Φ.
+- Cada transformação gera um `MetaTransformResult` com `struct_node`, contexto pré-semeado (`meta_route` + `meta_input`) e `trace_label`, garantindo rastreabilidade total antes do loop Φ.
 - A arquitetura completa (macro visão, pipeline interno e topologia cognitiva) está detalhada em [`docs/metanucleo_architecture.md`](docs/metanucleo_architecture.md).
 
 ## Camadas principais
