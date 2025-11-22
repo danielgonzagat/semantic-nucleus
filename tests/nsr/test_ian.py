@@ -56,6 +56,12 @@ def test_fact_question_plan():
     assert respond("what is NSR?") == "let me check that."
 
 
+def test_farewell_and_confirm():
+    assert respond("tchau") == "até logo."
+    assert respond("bye") == "bye!"
+    assert respond("ok") == "ok, seguindo."
+
+
 def test_maybe_route_text_builds_struct_and_answer():
     hook = maybe_route_text("tudo bem?")
     assert hook is not None

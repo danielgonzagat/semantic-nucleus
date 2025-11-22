@@ -37,7 +37,7 @@ def _base_charset() -> Tuple[str, ...]:
         "Ç",
     )
     digits = tuple("0123456789")
-    punct = (" ", ",", ".", "?", "!", ";", ":", "'")
+    punct = (" ", ",", ".", "?", "!", ";", ":", "'", "(", ")", "+", "-", "*", "/", "^", "%", "¿", "¡")
     return letters + accented + digits + punct
 
 
@@ -230,6 +230,30 @@ EN_GREETING_SURFACES = frozenset({"HI", "HELLO", "HEY"})
 ES_GREETING_SURFACES = frozenset({"HOLA"})
 FR_GREETING_SURFACES = frozenset({"BONJOUR", "SALUT"})
 IT_GREETING_SURFACES = frozenset({"CIAO"})
+PT_FAREWELL_SURFACES = frozenset({"TCHAU", "TCHAO", "ADEUS"})
+EN_FAREWELL_SURFACES = frozenset({"BYE", "GOODBYE", "SEEYA"})
+ES_FAREWELL_SURFACES = frozenset({"ADIOS", "ADIÓS", "CHAU"})
+FR_FAREWELL_SURFACES = frozenset({"AU REVOIR"})
+IT_FAREWELL_SURFACES = frozenset({"CIAO", "ADDIO"})
+FAREWELL_SURFACES = {
+    "pt": PT_FAREWELL_SURFACES,
+    "en": EN_FAREWELL_SURFACES,
+    "es": ES_FAREWELL_SURFACES,
+    "fr": FR_FAREWELL_SURFACES,
+    "it": IT_FAREWELL_SURFACES,
+}
+PT_CONFIRM_SURFACES = frozenset({"CERTO", "OK", "TÁ", "TA"})
+EN_CONFIRM_SURFACES = frozenset({"OK", "OKAY", "SURE"})
+ES_CONFIRM_SURFACES = frozenset({"OK", "VALE"})
+FR_CONFIRM_SURFACES = frozenset({"D'ACCORD", "DACCORD", "OK"})
+IT_CONFIRM_SURFACES = frozenset({"OK", "CERTO"})
+CONFIRM_SURFACES = {
+    "pt": PT_CONFIRM_SURFACES,
+    "en": EN_CONFIRM_SURFACES,
+    "es": ES_CONFIRM_SURFACES,
+    "fr": FR_CONFIRM_SURFACES,
+    "it": IT_CONFIRM_SURFACES,
+}
 PT_THANKS_SURFACES = frozenset({"OBRIGADO", "OBRIGADA", "VALEU"})
 EN_THANKS_SURFACES = frozenset({"THANKS"})
 ES_THANKS_SURFACES = frozenset({"GRACIAS"})
@@ -366,6 +390,12 @@ class IANInstinct:
         command_role = self._command_role(content_tokens)
         if command_role:
             return command_role, "COMMAND"
+        farewell_role = self._farewell_role(content_tokens)
+        if farewell_role:
+            return farewell_role, "FAREWELL"
+        confirm_role = self._confirm_role(content_tokens)
+        if confirm_role:
+            return confirm_role, "CONFIRM"
         state_role = self._detect_state_statement(tokens)
         if state_role == "POSITIVE":
             return "STATE_POSITIVE", "STATE_POSITIVE"
@@ -395,7 +425,7 @@ class IANInstinct:
             return "it"
         if role.endswith("_PT") or "_PT_" in role:
             return "pt"
-        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE", "THANKS", "QUESTION_FACT", "COMMAND"}:
+        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE", "THANKS", "QUESTION_FACT", "COMMAND", "FAREWELL", "CONFIRM"}:
             return "pt"
         return "und"
 
@@ -470,6 +500,18 @@ class IANInstinct:
             if token.lexeme and token.lexeme.semantics == "COMMAND":
                 return self._role_from_surface(token.normalized, COMMAND_SURFACES, "COMMAND")
             break
+        return None
+
+    def _farewell_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "FAREWELL":
+                return self._role_from_surface(token.normalized, FAREWELL_SURFACES, "FAREWELL")
+        return None
+
+    def _confirm_role(self, tokens: Sequence[IANToken]) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == "CONFIRM":
+                return self._role_from_surface(token.normalized, CONFIRM_SURFACES, "CONFIRM")
         return None
 
     def _fact_question_role(self, tokens: Sequence[IANToken]) -> str | None:

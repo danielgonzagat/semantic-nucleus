@@ -61,6 +61,9 @@ Este guia explica como o instinto alfabético-numérico (IAN-Ω) manipula idioma
 6. **Validar o pacote**:
    - `python3 scripts/langpack_check.py --code it` para conferir idiomas embutidos.
    - `python3 scripts/langpack_check.py --file caminho.json --fail-on-warn` antes de importar pacotes externos.
+7. **Gerar via DSL (opcional)**:
+   - Descreva o idioma em formato compacto (JSON) e converta com `python3 scripts/langpack_dsl.py --input spec.json --output langpack.json`.
+   - O formato DSL suporta `lexemes`, `dialog`, `conjugations`, `stopwords`, `patterns`, `idioms`, reduzindo redundância ao criar novos pacotes.
 
 ## 3. Conversão LIU (`ian_bridge`)
 

@@ -53,7 +53,6 @@ def _read_current_version(env: str) -> int:
     if not cfg_path.exists():
         return 0
     try:
-    try:
         data = json.loads(cfg_path.read_text(encoding="utf-8"))
     except (json.JSONDecodeError, TypeError, OSError):
         return 0

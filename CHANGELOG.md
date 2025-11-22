@@ -6,6 +6,13 @@ Todas as mudanças relevantes neste repositório serão documentadas aqui.
 
 - Adicionado operador determinístico `code/EVAL_PURE` ao NSR para avaliar estruturas `binop` (somar, multiplicar, dividir, concatenar texto) e anexar os resultados/erros ao contexto com aumento garantido de qualidade.
 - Criados testes de runtime cobrindo avaliações numéricas/narrativas e a sinalização de erros determinística.
+- Criado `MathInstinct` + `math_bridge`, permitindo que expressões (“2+2”, “quanto é 3*5?”) sejam respondidas antes do loop Φ, com suporte a `abs`/`sqrt` e compartilhamento do charset do IAN.
+- IAN-Ω expandido com intents de agradecimento, despedida, confirmação e perguntas factuais multilíngues, novos verbos/conjugações e testes de runtime cobrindo o fluxo completo.
+- Adicionados utilitários de governança:
+  - `scripts/langpack_check.py --fail-on-warn` para auditoria dos LangPacks (agora executado em CI).
+  - `scripts/ian_bench.py` com thresholds (`--max-p95-ms`, `--max-peak-mib`) e medição de textos longos.
+  - `scripts/langpack_dsl.py` para gerar pacotes a partir de uma DSL JSON.
+- Documentação ampliada (`docs/roadmap_official.md`, `docs/math_instinct.md`, `docs/security_checklist.md`) e README atualizado com roadmap v1.0→v2.0 e checklist de segurança.
 
 ## [0.1.0] - 2025-11-21
 

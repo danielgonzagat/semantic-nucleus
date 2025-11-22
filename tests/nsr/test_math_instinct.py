@@ -25,3 +25,11 @@ def test_math_bridge_preseeds_runtime():
     answer, trace = run_text("4 * 4", SessionCtx())
     assert answer == "16"
     assert trace.steps[0].startswith("1:MATH[")
+
+
+def test_math_instinct_functions():
+    instinct = MathInstinct()
+    assert instinct.evaluate("abs(-5)").text == "5"
+    result = instinct.evaluate("sqrt(9)")
+    assert result is not None
+    assert result.text == "3"

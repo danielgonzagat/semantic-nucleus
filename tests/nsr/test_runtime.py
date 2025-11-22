@@ -441,6 +441,12 @@ def test_run_text_handles_thanks_and_commands():
     answer_cmd, trace_cmd = run_text("faça isso agora", session)
     assert answer_cmd == "certo, encaminhando para o núcleo."
     assert any("IAN[COMMAND_PT" in step for step in trace_cmd.steps)
+    answer_farewell, trace_farewell = run_text("tchau", session)
+    assert answer_farewell == "até logo."
+    assert any("IAN[FAREWELL_PT" in step for step in trace_farewell.steps)
+    answer_confirm, trace_confirm = run_text("ok", session)
+    assert answer_confirm == "ok, seguindo."
+    assert any("IAN[CONFIRM_PT" in step for step in trace_confirm.steps)
 
 
 def test_run_text_handles_fact_question_en():

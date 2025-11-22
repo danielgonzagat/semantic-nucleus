@@ -68,18 +68,28 @@ def benchmark_long_text(instinct: IANInstinct, length: int, runs: int) -> List[f
     return samples
 
 
+def compute_stats(samples: List[float]) -> Tuple[float, float, float, float]:
+    if not samples:
+        return 0.0, 0.0, 0.0, 0.0
+    mean_s = statistics.fmean(samples)
+    median_s = statistics.median(samples)
+    if len(samples) >= 20:
+        p95_s = statistics.quantiles(samples, n=100)[94]
+    else:
+        p95_s = max(samples)
+    throughput = len(samples) / sum(samples) if sum(samples) else 0.0
+    return mean_s, median_s, p95_s, throughput
+
+
 def render_report(samples: List[float], peak_bytes: int) -> str:
     if not samples:
         return "Nenhuma amostra registrada."
-    mean_ms = statistics.fmean(samples) * 1_000
-    median_ms = statistics.median(samples) * 1_000
-    p95_ms = statistics.quantiles(samples, n=100)[94] * 1_000 if len(samples) >= 20 else max(samples) * 1_000
-    throughput = len(samples) / sum(samples)
+    mean_s, median_s, p95_s, throughput = compute_stats(samples)
     return (
         f"calls={len(samples)} "
-        f"mean={mean_ms:.3f}ms "
-        f"median={median_ms:.3f}ms "
-        f"p95={p95_ms:.3f}ms "
+        f"mean={mean_s*1000:.3f}ms "
+        f"median={median_s*1000:.3f}ms "
+        f"p95={p95_s*1000:.3f}ms "
         f"throughput={throughput:.1f} rps "
         f"peak_mem={peak_bytes / 1_048_576:.2f} MiB"
     )
@@ -88,9 +98,8 @@ def render_report(samples: List[float], peak_bytes: int) -> str:
 def render_long_report(samples: List[float], length: int) -> str:
     if not samples:
         return ""
-    mean_ms = statistics.fmean(samples) * 1_000
-    p95_ms = statistics.quantiles(samples, n=100)[94] * 1_000 if len(samples) >= 20 else max(samples) * 1_000
-    return f"tokenize(len={length}) mean={mean_ms:.3f}ms p95={p95_ms:.3f}ms"
+    mean_s, _, p95_s, _ = compute_stats(samples)
+    return f"tokenize(len={length}) mean={mean_s*1000:.3f}ms p95={p95_s*1000:.3f}ms"
 
 
 def parse_args() -> argparse.Namespace:
@@ -99,6 +108,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--warmup", type=int, default=200, help="Chamadas descartadas para aquecimento (default: 200).")
     parser.add_argument("--long-length", type=int, default=0, help="Quando >0, mede tokenização de um texto longo com o tamanho indicado.")
     parser.add_argument("--long-runs", type=int, default=20, help="Número de execuções ao medir textos longos (default: 20).")
+    parser.add_argument("--max-p95-ms", type=float, help="Falha se o p95 do reply() exceder este valor (ms).")
+    parser.add_argument("--max-peak-mib", type=float, help="Falha se o pico de memória exceder este valor (MiB).")
     return parser.parse_args()
 
 
@@ -106,10 +117,21 @@ def main() -> None:
     args = parse_args()
     instinct = IANInstinct.default()
     samples, peak = benchmark(instinct, iterations=args.iterations, warmup=args.warmup)
-    print(render_report(samples, peak))
+    report = render_report(samples, peak)
+    print(report)
+    stats = compute_stats(samples)
+    peak_mib = peak / 1_048_576
+    exit_code = 0
+    if args.max_p95_ms is not None and stats[2] * 1_000 > args.max_p95_ms:
+        print(f"ERROR: p95 {stats[2]*1000:.3f}ms > {args.max_p95_ms}ms", flush=True)
+        exit_code = 1
+    if args.max_peak_mib is not None and peak_mib > args.max_peak_mib:
+        print(f"ERROR: peak_mem {peak_mib:.2f}MiB > {args.max_peak_mib}MiB", flush=True)
+        exit_code = 1
     long_samples = benchmark_long_text(instinct, args.long_length, args.long_runs)
     if long_samples:
         print(render_long_report(long_samples, args.long_length))
+    raise SystemExit(exit_code)
 
 
 if __name__ == "__main__":
