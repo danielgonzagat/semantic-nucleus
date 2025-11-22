@@ -7,7 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 from hashlib import blake2b
-from typing import Tuple
+from typing import Tuple, TYPE_CHECKING, Any
+import json
 
 from liu import (
     Node,
@@ -19,6 +20,9 @@ from liu import (
     list_node,
     fingerprint,
 )
+
+if TYPE_CHECKING:
+    from .meta_calculator import MetaCalculationResult
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -412,6 +416,7 @@ def build_meta_summary(
     answer_text: str,
     quality: float,
     halt_reason: str,
+    calc_result: "MetaCalculationResult | None" = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -430,6 +435,10 @@ def build_meta_summary(
         nodes.append(meta.code_ast)
     if meta.math_ast is not None:
         nodes.append(meta.math_ast)
+    if calc_result is not None:
+        exec_node = _meta_calc_exec_node(calc_result)
+        if exec_node is not None:
+            nodes.append(exec_node)
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -506,6 +515,23 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
     if digest_node is not None:
         digest_fields = _fields(digest_node)
         result["meta_digest"] = _label(digest_fields.get("hex"))
+    calc_exec_node = nodes.get("meta_calc_exec")
+    if calc_exec_node is not None:
+        exec_fields = _fields(calc_exec_node)
+        result["calc_exec_route"] = _label(exec_fields.get("plan_route"))
+        result["calc_exec_description"] = _label(exec_fields.get("plan_description"))
+        result["calc_exec_consistent"] = (_label(exec_fields.get("consistent")).lower() == "true")
+        result["calc_exec_error"] = _label(exec_fields.get("error"))
+        if (answer_node := exec_fields.get("answer")) is not None:
+            result["calc_exec_answer"] = to_json(answer_node)
+        result["calc_exec_answer_fingerprint"] = _label(exec_fields.get("answer_fingerprint"))
+        result["calc_exec_snapshot_digest"] = _label(exec_fields.get("snapshot_digest"))
+        snapshot_pc = exec_fields.get("snapshot_pc")
+        if snapshot_pc is not None:
+            result["calc_exec_snapshot_pc"] = int(_value(snapshot_pc))
+        snapshot_depth = exec_fields.get("snapshot_stack_depth")
+        if snapshot_depth is not None:
+            result["calc_exec_snapshot_stack_depth"] = int(_value(snapshot_depth))
     return result
 
 
@@ -580,3 +606,33 @@ def _meta_digest_node(nodes: list[Node]) -> Node:
     for node in nodes:
         hasher.update(fingerprint(node).encode("utf-8"))
     return liu_struct(tag=entity("meta_digest"), hex=liu_text(hasher.hexdigest()))
+
+
+def _meta_calc_exec_node(calc_result: "MetaCalculationResult") -> Node | None:
+    fields: dict[str, Node] = {
+        "tag": entity("meta_calc_exec"),
+        "plan_route": entity(calc_result.plan.route.value),
+        "plan_description": entity(calc_result.plan.description),
+        "consistent": entity("true" if calc_result.consistent else "false"),
+    }
+    if calc_result.error:
+        fields["error"] = liu_text(calc_result.error)
+    if calc_result.answer is not None:
+        fields["answer"] = calc_result.answer
+        fields["answer_fingerprint"] = entity(fingerprint(calc_result.answer))
+    snapshot = calc_result.snapshot
+    if snapshot:
+        digest = _snapshot_digest(snapshot)
+        fields["snapshot_digest"] = liu_text(digest)
+        pc = snapshot.get("pc")
+        if isinstance(pc, (int, float)):
+            fields["snapshot_pc"] = number(pc)
+        depth = snapshot.get("stack_depth")
+        if isinstance(depth, (int, float)):
+            fields["snapshot_stack_depth"] = number(depth)
+    return liu_struct(**fields)
+
+
+def _snapshot_digest(snapshot: dict[str, Any]) -> str:
+    serialized = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
+    return blake2b(serialized.encode("utf-8"), digest_size=16).hexdigest()

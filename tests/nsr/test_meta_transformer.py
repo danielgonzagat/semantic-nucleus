@@ -262,6 +262,27 @@ def soma(x, y):
     assert summary_dict["code_ast_node_count"] >= 1
 
 
+def test_meta_summary_includes_calc_exec_snapshot():
+    outcome = run_text_full("2+2", session=SessionCtx())
+    assert outcome.meta_summary is not None
+    tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
+    assert "meta_calc_exec" in tags
+    exec_node = next(node for node in outcome.meta_summary if dict(node.fields)["tag"].label == "meta_calc_exec")
+    exec_fields = dict(exec_node.fields)
+    assert exec_fields["plan_route"].label == "math"
+    assert exec_fields["plan_description"].label == "math_direct_answer"
+    assert exec_fields["consistent"].label == "true"
+    assert exec_fields["answer_fingerprint"].label
+    assert exec_fields["snapshot_digest"].label
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["calc_exec_route"] == "math"
+    assert summary_dict["calc_exec_description"] == "math_direct_answer"
+    assert summary_dict["calc_exec_consistent"] is True
+    assert summary_dict["calc_exec_snapshot_digest"]
+    assert summary_dict["calc_exec_answer_fingerprint"]
+    assert "math_eval" in summary_dict["calc_exec_answer"]
+
+
 def test_meta_transformer_routes_rust_code():
     session = SessionCtx()
     transformer = MetaTransformer(session)
