@@ -448,12 +448,12 @@ class IANInstinct:
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
         if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+        if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+            return "QUESTION_HEALTH_VERBOSE_ES"
+        if head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG:
             first_surface = self._first_surface_with_semantics(tokens, "QUESTION_HOW")
             if first_surface == "COME":
                 return "QUESTION_HEALTH_VERBOSE_IT"
-            return "QUESTION_HEALTH_VERBOSE_ES"
-        if head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG:
-            return "QUESTION_HEALTH_VERBOSE_IT"
         return None
 
     @staticmethod
