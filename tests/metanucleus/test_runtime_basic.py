@@ -86,3 +86,10 @@ def test_meta_command_reports_last_summary(runtime):
     runtime.handle_request("Outra frase simbólica.")
     meta_multi = runtime.handle_request("/meta 2")
     assert meta_multi.count("route=text") == 2
+
+
+def test_testcore_command_runs_suite(runtime):
+    runtime.handle_request("Oi Metanúcleo!")
+    output = runtime.handle_request("/testcore")
+    assert "[TESTCORE]" in output
+    assert "greeting_pt" in output

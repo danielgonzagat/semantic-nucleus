@@ -5,10 +5,12 @@ TESTCORE v1.0 — harness determinístico para evolução supervisionada.
 from __future__ import annotations
 
 from dataclasses import dataclass, asdict
-from typing import Any, List, Optional
+from typing import Any, List, Optional, TYPE_CHECKING
 
 from metanucleus.core.liu import Node, NodeKind
-from metanucleus.runtime.meta_runtime import MetaRuntime
+
+if TYPE_CHECKING:
+    from metanucleus.runtime.meta_runtime import MetaRuntime
 
 
 @dataclass(slots=True)
@@ -52,7 +54,7 @@ class TestResult:
     patch: Optional[PatchSuggestion]
 
 
-def run_testcase(runtime: MetaRuntime, testcase: TestCase) -> TestResult:
+def run_testcase(runtime: "MetaRuntime", testcase: TestCase) -> TestResult:
     answer = runtime.handle_request(testcase.input_text)
     isr = runtime.state.isr
     utter = _last_utterance(isr.context)
@@ -90,7 +92,7 @@ def run_testcase(runtime: MetaRuntime, testcase: TestCase) -> TestResult:
     )
 
 
-def run_test_suite(runtime: MetaRuntime, tests: List[TestCase]) -> List[TestResult]:
+def run_test_suite(runtime: "MetaRuntime", tests: List[TestCase]) -> List[TestResult]:
     return [run_testcase(runtime, tc) for tc in tests]
 
 

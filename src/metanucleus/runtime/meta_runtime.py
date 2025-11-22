@@ -9,9 +9,11 @@ from typing import Tuple
 
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation
+from metanucleus.test.testcore import run_test_suite
 from .adapters import TextInputAdapter, CodeInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
 from .scheduler import Scheduler
+from .test_suites import BASIC_RUNTIME_SUITE
 
 
 @dataclass(slots=True)
@@ -81,6 +83,8 @@ class MetaRuntime:
             if len(parts) == 2 and parts[1].isdigit():
                 limit = max(1, min(10, int(parts[1])))
             return self._format_meta(limit)
+        if command.startswith("/testcore"):
+            return self._run_builtin_testcore()
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -135,6 +139,27 @@ class MetaRuntime:
         limit = 10
         if len(self.state.meta_history) > limit:
             del self.state.meta_history[:-limit]
+
+    def _run_builtin_testcore(self) -> str:
+        temp_runtime = MetaRuntime(state=MetaState())
+        results = run_test_suite(temp_runtime, BASIC_RUNTIME_SUITE)
+        total = len(results)
+        passed = sum(1 for r in results if r.passed)
+        lines = [
+            f"[TESTCORE] total={total} passed={passed} failed={total - passed}"
+        ]
+        for result in results:
+            status = "OK" if result.passed else "FAIL"
+            line = (
+                f"{status} {result.case.name}: "
+                f"intent={result.detected_intent or '-'} "
+                f"lang={result.detected_lang or '-'} "
+                f"answer={result.raw_answer}"
+            )
+            if result.patch:
+                line += f" | suggestion={result.patch.module}"
+            lines.append(line)
+        return "\n".join(lines)
 
 
 def _preview(node: Node | None) -> str:
