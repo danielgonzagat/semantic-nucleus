@@ -12,6 +12,8 @@ from __future__ import annotations
 import ast
 import copy
 import difflib
+import operator
+import inspect
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -214,12 +216,67 @@ def _run_regression(
     candidate_fn = candidate_env.get(function_name)
     if not callable(original_fn) or not callable(candidate_fn):
         raise ValueError("Função alvo não executável para regressão.")
-    for args in samples:
+    sig = inspect.signature(original_fn)
+    param_count = len(sig.parameters)
+    sample_inputs: Sequence[Tuple[Any, ...]]
+    if param_count == 0:
+        sample_inputs = [()]
+    else:
+        sample_inputs = samples
+
+    for args in sample_inputs:
+        if param_count != len(args):
+            continue
         orig_out = original_fn(*args)
         cand_out = candidate_fn(*args)
         if orig_out != cand_out:
             return False
     return True
+
+
+def _is_number_constant(node: ast.AST) -> bool:
+    return isinstance(node, ast.Constant) and isinstance(node.value, (int, float))
+
+
+_CONST_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
+}
+
+_CONST_UNARY_OPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _fold_constants(node: ast.AST) -> ast.AST:
+    if isinstance(node, ast.BinOp):
+        node.left = _fold_constants(node.left)
+        node.right = _fold_constants(node.right)
+        if _is_number_constant(node.left) and _is_number_constant(node.right):
+            func = _CONST_BIN_OPS.get(type(node.op))
+            if func:
+                try:
+                    value = func(node.left.value, node.right.value)
+                    return ast.Constant(value=value)
+                except ZeroDivisionError:
+                    pass
+    elif isinstance(node, ast.UnaryOp):
+        node.operand = _fold_constants(node.operand)
+        if _is_number_constant(node.operand):
+            func = _CONST_UNARY_OPS.get(type(node.op))
+            if func:
+                return ast.Constant(value=func(node.operand.value))
+    elif isinstance(node, ast.Expr):
+        node.value = _fold_constants(node.value)
+    elif isinstance(node, ast.Return) and node.value is not None:
+        node.value = _fold_constants(node.value)
+    return node
 
 
 def _collect_liu_kinds(node: Node, kinds: List[str]) -> None:
@@ -272,7 +329,8 @@ class MetaEvolution:
         func_source = ast.unparse(func_module)
         liu_repr = _liu_signature(python_code_to_liu(func_source))
 
-        meta_terms = _reduce_terms(_collect_terms(original_expr))
+        simplified_expr = _fold_constants(copy.deepcopy(original_expr))
+        meta_terms = _reduce_terms(_collect_terms(simplified_expr))
         optimized_expr = _build_expression(meta_terms)
 
         if ast.dump(original_expr, include_attributes=False) == ast.dump(

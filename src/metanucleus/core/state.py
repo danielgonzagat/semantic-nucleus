@@ -5,7 +5,9 @@ Estado determinístico do Metanúcleo.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import time
 from typing import List, Set, Tuple, Dict
+from uuid import uuid4
 
 from .liu import Node, NodeKind, nil, rel, text, entity
 
@@ -47,6 +49,12 @@ class MetaState:
     config: Config = field(default_factory=Config)
     meta_history: List[Dict[str, str]] = field(default_factory=list)
     evolution_log: List[Dict[str, str]] = field(default_factory=list)
+    id: str = field(default_factory=lambda: str(uuid4()))
+    created_at: float = field(default_factory=time)
+    last_updated_at: float = field(default_factory=time)
+
+    def touch(self) -> None:
+        self.last_updated_at = time()
 
 
 def reset_answer(state: MetaState) -> None:

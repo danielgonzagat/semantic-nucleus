@@ -1,3 +1,5 @@
+import json
+
 from metanucleus.core.state import MetaState
 from metanucleus.runtime.meta_runtime import MetaRuntime
 
@@ -68,3 +70,54 @@ def test_evolutions_command_lists_recent_events(tmp_path):
     assert "Últimos eventos" in output
     assert "target" in output
     assert str(target_file) in output
+
+
+def test_evolve_command_with_suite_file(tmp_path):
+    runtime = MetaRuntime(state=MetaState())
+    target_file = tmp_path / "sample_module.py"
+    target_file.write_text(
+        "\n"
+        "def redundant(x):\n"
+        "    return (x * 2) + (x * 2)\n",
+        encoding="utf-8",
+    )
+    suite_file = tmp_path / "suite.json"
+    suite_file.write_text(
+        json.dumps(
+            {
+                "tests": [
+                    {
+                        "name": "saudacao",
+                        "input": "Oi Metanúcleo!",
+                        "expected": {"intent": "greeting", "lang": "pt"},
+                    }
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    output = runtime.handle_request(
+        f"/evolve {target_file}:redundant suitefile={suite_file}"
+    )
+
+    assert "Evolução bem-sucedida" in output
+    event = runtime.state.evolution_log[-1]
+    assert event["suite"] == suite_file.name
+    assert event["tests"] == "pass"
+
+
+def test_snapshot_command_writes_file(tmp_path):
+    runtime = MetaRuntime(state=MetaState())
+    runtime.state.meta_history.append({"route": "text", "input": "Oi", "answer": "Olá"})
+    runtime.state.evolution_log.append(
+        {"target": "example.py:foo", "status": "success", "suite": "skipped", "tests": "pass", "patch": "foo.py.meta.patch", "reason": "demo"}
+    )
+    snapshot_path = tmp_path / "snapshot.json"
+
+    output = runtime.handle_request(f"/snapshot {snapshot_path}")
+
+    assert "Snapshot gravado" in output
+    data = json.loads(snapshot_path.read_text(encoding="utf-8"))
+    assert data["meta_history"]
+    assert data["evolution_log"]

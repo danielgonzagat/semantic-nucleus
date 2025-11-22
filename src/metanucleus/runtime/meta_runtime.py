@@ -7,13 +7,15 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
-from typing import Tuple
+from time import time
+from typing import Tuple, Sequence
 
 from metanucleus.core.evolution import MetaEvolution
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation
 from metanucleus.core.sandbox import MetaSandbox
-from metanucleus.test.testcore import run_test_suite
+from metanucleus.test.testcore import run_test_suite, TestCase
+from metanucleus.utils.suites import load_suite_file, SuiteFormatError
 from .adapters import TextInputAdapter, CodeInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
 from .scheduler import Scheduler
@@ -93,6 +95,8 @@ class MetaRuntime:
             return self._handle_testcore_command(command)
         if command.startswith("/evolve"):
             return self._handle_evolve_command(command)
+        if command.startswith("/snapshot"):
+            return self._handle_snapshot_command(command)
         if command.startswith("/evolutions"):
             return self._handle_evolutions_command(command)
         return f"[META] Comando desconhecido: {command}"
@@ -179,19 +183,44 @@ class MetaRuntime:
     def _handle_testcore_command(self, command: str) -> str:
         tokens = command.split()
         suite_name = "basic"
+        suite_file: Path | None = None
         json_mode = False
         for token in tokens[1:]:
             lower = token.lower()
             if lower == "json":
                 json_mode = True
+            elif lower.startswith("suite="):
+                value = token.split("=", 1)[1]
+                candidate = Path(value).expanduser()
+                if candidate.exists():
+                    suite_file = candidate
+                elif get_suite(value.lower()):
+                    suite_name = value.lower()
+                else:
+                    return (
+                        "[TESTCORE] argumentos inválidos. "
+                        f"Use um dos suites: {', '.join(list_suites())} "
+                        "ou informe um arquivo suite=/caminho.json."
+                    )
             elif get_suite(lower):
                 suite_name = lower
             else:
-                return (
-                    "[TESTCORE] argumentos inválidos. "
-                    f"Use um dos suites: {', '.join(list_suites())} "
-                    "e opcionalmente 'json'."
-                )
+                candidate = Path(token).expanduser()
+                if candidate.exists():
+                    suite_file = candidate
+                else:
+                    return (
+                        "[TESTCORE] argumentos inválidos. "
+                        f"Use um dos suites: {', '.join(list_suites())} "
+                        "ou informe um arquivo JSON."
+                    )
+        if suite_file:
+            try:
+                tests = load_suite_file(suite_file)
+            except SuiteFormatError as exc:
+                return f"[TESTCORE] {exc}"
+            passed, lines = self._run_suite_cases(tests, suite_file.name)
+            return "\n".join(lines)
         return self._run_builtin_testcore(suite_name=suite_name, as_json=json_mode)
 
     def _run_builtin_testcore(self, suite_name: str = "basic", as_json: bool = False) -> str:
@@ -238,6 +267,30 @@ class MetaRuntime:
             lines.append(line)
         return "\n".join(lines)
 
+    def _run_suite_cases(self, tests: Sequence[TestCase], label: str) -> Tuple[bool, list[str]]:
+        sandbox = MetaSandbox.from_state(MetaState())
+        runtime = sandbox.spawn_runtime()
+        results = run_test_suite(runtime, list(tests))
+        passed = all(r.passed for r in results)
+        lines = [
+            f"[TESTCORE:{label}] total={len(results)} "
+            f"passed={sum(1 for r in results if r.passed)} "
+            f"failed={sum(1 for r in results if not r.passed)}"
+        ]
+        if not passed:
+            for result in results:
+                if result.passed:
+                    continue
+                diffs = "; ".join(
+                    f"{d.path} expected={d.expected} actual={d.actual}"
+                    for d in result.field_diffs
+                ) or "sem detalhes"
+                lines.append(
+                    f"  - {result.case.name} intent={result.detected_intent or '-'} "
+                    f"lang={result.detected_lang or '-'} diffs={diffs}"
+                )
+        return passed, lines
+
     def _handle_evolve_command(self, command: str) -> str:
         """
         Executa o pipeline de meta-evolução para um alvo em disco.
@@ -256,13 +309,22 @@ class MetaRuntime:
             return "[META-EVOLVE] Nome da função ausente."
 
         suite_name: str | None = None
+        suite_file: Path | None = None
         for token in tokens[2:]:
             if token.startswith("suite="):
-                value = token.split("=", 1)[1].lower()
-                if value in {"none", "skip", "off"}:
+                value = token.split("=", 1)[1]
+                candidate = Path(value).expanduser()
+                if candidate.exists():
+                    suite_file = candidate
                     suite_name = None
                 else:
-                    suite_name = value
+                    value = value.lower()
+                    if value in {"none", "skip", "off"}:
+                        suite_name = None
+                    else:
+                        suite_name = value
+            elif token.startswith("suitefile="):
+                suite_file = Path(token.split("=", 1)[1]).expanduser()
 
         path = Path(path_str).expanduser()
         if not path.is_absolute():
@@ -280,48 +342,59 @@ class MetaRuntime:
             return f"[META-EVOLVE] Nenhuma otimização aplicada ({result.reason})."
 
         test_report_lines: list[str] = []
-        test_status = "skipped"
+        tests_executed = False
+        all_tests_passed = True
+        last_suite_label = "skipped"
+
+        if suite_file:
+            try:
+                custom_tests = load_suite_file(suite_file)
+            except SuiteFormatError as exc:
+                return f"[META-EVOLVE] {exc}"
+            passed, report = self._run_suite_cases(custom_tests, suite_file.name)
+            test_report_lines.extend(report)
+            tests_executed = True
+            last_suite_label = suite_file.name
+            if not passed:
+                all_tests_passed = False
+                self._register_evolution_event(
+                    target=f"{path}:{func_name}",
+                    status="tests_failed",
+                    suite=suite_file.name,
+                    patch_path=None,
+                    test_status="fail",
+                    reason="custom_suite_failure",
+                )
+                return "\n".join(
+                    ["[META-EVOLVE] Evolução rejeitada pelos testes personalizados."] + test_report_lines
+                )
+
         if suite_name is not None:
             suite = get_suite(suite_name)
             if suite is None:
                 available = ", ".join(list_suites())
                 return f"[META-EVOLVE] Suite desconhecida '{suite_name}'. Disponíveis: {available}"
-            # executa testes em snapshot determinístico novo para garantir isolamento
-            sandbox = MetaSandbox.from_state(MetaState())
-            temp_runtime = sandbox.spawn_runtime()
-            results = run_test_suite(temp_runtime, suite)
-            passed = all(r.passed for r in results)
-            status_text = "PASS" if passed else "FAIL"
-            test_status = "pass" if passed else "fail"
-            successes = sum(1 for r in results if r.passed)
-            test_report_lines.append(
-                f"  tests ({suite_name}): {status_text} ({successes}/{len(results)})"
-            )
+            passed, report = self._run_suite_cases(suite, suite_name)
+            test_report_lines.extend(report)
+            tests_executed = True
+            last_suite_label = suite_name
             if not passed:
-                for res in results:
-                    if res.passed:
-                        continue
-                    diff_summary = "; ".join(
-                        f"{d.path} expected={d.expected} actual={d.actual}"
-                        for d in res.field_diffs
-                    ) or "sem detalhes"
-                    test_report_lines.append(
-                        f"    - {res.case.name}: {diff_summary}"
-                    )
-                test_report_lines.append(
-                    "  Resultado dos testes incompatível. Patch não será gerado automaticamente."
-                )
+                all_tests_passed = False
                 self._register_evolution_event(
                     target=f"{path}:{func_name}",
                     status="tests_failed",
                     suite=suite_name,
                     patch_path=None,
-                    test_status=test_status,
+                    test_status="fail",
                     reason="testcore_failure",
                 )
                 return "\n".join(
                     ["[META-EVOLVE] Evolução rejeitada pelos testes."] + test_report_lines
                 )
+
+        test_status = "skipped"
+        if tests_executed:
+            test_status = "pass" if all_tests_passed else "fail"
 
         patch_path = path.with_suffix(path.suffix + ".meta.patch")
         diff_text = result.diff or ""
@@ -350,7 +423,7 @@ class MetaRuntime:
         self._register_evolution_event(
             target=f"{path}:{func_name}",
             status="success",
-            suite=suite_name or "skipped",
+            suite=last_suite_label,
             patch_path=str(patch_path),
             test_status=test_status,
             reason="optimization_found",
@@ -379,6 +452,22 @@ class MetaRuntime:
         limit = 20
         if len(self.state.evolution_log) > limit:
             del self.state.evolution_log[:-limit]
+
+    def _handle_snapshot_command(self, command: str) -> str:
+        parts = command.split(maxsplit=1)
+        if len(parts) == 1 or not parts[1].strip():
+            return "[META] Uso: /snapshot caminho/arquivo.json"
+        path = Path(parts[1].strip()).expanduser()
+        if not path.is_absolute():
+            path = Path.cwd() / path
+        payload = {
+            "state_id": self.state.id,
+            "timestamp": time(),
+            "meta_history": self.state.meta_history,
+            "evolution_log": self.state.evolution_log,
+        }
+        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+        return f"[META] Snapshot gravado em {path}"
 
     def _handle_evolutions_command(self, command: str) -> str:
         parts = command.split()

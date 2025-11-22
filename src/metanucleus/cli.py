@@ -6,6 +6,9 @@ from __future__ import annotations
 
 import argparse
 import sys
+import json
+import subprocess
+import time
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
@@ -13,7 +16,8 @@ from metanucleus.core.evolution import EvolutionRequest, MetaEvolution
 from metanucleus.core.state import MetaState
 from metanucleus.runtime.meta_runtime import MetaRuntime
 from metanucleus.runtime.test_suites import get_suite, list_suites
-from metanucleus.test.testcore import run_test_suite
+from metanucleus.test.testcore import run_test_suite, TestCase
+from metanucleus.utils.suites import load_suite_file, SuiteFormatError
 
 
 def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
@@ -36,18 +40,14 @@ def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
     return samples
 
 
-def _run_suite(name: str) -> Tuple[bool, List[str]]:
-    suite = get_suite(name)
-    if suite is None:
-        available = ", ".join(list_suites())
-        return False, [f"Suite '{name}' desconhecida. Disponíveis: {available}"]
-
+def _execute_suite(tests: Sequence[TestCase], label: str) -> Tuple[bool, List[str]]:
     runtime = MetaRuntime(state=MetaState())
-    results = run_test_suite(runtime, suite)
+    results = run_test_suite(runtime, list(tests))
     passed = all(r.passed for r in results)
     lines: List[str] = [
-        f"[TESTCORE] suite={name} status={'PASS' if passed else 'FAIL'} "
-        f"({sum(1 for r in results if r.passed)}/{len(results)})"
+        f"[TESTCORE:{label}] total={len(results)} "
+        f"passed={sum(1 for r in results if r.passed)} "
+        f"failed={sum(1 for r in results if not r.passed)}"
     ]
     if not passed:
         for result in results:
@@ -57,8 +57,24 @@ def _run_suite(name: str) -> Tuple[bool, List[str]]:
                 f"{d.path} expected={d.expected} actual={d.actual}"
                 for d in result.field_diffs
             ) or "sem detalhes"
-            lines.append(f"  - {result.case.name}: {diffs}")
+            lines.append(
+                f"  - {result.case.name} intent={result.detected_intent or '-'} "
+                f"lang={result.detected_lang or '-'} diffs={diffs}"
+            )
     return passed, lines
+
+
+def _run_suite(name: str) -> Tuple[bool, List[str]]:
+    suite = get_suite(name)
+    if suite is None:
+        available = ", ".join(list_suites())
+        return False, [f"Suite '{name}' desconhecida. Disponíveis: {available}"]
+    return _execute_suite(suite, name)
+
+
+def _run_suite_file(path: Path) -> Tuple[bool, List[str]]:
+    tests = load_suite_file(path)
+    return _execute_suite(tests, path.name)
 
 
 def _cmd_evolve(args: argparse.Namespace) -> int:
@@ -82,13 +98,43 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
 
     patch_text = result.diff or ""
 
-    if args.suite and args.suite.lower() not in {"none", "skip", "off"}:
-        passed, report = _run_suite(args.suite.lower())
+    suite_results = []
+
+    if args.suite_file:
+        custom_path = Path(args.suite_file)
+        try:
+            passed, report = _run_suite_file(custom_path)
+        except SuiteFormatError as exc:
+            print(f"[TESTCORE] {exc}")
+            return 3
         for line in report:
             print(line)
+        suite_results.append(
+            {
+                "type": "file",
+                "source": str(custom_path),
+                "status": "pass" if passed else "fail",
+            }
+        )
+        if not passed:
+            print("[META-EVOLVE] Evolução rejeitada pelos testes personalizados.")
+            return 4
+
+    suite_name = args.suite.lower() if args.suite else "none"
+    if suite_name not in {"none", "skip", "off"}:
+        passed, report = _run_suite(suite_name)
+        for line in report:
+            print(line)
+        suite_results.append(
+            {
+                "type": "builtin",
+                "source": suite_name,
+                "status": "pass" if passed else "fail",
+            }
+        )
         if not passed:
             print("[META-EVOLVE] Evolução rejeitada pelos testes.")
-            return 3
+            return 5
     else:
         print("[TESTCORE] testes pulados (use --suite NOME para habilitar).")
 
@@ -106,7 +152,36 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     print(preview)
     print("Revise o patch antes de aplicar manualmente.")
 
-    # opcional: persistir versão otimizada? por segurança, apenas sugerimos patch
+    if args.git_apply:
+        try:
+            subprocess.run(
+                ["git", "apply", str(patch_path)],
+                check=True,
+                capture_output=True,
+            )
+            print("[GIT] Patch aplicado com sucesso.")
+        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+            print(f"[GIT] Falha ao aplicar patch automaticamente: {exc}")
+            return 6
+
+    if args.report:
+        report_payload = {
+            "target": str(path),
+            "function": args.function,
+            "patch": str(patch_path),
+            "analysis": {
+                "cost_before": analysis.cost_before if analysis else None,
+                "cost_after": analysis.cost_after if analysis else None,
+            },
+            "tests": suite_results or [{"type": "builtin", "source": "skipped", "status": "skipped"}],
+            "timestamp": time.time(),
+        }
+        Path(args.report).write_text(
+            json.dumps(report_payload, ensure_ascii=False, indent=2),
+            encoding="utf-8",
+        )
+        print(f"[META-EVOLVE] Relatório salvo em {args.report}")
+
     return 0
 
 
@@ -132,6 +207,19 @@ def build_parser() -> argparse.ArgumentParser:
         "--samples",
         help="lista de amostras numéricas separadas por vírgula para regressão (ex: 0,1,5)",
     )
+    evolve.add_argument(
+        "--suite-file",
+        help="arquivo JSON com testes personalizados",
+    )
+    evolve.add_argument(
+        "--report",
+        help="salva um relatório JSON com métricas e status dos testes",
+    )
+    evolve.add_argument(
+        "--git-apply",
+        action="store_true",
+        help="tenta aplicar automaticamente o patch via git apply",
+    )
 
     testcore_cmd = sub.add_parser(
         "testcore",
@@ -146,6 +234,10 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="imprime o resultado em JSON compacto",
     )
+    testcore_cmd.add_argument(
+        "--suite-file",
+        help="arquivo JSON com testes personalizados",
+    )
     return parser
 
 
@@ -156,20 +248,30 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "evolve":
         return _cmd_evolve(args)
     if args.command == "testcore":
-        suite = get_suite(args.suite)
-        if suite is None:
-            print(f"[TESTCORE] suite desconhecida: {args.suite}")
-            return 1
-        runtime = MetaRuntime(state=MetaState())
-        results = run_test_suite(runtime, suite)
+        if args.suite_file:
+            try:
+                tests = load_suite_file(Path(args.suite_file))
+            except SuiteFormatError as exc:
+                print(f"[TESTCORE] {exc}")
+                return 1
+            runtime = MetaRuntime(state=MetaState())
+            results = run_test_suite(runtime, tests)
+            label = Path(args.suite_file).name
+        else:
+            suite = get_suite(args.suite)
+            if suite is None:
+                print(f"[TESTCORE] suite desconhecida: {args.suite}")
+                return 1
+            runtime = MetaRuntime(state=MetaState())
+            results = run_test_suite(runtime, suite)
+            label = args.suite
+
         total = len(results)
         passed = sum(1 for r in results if r.passed)
         failed = total - passed
         if args.json:
-            import json
-
             payload = {
-                "suite": args.suite,
+                "suite": label,
                 "total": total,
                 "passed": passed,
                 "failed": failed,
@@ -189,9 +291,7 @@ def main(argv: Iterable[str] | None = None) -> int:
             }
             print(json.dumps(payload, ensure_ascii=False))
         else:
-            print(
-                f"[TESTCORE:{args.suite}] total={total} passed={passed} failed={failed}"
-            )
+            print(f"[TESTCORE:{label}] total={total} passed={passed} failed={failed}")
             for result in results:
                 status = "OK" if result.passed else "FAIL"
                 line = (

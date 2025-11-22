@@ -57,3 +57,17 @@ def test_meta_evolution_regression_guard():
 
     assert not result.success
     assert result.reason == "regression_failed"
+
+
+def test_meta_evolution_constant_folding():
+    source = textwrap.dedent(
+        """
+        def calcular():
+            return (2 + 3) + (1 + 1)
+        """
+    )
+    request = EvolutionRequest(source=source, function_name="calcular")
+    result = MetaEvolution().evolve(request)
+
+    assert result.success
+    assert "return 7" in (result.optimized_source or "")
