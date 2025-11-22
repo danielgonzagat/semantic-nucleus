@@ -36,6 +36,11 @@ STOP_WORDS = {
     "les",
     "le",
     "du",
+    "gli",
+    "degli",
+    "delle",
+    "della",
+    "dello",
     "the",
     "an",
 }
@@ -204,10 +209,39 @@ LANGUAGE_PACKS: dict[str, Lexicon] = {
             "appartient": "PART_OF",
         },
     ),
+      "it": Lexicon(
+          synonyms={
+              "auto": "carro",
+              "automobile": "carro",
+              "macchina": "carro",
+              "veicolo": "veiculo",
+              "ruota": "roda",
+          },
+          pos_hint={
+              "muove": "ACTION",
+              "muovere": "ACTION",
+              "corre": "ACTION",
+              "cammina": "ACTION",
+              "camminare": "ACTION",
+          },
+          qualifiers={
+              "veloce",
+              "rapido",
+              "lentamente",
+              "forte",
+          },
+          rel_words={
+              "con": "HAS",
+              "ha": "HAS",
+              "hanno": "HAS",
+              "possiede": "HAS",
+              "appartiene": "PART_OF",
+          },
+      ),
 }
 
 
-DEFAULT_LEXICON = compose_lexicon(("pt", "en", "es", "fr"))
+DEFAULT_LEXICON = compose_lexicon(("pt", "en", "es", "fr", "it"))
 
 
 __all__ = ["tokenize", "DEFAULT_LEXICON", "compose_lexicon", "load_lexicon_file", "LANGUAGE_PACKS"]

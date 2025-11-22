@@ -37,6 +37,12 @@ def test_health_question_response_and_plan_codes():
     assert plan.token_codes[0] == encode_word("tudo")
 
 
+def test_italian_greeting_and_health_responses():
+    assert respond("ciao") == "ciao"
+    assert respond("tutto bene?") == "tutto bene, e tu?"
+    assert respond("come stai?") == "sto bene, e tu?"
+
+
 def test_maybe_route_text_builds_struct_and_answer():
     hook = maybe_route_text("tudo bem?")
     assert hook is not None

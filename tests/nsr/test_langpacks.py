@@ -11,6 +11,10 @@ def test_language_pack_exposes_dialog_rules():
     assert any(rule.reply_role == "ANSWER_HEALTH_FR" for rule in pack.dialog_rules)
     assert any(lex.lemma == "BONJOUR" for lex in pack.lexemes)
     assert "LE" in pack.stopwords
+    pack_it = get_language_pack("it")
+    assert any(rule.reply_role == "ANSWER_HEALTH_IT" for rule in pack_it.dialog_rules)
+    assert any(lex.lemma == "CIAO" for lex in pack_it.lexemes)
+    assert "IL" in pack_it.stopwords
 
 
 def test_iter_language_packs_returns_all_requested_codes():
@@ -30,7 +34,7 @@ def test_conjugations_from_language_packs_register_on_default_instinct():
 def test_list_available_codes_includes_base_languages():
     langpacks.reload_external_packs()
     codes = list_available_codes()
-    assert {"pt", "en", "es", "fr"}.issubset(set(codes))
+    assert {"pt", "en", "es", "fr", "it"}.issubset(set(codes))
 
 
 def test_import_language_pack(tmp_path, monkeypatch):

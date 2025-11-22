@@ -38,9 +38,9 @@ de contagens/digests para auditoria estrutural.
 from nsr.lex import compose_lexicon, load_lexicon_file, LANGUAGE_PACKS
 from nsr import SessionCtx
 
-# Combina pacotes embutidos (pt/en/es/fr) e injeta no SessionCtx
+# Combina pacotes embutidos (pt/en/es/fr/it) e injeta no SessionCtx
 session = SessionCtx()
-session.lexicon = compose_lexicon(("pt", "en", "es", "fr"))
+session.lexicon = compose_lexicon(("pt", "en", "es", "fr", "it"))
 
 # Sobrescreve/expande via JSON auditável
 custom = load_lexicon_file("lexicon_extra.json")

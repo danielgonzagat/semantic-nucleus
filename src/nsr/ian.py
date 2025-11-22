@@ -24,11 +24,15 @@ def _base_charset() -> Tuple[str, ...]:
         "À",
         "É",
         "Ê",
+        "È",
         "Í",
+        "Ì",
         "Ó",
         "Ô",
         "Õ",
+        "Ò",
         "Ú",
+        "Ù",
         "Ç",
     )
     digits = tuple("0123456789")
@@ -71,7 +75,7 @@ CONJUGATION_TABLE: Dict[Tuple[str, str, str, str], str] = {
     ("falar", "pres", "3", "plur"): "falam",
 }
 
-DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr")
+DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr", "it")
 
 
 def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
@@ -221,10 +225,13 @@ TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[!?.,]")
 EN_GREETING_SURFACES = frozenset({"HI", "HELLO", "HEY"})
 ES_GREETING_SURFACES = frozenset({"HOLA"})
 FR_GREETING_SURFACES = frozenset({"BONJOUR", "SALUT"})
+IT_GREETING_SURFACES = frozenset({"CIAO"})
 PT_VERBOSE_SEQUENCE = ("QUESTION_HOW", "YOU", "BE_STATE")
 EN_VERBOSE_SEQUENCE = ("QUESTION_HOW", "BE_STATE", "YOU")
 ES_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
 ES_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "BE_STATE", "YOU")
+IT_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
+IT_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "YOU", "BE_STATE")
 FR_VERBOSE_KEYWORDS = frozenset({"COMMENT", "ÇA", "CA"})
 
 
@@ -345,6 +352,8 @@ class IANInstinct:
             return "es"
         if role.endswith("_FR") or "_FR_" in role:
             return "fr"
+        if role.endswith("_IT") or "_IT_" in role:
+            return "it"
         if role.endswith("_PT") or "_PT_" in role:
             return "pt"
         if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE"}:
@@ -370,7 +379,12 @@ class IANInstinct:
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
         if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+            first_surface = self._first_surface_with_semantics(tokens, "QUESTION_HOW")
+            if first_surface == "COME":
+                return "QUESTION_HEALTH_VERBOSE_IT"
             return "QUESTION_HEALTH_VERBOSE_ES"
+        if head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG:
+            return "QUESTION_HEALTH_VERBOSE_IT"
         return None
 
     @staticmethod
@@ -386,6 +400,10 @@ class IANInstinct:
         return any((not token.is_punctuation) and token.normalized in FR_GREETING_SURFACES for token in tokens)
 
     @staticmethod
+    def _is_italian_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in IT_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
     def _contains_french_verbose_marker(tokens: Sequence[IANToken]) -> bool:
         return any((not token.is_punctuation) and token.normalized in FR_VERBOSE_KEYWORDS for token in tokens)
 
@@ -396,6 +414,8 @@ class IANInstinct:
             return "GREETING_SIMPLE_ES"
         if self._is_french_greeting(tokens):
             return "GREETING_SIMPLE_FR"
+        if self._is_italian_greeting(tokens):
+            return "GREETING_SIMPLE_IT"
         return "GREETING_SIMPLE"
 
     def _health_question_role(
@@ -415,6 +435,8 @@ class IANInstinct:
                 return "QUESTION_HEALTH_ES"
             if first_surface == "TOUT":
                 return "QUESTION_HEALTH_FR"
+            if first_surface == "TUTTO":
+                return "QUESTION_HEALTH_IT"
             return "QUESTION_HEALTH"
         return None
 
@@ -438,6 +460,13 @@ class IANInstinct:
             has_self = any((t.lexeme and t.lexeme.semantics in {"SELF", "BE_STATE"}) for t in tokens)
             if has_self:
                 return "POSITIVE"
+        return None
+
+    @staticmethod
+    def _first_surface_with_semantics(tokens: Sequence[IANToken], semantics: str) -> str | None:
+        for token in tokens:
+            if token.lexeme and token.lexeme.semantics == semantics:
+                return token.normalized
         return None
 
     def _materialize_rule_tokens(self, rule: DialogRule) -> Tuple[str, ...]:

@@ -417,6 +417,56 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
             {"lemma": "aller", "tense": "pres", "person": 2, "number": "sing", "form": "vas"},
             {"lemma": "aller", "tense": "pres", "person": 3, "number": "sing", "form": "va"},
         ],
+      },
+      "it": {
+          "lexemes": [
+              {"lemma": "CIAO", "semantics": "GREETING_SIMPLE", "pos": "INTERJ", "forms": ["CIAO"]},
+              {"lemma": "TUTTO", "semantics": "ALL_THINGS", "pos": "PRON_INDEF", "forms": ["TUTTO"]},
+              {"lemma": "BENE", "semantics": "STATE_GOOD", "pos": "ADV", "forms": ["BENE"]},
+              {"lemma": "E", "semantics": "CONJ_AND", "pos": "CONJ", "forms": ["E", "ED"]},
+              {"lemma": "TU", "semantics": "YOU", "pos": "PRON", "forms": ["TU"]},
+              {"lemma": "COME", "semantics": "QUESTION_HOW", "pos": "ADV", "forms": ["COME"]},
+              {"lemma": "STARE", "semantics": "BE_STATE", "pos": "VERB", "forms": ["STAI", "STO", "STA"]},
+              {"lemma": "IO", "semantics": "SELF", "pos": "PRON", "forms": ["IO"]},
+          ],
+          "stopwords": ["IL", "LA", "LO", "GLI", "LE", "DI", "CHE", "E", "UN", "UNA"],
+          "syntactic_patterns": [
+              {"name": "GREETING_SIMPLE_IT", "sequence": ["GREETING_SIMPLE"]},
+              {"name": "QUESTION_HEALTH_IT", "sequence": ["ALL_THINGS", "STATE_GOOD"]},
+              {"name": "QUESTION_HEALTH_VERBOSE_IT", "sequence": ["QUESTION_HOW", "BE_STATE"]},
+          ],
+          "idiom_equivalents": [
+              {"source": "tutto bene", "target": "all good"},
+              {"source": "come stai", "target": "how are you"},
+          ],
+          "dialog_rules": [
+              {
+                  "trigger_role": "GREETING_SIMPLE_IT",
+                  "reply_role": "GREETING_SIMPLE_IT_REPLY",
+                  "reply_semantics": "GREETING_SIMPLE",
+                  "surface_tokens": ["ciao"],
+                  "language": "it",
+              },
+              {
+                  "trigger_role": "QUESTION_HEALTH_IT",
+                  "reply_role": "ANSWER_HEALTH_IT",
+                  "reply_semantics": "STATE_GOOD_AND_RETURN",
+                  "surface_tokens": ["tutto", "bene", ",", "e", "tu", "?"],
+                  "language": "it",
+              },
+              {
+                  "trigger_role": "QUESTION_HEALTH_VERBOSE_IT",
+                  "reply_role": "ANSWER_HEALTH_VERBOSE_IT",
+                  "reply_semantics": "STATE_GOOD_AND_RETURN",
+                  "surface_tokens": [":CONJ:stare:pres:1:sing", "bene", ",", "e", "tu", "?"],
+                  "language": "it",
+              },
+          ],
+          "conjugations": [
+              {"lemma": "stare", "tense": "pres", "person": 1, "number": "sing", "form": "sto"},
+              {"lemma": "stare", "tense": "pres", "person": 2, "number": "sing", "form": "stai"},
+              {"lemma": "stare", "tense": "pres", "person": 3, "number": "sing", "form": "sta"},
+          ],
     },
 }
 
