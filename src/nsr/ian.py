@@ -178,6 +178,7 @@ class IANToken:
 class Utterance:
     role: str
     semantics: str
+    language: str
     tokens: Tuple[IANToken, ...]
 
 
@@ -187,6 +188,7 @@ class ReplyPlan:
     semantics: str
     tokens: Tuple[str, ...]
     token_codes: Tuple[Tuple[int, ...], ...]
+    language: str
 
 
 @dataclass(frozen=True)
@@ -195,6 +197,7 @@ class DialogRule:
     reply_role: str
     reply_semantics: str
     surface_tokens: Tuple[str, ...]
+    reply_language: str = "und"
 
     def matches(self, utterance: Utterance) -> bool:
         return utterance.role == self.trigger_role
@@ -248,7 +251,8 @@ class IANInstinct:
     def analyze(self, text: str) -> Utterance:
         tokens = self.tokenize(text)
         role, semantics = self._infer_role(tokens)
-        return Utterance(role=role, semantics=semantics, tokens=tokens)
+        language = self._infer_language(role, tokens)
+        return Utterance(role=role, semantics=semantics, language=language, tokens=tokens)
 
     def reply(self, text: str) -> ReplyPlan:
         utterance = self.analyze(text)
@@ -265,6 +269,7 @@ class IANInstinct:
                     semantics=rule.reply_semantics,
                     tokens=materialized,
                     token_codes=codes,
+                    language=rule.reply_language,
                 )
         codes = tuple(self._encode_token_surface(token) for token in self.unknown_reply)
         return ReplyPlan(
@@ -272,6 +277,7 @@ class IANInstinct:
             semantics="UNKNOWN",
             tokens=self.unknown_reply,
             token_codes=codes,
+            language=utterance.language or "und",
         )
 
     def render(self, plan: ReplyPlan) -> str:
@@ -304,6 +310,28 @@ class IANInstinct:
         if state_role == "NEGATIVE":
             return "STATE_NEGATIVE", "STATE_NEGATIVE"
         return "UNKNOWN", "UNKNOWN"
+
+    def _infer_language(self, role: str, tokens: Sequence[IANToken]) -> str:
+        lang = self._language_from_role(role)
+        if lang != "und":
+            return lang
+        if self._is_english_greeting(tokens):
+            return "en"
+        if self._is_spanish_greeting(tokens):
+            return "es"
+        return "pt"
+
+    @staticmethod
+    def _language_from_role(role: str) -> str:
+        if role.endswith("_EN") or "_EN_" in role:
+            return "en"
+        if role.endswith("_ES") or "_ES_" in role:
+            return "es"
+        if role.endswith("_PT") or "_PT_" in role:
+            return "pt"
+        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE"}:
+            return "pt"
+        return "und"
 
     @staticmethod
     def _contains_greeting(semantics_seq: Sequence[str | None]) -> bool:
@@ -422,60 +450,70 @@ class IANInstinct:
                 reply_role="ANSWER_HEALTH_AND_RETURN",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=("tudo", "bem", ",", "e", "você", "?"),
+                reply_language="pt",
             ),
             DialogRule(
                 trigger_role="GREETING_SIMPLE",
                 reply_role="GREETING_SIMPLE_REPLY",
                 reply_semantics="GREETING_SIMPLE",
                 surface_tokens=("oi",),
+                reply_language="pt",
             ),
             DialogRule(
                 trigger_role="GREETING_SIMPLE_EN",
                 reply_role="GREETING_SIMPLE_EN_REPLY",
                 reply_semantics="GREETING_SIMPLE",
                 surface_tokens=("hi",),
+                reply_language="en",
             ),
             DialogRule(
                 trigger_role="GREETING_SIMPLE_ES",
                 reply_role="GREETING_SIMPLE_ES_REPLY",
                 reply_semantics="GREETING_SIMPLE",
                 surface_tokens=("hola",),
+                reply_language="es",
             ),
             DialogRule(
                 trigger_role="QUESTION_HEALTH_VERBOSE",
                 reply_role="ANSWER_HEALTH_VERBOSE",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=(":CONJ:estar:pres:1:sing", "bem", ",", "e", "você", "?"),
+                reply_language="pt",
             ),
             DialogRule(
                 trigger_role="QUESTION_HEALTH_VERBOSE_EN",
                 reply_role="ANSWER_HEALTH_VERBOSE_EN",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=("i", "am", "fine", ",", "and", "you", "?"),
+                reply_language="en",
             ),
             DialogRule(
                 trigger_role="QUESTION_HEALTH_VERBOSE_ES",
                 reply_role="ANSWER_HEALTH_VERBOSE_ES",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=("estoy", "bien", ",", "y", "tú", "?"),
+                reply_language="es",
             ),
             DialogRule(
                 trigger_role="QUESTION_HEALTH_ES",
                 reply_role="ANSWER_HEALTH_ES",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=("todo", "bien", ",", "y", "tú", "?"),
+                reply_language="es",
             ),
             DialogRule(
                 trigger_role="STATE_POSITIVE",
                 reply_role="ACK_POSITIVE",
                 reply_semantics="STATE_POSITIVE_ACK",
                 surface_tokens=("que", "bom", "!"),
+                reply_language="pt",
             ),
             DialogRule(
                 trigger_role="STATE_NEGATIVE",
                 reply_role="CARE_NEGATIVE",
                 reply_semantics="STATE_NEGATIVE_SUPPORT",
                 surface_tokens=("sinto", "muito", ".", "posso", "ajudar", "?"),
+                reply_language="pt",
             ),
         )
         return cls(

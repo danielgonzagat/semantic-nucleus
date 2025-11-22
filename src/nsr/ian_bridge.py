@@ -53,6 +53,7 @@ def utterance_to_struct(utterance: Utterance) -> Node:
     return struct(
         intent=entity(utterance.role.lower()),
         semantics=entity(utterance.semantics.lower()),
+        language=entity(utterance.language),
         tokens=list_node(token_nodes),
     )
 
@@ -71,6 +72,7 @@ def reply_plan_to_answer(
         answer=text(rendered),
         plan_role=entity(plan.role.lower()),
         plan_semantics=entity(plan.semantics.lower()),
+        plan_language=entity(plan.language),
         plan_tokens=list_node(token_nodes),
     )
 
@@ -94,6 +96,7 @@ def context_nodes_for_interaction(
         tag=entity("ian_reply"),
         plan_role=entity(plan.role.lower()),
         plan_semantics=entity(plan.semantics.lower()),
+        plan_language=entity(plan.language),
         answer=text(rendered),
         plan_tokens=list_node(plan_tokens),
     )
