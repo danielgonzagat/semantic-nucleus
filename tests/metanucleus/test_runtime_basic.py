@@ -27,3 +27,8 @@ def test_tokens_are_injected(runtime):
     tokens_struct = utter.fields["tokens"]
     assert tokens_struct.kind.name == "STRUCT"
     assert any(field.kind.name == "STRUCT" for field in tokens_struct.fields.values())
+
+
+def test_question_receives_question_reply(runtime):
+    output = runtime.handle_request("Pode me explicar o que é o Metanúcleo?")
+    assert "Pergunta registrada" in output
