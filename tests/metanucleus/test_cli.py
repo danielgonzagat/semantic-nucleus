@@ -1,4 +1,5 @@
 import json
+import subprocess
 
 from metanucleus.cli import main
 
@@ -136,3 +137,56 @@ def test_cli_snapshot_and_metrics(tmp_path, capsys):
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "META-METRICS" in captured.out
+
+
+def test_cli_evolve_git_branch_and_commit(tmp_path, monkeypatch):
+    repo_dir = tmp_path / "repo"
+    repo_dir.mkdir()
+    subprocess.run(["git", "init"], cwd=repo_dir, check=True, capture_output=True)
+
+    target_file = repo_dir / "sample_module.py"
+    target_file.write_text(
+        "\n"
+        "def redundant(x):\n"
+        "    return (x * 2) + (x * 2)\n",
+        encoding="utf-8",
+    )
+    subprocess.run(["git", "add", target_file.name], cwd=repo_dir, check=True, capture_output=True)
+    subprocess.run(
+        ["git", "commit", "-m", "init"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True,
+    )
+
+    monkeypatch.chdir(repo_dir)
+    exit_code = main(
+        [
+            "evolve",
+            target_file.name,
+            "redundant",
+            "--suite",
+            "none",
+            "--git-branch",
+            "feature/auto",
+            "--git-commit-message",
+            "auto evolution",
+        ]
+    )
+
+    assert exit_code == 0
+    branch = subprocess.run(
+        ["git", "rev-parse", "--abbrev-ref", "HEAD"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8").strip()
+    assert branch == "feature/auto"
+    last_commit = subprocess.run(
+        ["git", "log", "-1", "--pretty=%B"],
+        cwd=repo_dir,
+        check=True,
+        capture_output=True,
+    ).stdout.decode("utf-8").strip()
+    assert "auto evolution" in last_commit
+    assert "return 4 * x" in target_file.read_text(encoding="utf-8")

@@ -9,6 +9,7 @@ import sys
 import json
 import subprocess
 import time
+import difflib
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
@@ -18,6 +19,80 @@ from metanucleus.runtime.meta_runtime import MetaRuntime
 from metanucleus.runtime.test_suites import get_suite, list_suites
 from metanucleus.test.testcore import run_test_suite, TestCase
 from metanucleus.utils.suites import load_suite_file, SuiteFormatError
+
+
+class GitHelperError(RuntimeError):
+    """Erro de conveniência para operações git."""
+
+
+def _run_git(args: Sequence[str]) -> subprocess.CompletedProcess:
+    try:
+        return subprocess.run(args, check=True, capture_output=True)
+    except FileNotFoundError as exc:
+        raise GitHelperError("git não encontrado no PATH") from exc
+    except subprocess.CalledProcessError as exc:
+        stderr = exc.stderr.decode("utf-8", errors="ignore").strip() if exc.stderr else ""
+        stdout = exc.stdout.decode("utf-8", errors="ignore").strip() if exc.stdout else ""
+        details = stderr or stdout or str(exc)
+        raise GitHelperError(details) from exc
+
+
+def _ensure_git_repo() -> None:
+    _run_git(["git", "rev-parse", "--is-inside-work-tree"])
+
+
+def _branch_exists(name: str) -> bool:
+    try:
+        _run_git(["git", "rev-parse", "--verify", f"refs/heads/{name}"])
+    except GitHelperError:
+        return False
+    return True
+
+
+def _checkout_or_create_branch(name: str) -> None:
+    if _branch_exists(name):
+        try:
+            _run_git(["git", "switch", name])
+        except GitHelperError:
+            _run_git(["git", "checkout", name])
+        return
+    try:
+        _run_git(["git", "switch", "-c", name])
+    except GitHelperError:
+        _run_git(["git", "checkout", "-b", name])
+
+
+def _apply_patch_file(patch_path: Path) -> None:
+    _run_git(["git", "apply", str(patch_path)])
+
+
+def _git_add(paths: Sequence[Path]) -> None:
+    arg_paths = [str(p) for p in paths]
+    _run_git(["git", "add", *arg_paths])
+
+
+def _git_commit(message: str) -> None:
+    _run_git(["git", "commit", "-m", message])
+
+
+def _build_patch(original: str, optimized: str, file_path: Path) -> str:
+    try:
+        relative = file_path.relative_to(Path.cwd())
+    except ValueError:
+        relative = Path(file_path.name)
+    rel_text = relative.as_posix()
+    diff_lines = list(
+        difflib.unified_diff(
+            original.splitlines(),
+            optimized.splitlines(),
+            fromfile=f"a/{rel_text}",
+            tofile=f"b/{rel_text}",
+            lineterm="",
+        )
+    )
+    if not diff_lines:
+        return ""
+    return "\n".join(diff_lines) + "\n"
 
 
 def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
@@ -96,7 +171,7 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
         print(f"[META-EVOLVE] Nenhuma otimização aplicada ({result.reason}).")
         return 2
 
-    patch_text = result.diff or ""
+    patch_text = _build_patch(request.source, result.optimized_source, path)
 
     suite_results = []
 
@@ -152,16 +227,58 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     print(preview)
     print("Revise o patch antes de aplicar manualmente.")
 
+    git_branch = getattr(args, "git_branch", None)
+    git_commit_message = getattr(args, "git_commit_message", None)
+    git_requested = any(
+        [
+            bool(git_branch),
+            bool(git_commit_message),
+            bool(args.git_apply),
+        ]
+    )
+    patch_applied = False
+
+    if git_requested:
+        try:
+            _ensure_git_repo()
+        except GitHelperError as exc:
+            print(f"[GIT] Repositório git não detectado: {exc}")
+            return 6
+
+        if git_branch:
+            try:
+                _checkout_or_create_branch(git_branch)
+                print(f"[GIT] Branch ativa: {git_branch}")
+            except GitHelperError as exc:
+                print(f"[GIT] Falha ao preparar branch '{git_branch}': {exc}")
+                return 6
+
     if args.git_apply:
         try:
-            subprocess.run(
-                ["git", "apply", str(patch_path)],
-                check=True,
-                capture_output=True,
-            )
+            _apply_patch_file(patch_path)
+            patch_applied = True
             print("[GIT] Patch aplicado com sucesso.")
-        except (subprocess.CalledProcessError, FileNotFoundError) as exc:
+        except GitHelperError as exc:
             print(f"[GIT] Falha ao aplicar patch automaticamente: {exc}")
+            return 6
+
+    needs_auto_apply = (git_branch or git_commit_message) and not patch_applied
+    if needs_auto_apply:
+        try:
+            _apply_patch_file(patch_path)
+            patch_applied = True
+            print("[GIT] Patch aplicado após preparação da branch.")
+        except GitHelperError as exc:
+            print(f"[GIT] Falha ao aplicar patch na branch selecionada: {exc}")
+            return 6
+
+    if git_commit_message:
+        try:
+            _git_add([path])
+            _git_commit(git_commit_message)
+            print(f"[GIT] Commit criado: {git_commit_message}")
+        except GitHelperError as exc:
+            print(f"[GIT] Falha ao criar commit: {exc}")
             return 6
 
     if args.report:
@@ -219,6 +336,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--git-apply",
         action="store_true",
         help="tenta aplicar automaticamente o patch via git apply",
+    )
+    evolve.add_argument(
+        "--git-branch",
+        help="cria/alternar para uma branch antes de aplicar o patch",
+    )
+    evolve.add_argument(
+        "--git-commit-message",
+        help="aplica o patch, faz git add e git commit com esta mensagem",
     )
 
     testcore_cmd = sub.add_parser(
