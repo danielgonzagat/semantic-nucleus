@@ -408,6 +408,13 @@ def test_ian_reply_language_french():
     assert (reply_fields["plan_language"].label or "") == "fr"
 
 
+def test_language_hint_controls_non_ian_renderer():
+    session = SessionCtx()
+    session.language_hint = "en"
+    answer, _ = run_text("O carro tem roda", session)
+    assert "Relations:" in answer
+
+
 def test_run_text_full_short_circuits_for_ian():
     session = SessionCtx()
     outcome = run_text_full("como você está?", session)

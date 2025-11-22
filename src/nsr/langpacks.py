@@ -5,7 +5,11 @@ e cristalizados como tabelas estáticas para o núcleo simbólico.
 
 from __future__ import annotations
 
+import argparse
+import json
+import os
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Dict, Iterable, Tuple
 
 
@@ -36,11 +40,46 @@ class ConjugationSpec:
 
 
 @dataclass(frozen=True)
+class SyntacticPatternSpec:
+    name: str
+    sequence: Tuple[str, ...]
+
+
+@dataclass(frozen=True)
+class IdiomEquivalentSpec:
+    source: str
+    target: str
+
+
+@dataclass(frozen=True)
 class LanguagePack:
     code: str
     lexemes: Tuple[LexemeSpec, ...]
     dialog_rules: Tuple[DialogRuleSpec, ...]
     conjugations: Tuple[ConjugationSpec, ...] = ()
+    stopwords: Tuple[str, ...] = ()
+    syntactic_patterns: Tuple[SyntacticPatternSpec, ...] = ()
+    idiom_equivalents: Tuple[IdiomEquivalentSpec, ...] = ()
+
+
+LANGPACKS_DIR = Path(os.environ.get("NSR_LANGPACKS_DIR", Path(__file__).with_suffix("").with_name("langpacks_data")))
+LANGPACKS_DIR.mkdir(parents=True, exist_ok=True)
+_PACK_CACHE: Dict[str, LanguagePack] = {}
+EXTERNAL_LANGUAGE_PACK_DATA: Dict[str, Dict] = {}
+
+
+def _merged_payload(code: str) -> Dict:
+    base = LANGUAGE_PACK_DATA.get(code, {})
+    external = EXTERNAL_LANGUAGE_PACK_DATA.get(code, {})
+    merged = dict(base)
+    for key, value in external.items():
+        if key in {"lexemes", "dialog_rules", "conjugations", "stopwords", "syntactic_patterns", "idiom_equivalents"}:
+            base_list = list(base.get(key, []))
+            merged[key] = base_list + list(value)
+        else:
+            merged[key] = value
+    merged.setdefault("code", code)
+    return merged
 
 
 def _build_pack(code: str, data: Dict) -> LanguagePack:
@@ -73,20 +112,102 @@ def _build_pack(code: str, data: Dict) -> LanguagePack:
         )
         for entry in data.get("conjugations", ())
     )
-    return LanguagePack(code=code, lexemes=lexemes, dialog_rules=dialog_rules, conjugations=conjugations)
+    stopwords = tuple(entry.upper() for entry in data.get("stopwords", ()))
+    patterns = tuple(
+        SyntacticPatternSpec(name=entry["name"], sequence=tuple(entry["sequence"]))
+        for entry in data.get("syntactic_patterns", ())
+    )
+    idioms = tuple(
+        IdiomEquivalentSpec(source=entry["source"], target=entry["target"])
+        for entry in data.get("idiom_equivalents", ())
+    )
+    return LanguagePack(
+        code=code,
+        lexemes=lexemes,
+        dialog_rules=dialog_rules,
+        conjugations=conjugations,
+        stopwords=stopwords,
+        syntactic_patterns=patterns,
+        idiom_equivalents=idioms,
+    )
 
 
 def get_language_pack(code: str) -> LanguagePack:
     normalized = code.lower()
-    if normalized not in LANGUAGE_PACK_DATA:
+    payload = _merged_payload(normalized)
+    if not payload:
         raise ValueError(f"Unknown language pack '{code}'")
     if normalized not in _PACK_CACHE:
-        _PACK_CACHE[normalized] = _build_pack(normalized, LANGUAGE_PACK_DATA[normalized])
+        _PACK_CACHE[normalized] = _build_pack(normalized, payload)
     return _PACK_CACHE[normalized]
 
 
 def iter_language_packs(codes: Iterable[str]) -> Tuple[LanguagePack, ...]:
     return tuple(get_language_pack(code) for code in codes)
+
+
+def list_available_codes() -> Tuple[str, ...]:
+    codes = set(LANGUAGE_PACK_DATA.keys()) | set(EXTERNAL_LANGUAGE_PACK_DATA.keys())
+    return tuple(sorted(codes))
+
+
+def import_language_pack(code: str | None, json_path: str) -> str:
+    path = Path(json_path)
+    if not path.exists():
+        raise FileNotFoundError(json_path)
+    payload = json.loads(path.read_text(encoding="utf-8"))
+    pack_code = (code or payload.get("code") or "").lower()
+    if not pack_code:
+        raise ValueError("Language pack requires a 'code' field or --code argument.")
+    payload["code"] = pack_code
+    target = LANGPACKS_DIR / f"{pack_code}.json"
+    target.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
+    EXTERNAL_LANGUAGE_PACK_DATA[pack_code] = payload
+    _PACK_CACHE.pop(pack_code, None)
+    return pack_code
+
+
+def _load_external_packs() -> Dict[str, Dict]:
+    data: Dict[str, Dict] = {}
+    if not LANGPACKS_DIR.exists():
+        return data
+    for path in LANGPACKS_DIR.glob("*.json"):
+        try:
+            payload = json.loads(path.read_text(encoding="utf-8"))
+        except json.JSONDecodeError:
+            continue
+        code = (payload.get("code") or path.stem).lower()
+        payload["code"] = code
+        data[code] = payload
+    return data
+
+
+def _cli(argv: Iterable[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Language pack manager")
+    subparsers = parser.add_subparsers(dest="command", required=True)
+
+    list_parser = subparsers.add_parser("list", help="List available language packs")
+    list_parser.add_argument("--codes", action="store_true", help="Only print codes")
+
+    import_parser = subparsers.add_parser("import", help="Import a language pack JSON file")
+    import_parser.add_argument("file", help="Path to JSON file")
+    import_parser.add_argument("--code", help="Override language code")
+
+    args = parser.parse_args(list(argv) if argv is not None else None)
+    if args.command == "list":
+        codes = list_available_codes()
+        if args.codes:
+            print("\n".join(codes))
+        else:
+            for code in codes:
+                pack = get_language_pack(code)
+                print(f"{code}: {len(pack.lexemes)} lexemes, {len(pack.dialog_rules)} rules")
+        return 0
+    if args.command == "import":
+        code = import_language_pack(args.code, args.file)
+        print(f"Imported language pack '{code}' into {LANGPACKS_DIR}")
+        return 0
+    return 1
 
 
 LANGUAGE_PACK_DATA: Dict[str, Dict] = {
@@ -105,6 +226,17 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
             {"lemma": "MAL", "semantics": "STATE_BAD", "pos": "ADV", "forms": ["MAL"]},
             {"lemma": "RUIM", "semantics": "STATE_BAD", "pos": "ADJ", "forms": ["RUIM"]},
             {"lemma": "TRISTE", "semantics": "STATE_BAD", "pos": "ADJ", "forms": ["TRISTE"]},
+        ],
+        "stopwords": ["O", "A", "OS", "AS", "DE", "DO", "DA", "QUE", "E", "UM", "UMA"],
+        "syntactic_patterns": [
+            {"name": "GREETING_SIMPLE", "sequence": ["GREETING_SIMPLE"]},
+            {"name": "QUESTION_HEALTH", "sequence": ["ALL_THINGS", "STATE_GOOD"]},
+            {"name": "QUESTION_HEALTH_VERBOSE", "sequence": ["QUESTION_HOW", "YOU", "BE_STATE"]},
+            {"name": "ANSWER_HEALTH", "sequence": ["STATE_GOOD", "CONJ_AND", "YOU"]},
+        ],
+        "idiom_equivalents": [
+            {"source": "tudo bem", "target": "all good"},
+            {"source": "como você está", "target": "how are you"},
         ],
         "dialog_rules": [
             {
@@ -161,6 +293,15 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
             {"lemma": "HOW", "semantics": "QUESTION_HOW", "pos": "ADV", "forms": ["HOW"]},
             {"lemma": "BE", "semantics": "BE_STATE", "pos": "VERB", "forms": ["ARE", "AM", "IS"]},
         ],
+        "stopwords": ["THE", "A", "AN", "IS", "ARE", "AM", "OF", "AND"],
+        "syntactic_patterns": [
+            {"name": "GREETING_SIMPLE_EN", "sequence": ["GREETING_SIMPLE"]},
+            {"name": "QUESTION_HEALTH_VERBOSE_EN", "sequence": ["QUESTION_HOW", "SELF", "STATE_GOOD"]},
+        ],
+        "idiom_equivalents": [
+            {"source": "how are you", "target": "como você está"},
+            {"source": "i am fine", "target": "estou bem"},
+        ],
         "dialog_rules": [
             {
                 "trigger_role": "GREETING_SIMPLE_EN",
@@ -192,6 +333,16 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
             {"lemma": "TÚ", "semantics": "YOU", "pos": "PRON", "forms": ["TÚ", "TU"]},
             {"lemma": "COMO", "semantics": "QUESTION_HOW", "pos": "ADV", "forms": ["COMO", "CÓMO"]},
             {"lemma": "ESTAR", "semantics": "BE_STATE", "pos": "VERB", "forms": ["ESTOY", "ESTÁS", "ESTA"]},
+        ],
+        "stopwords": ["EL", "LA", "LOS", "LAS", "DE", "Y", "QUE", "UN", "UNA"],
+        "syntactic_patterns": [
+            {"name": "GREETING_SIMPLE_ES", "sequence": ["GREETING_SIMPLE"]},
+            {"name": "QUESTION_HEALTH_ES", "sequence": ["ALL_THINGS", "STATE_GOOD"]},
+            {"name": "QUESTION_HEALTH_VERBOSE_ES", "sequence": ["SELF", "STATE_GOOD", "CONJ_AND", "YOU"]},
+        ],
+        "idiom_equivalents": [
+            {"source": "todo bien", "target": "all good"},
+            {"source": "¿cómo estás?", "target": "how are you"},
         ],
         "dialog_rules": [
             {
@@ -228,6 +379,16 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
             {"lemma": "JE", "semantics": "SELF", "pos": "PRON", "forms": ["JE"]},
             {"lemma": "ALLER", "semantics": "BE_STATE", "pos": "VERB", "forms": ["VA", "VAS", "VAIS"]},
         ],
+        "stopwords": ["LE", "LA", "LES", "DES", "ET", "DE", "UN", "UNE"],
+        "syntactic_patterns": [
+            {"name": "GREETING_SIMPLE_FR", "sequence": ["GREETING_SIMPLE"]},
+            {"name": "QUESTION_HEALTH_FR", "sequence": ["ALL_THINGS", "STATE_GOOD"]},
+            {"name": "QUESTION_HEALTH_VERBOSE_FR", "sequence": ["SELF", "BE_STATE", "STATE_GOOD", "CONJ_AND", "YOU"]},
+        ],
+        "idiom_equivalents": [
+            {"source": "comment ça va", "target": "how are you"},
+            {"source": "tout va bien", "target": "everything is fine"},
+        ],
         "dialog_rules": [
             {
                 "trigger_role": "GREETING_SIMPLE_FR",
@@ -259,8 +420,30 @@ LANGUAGE_PACK_DATA: Dict[str, Dict] = {
     },
 }
 
-_PACK_CACHE: Dict[str, LanguagePack] = {}
+EXTERNAL_LANGUAGE_PACK_DATA = _load_external_packs()
 
 
-__all__ = ["LanguagePack", "LexemeSpec", "DialogRuleSpec", "ConjugationSpec", "get_language_pack", "iter_language_packs"]
+def reload_external_packs() -> None:
+    global EXTERNAL_LANGUAGE_PACK_DATA
+    EXTERNAL_LANGUAGE_PACK_DATA = _load_external_packs()
+    _PACK_CACHE.clear()
+
+
+__all__ = [
+    "LanguagePack",
+    "LexemeSpec",
+    "DialogRuleSpec",
+    "ConjugationSpec",
+    "SyntacticPatternSpec",
+    "IdiomEquivalentSpec",
+    "get_language_pack",
+    "iter_language_packs",
+    "list_available_codes",
+    "import_language_pack",
+    "reload_external_packs",
+]
+
+
+if __name__ == "__main__":
+    raise SystemExit(_cli())
 

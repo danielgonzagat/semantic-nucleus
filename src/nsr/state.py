@@ -87,6 +87,7 @@ class SessionCtx:
     kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: DEFAULT_ONTOLOGY)
     kb_rules: Tuple[Rule, ...] = field(default_factory=tuple)
     lexicon: Lexicon = field(default_factory=Lexicon)
+    language_hint: str | None = None
 
 
 @dataclass(slots=True)
