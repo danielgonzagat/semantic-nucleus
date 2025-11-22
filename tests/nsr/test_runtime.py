@@ -355,6 +355,27 @@ def test_run_text_handles_spanish_verbose_health_question():
     assert any("IAN[QUESTION_HEALTH_VERBOSE_ES" in step for step in trace.steps)
 
 
+def test_run_text_handles_french_greeting():
+    session = SessionCtx()
+    answer, trace = run_text("bonjour!", session)
+    assert answer == "bonjour"
+    assert any("IAN[GREETING_SIMPLE_FR" in step for step in trace.steps)
+
+
+def test_run_text_handles_french_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("tout va bien?", session)
+    assert answer == "tout va bien, et toi?"
+    assert any("IAN[QUESTION_HEALTH_FR" in step for step in trace.steps)
+
+
+def test_run_text_handles_french_verbose_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("bonjour, comment ça va?")
+    assert answer == "je vais bien, et toi?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_FR" in step for step in trace.steps)
+
+
 def test_ian_reply_language_portuguese():
     session = SessionCtx()
     outcome = run_text_full("oi, tudo bem?", session)
@@ -377,6 +398,14 @@ def test_ian_reply_language_spanish():
     reply_fields = _extract_ian_reply(outcome)
     assert reply_fields is not None
     assert (reply_fields["plan_language"].label or "") == "es"
+
+
+def test_ian_reply_language_french():
+    session = SessionCtx()
+    outcome = run_text_full("bonjour, comment ça va?")
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "fr"
 
 
 def test_run_text_full_short_circuits_for_ian():
