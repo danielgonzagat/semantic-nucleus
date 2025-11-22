@@ -1,18 +1,18 @@
 """Pacote NSR - Núcleo Semântico Reativo."""
 
-# from .runtime import (
-#     run_text,
-#     run_text_with_explanation,
-#     run_struct,
-#     run_text_full,
-#     run_struct_full,
-#     Trace,
-#     HaltReason,
-#     RunOutcome,
-#     EquationSnapshot,
-#     EquationSnapshotStats,
-#     EquationInvariantStatus,
-# )
+from .runtime import (
+    run_text,
+    run_text_with_explanation,
+    run_struct,
+    run_text_full,
+    run_struct_full,
+    Trace,
+    HaltReason,
+    RunOutcome,
+    EquationSnapshot,
+    EquationSnapshotStats,
+    EquationInvariantStatus,
+)
 from .state import SessionCtx, Config, Rule, Lexicon
 from .lex import tokenize, compose_lexicon, load_lexicon_file
 from .parser import build_struct
@@ -38,8 +38,8 @@ from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
-# from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
-# from .meta_calculator import MetaCalculationResult, execute_meta_plan
+from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
+from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
     build_lc_meta_struct,
     lc_term_to_node,
