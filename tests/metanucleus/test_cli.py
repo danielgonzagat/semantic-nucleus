@@ -1,5 +1,6 @@
 import json
 import subprocess
+import hashlib
 
 from metanucleus.cli import main
 
@@ -38,10 +39,15 @@ def test_cli_evolve_creates_patch(tmp_path):
     assert "summary" in explanation
     assert explanation["operations"]
     assert "linear_term_reduction" in explanation["operations"]
+    assert explanation["fingerprint"]
     report_data = json.loads(report_file.read_text(encoding="utf-8"))
     assert report_data["target"].endswith("sample_module.py")
     assert report_data["tests"][0]["status"] == "skipped"
     assert "explanation" in report_data
+    patch_text = patch_file.read_text(encoding="utf-8")
+    expected_patch_fp = hashlib.sha256(patch_text.encode("utf-8")).hexdigest()
+    assert report_data["fingerprints"]["patch"] == expected_patch_fp
+    assert report_data["fingerprints"]["explanation"] == explanation["fingerprint"]
 
 
 def test_cli_evolve_invalid_suite(tmp_path, capsys):
@@ -144,6 +150,23 @@ def test_cli_snapshot_and_metrics(tmp_path, capsys):
     captured = capsys.readouterr()
     assert exit_code == 0
     assert "META-METRICS" in captured.out
+
+
+def test_cli_audit_command(tmp_path, capsys):
+    target_file = tmp_path / "data.txt"
+    target_file.write_text("hello", encoding="utf-8")
+    expected = hashlib.sha256(target_file.read_bytes()).hexdigest()
+
+    exit_code = main(["audit", str(target_file), "--expect", expected])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert expected in captured.out
+    assert "OK" in captured.out
+
+    exit_code = main(["audit", str(target_file), "--expect", "0000"])
+    captured = capsys.readouterr()
+    assert exit_code == 2
+    assert "FALHA" in captured.out
 
 
 def test_cli_evolve_git_branch_and_commit(tmp_path, monkeypatch):

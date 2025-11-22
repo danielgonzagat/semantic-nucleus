@@ -407,6 +407,7 @@ class MetaRuntime:
         explanation_payload = None
         if result.explanation:
             explanation_payload = explanation_to_dict(result.explanation)
+            explanation_payload["fingerprint"] = result.explanation_fingerprint
             explain_path.write_text(
                 json.dumps(explanation_payload, ensure_ascii=False, indent=2),
                 encoding="utf-8",
@@ -417,10 +418,13 @@ class MetaRuntime:
             "[META-EVOLVE] Evolução bem-sucedida.",
             f"  alvo: {path}:{func_name}",
             f"  patch: {patch_path}",
+            f"  patch sha256: {result.patch_fingerprint}",
         ]
         if explanation_payload:
             summary_lines.append(f"  explicação: {explain_path}")
             summary_lines.append(f"  resumo: {result.explanation.summary}")
+            if result.explanation_fingerprint:
+                summary_lines.append(f"  explique sha256: {result.explanation_fingerprint}")
         if analysis:
             summary_lines.append(
                 f"  custo: {analysis.cost_before} → {analysis.cost_after}"
@@ -444,6 +448,8 @@ class MetaRuntime:
             reason="optimization_found",
             explanation_summary=result.explanation.summary if result.explanation else "",
             explanation_path=str(explain_path) if explanation_payload else "",
+            patch_fingerprint=result.patch_fingerprint,
+            explanation_fingerprint=result.explanation_fingerprint,
         )
         return "\n".join(summary_lines)
 
@@ -458,6 +464,8 @@ class MetaRuntime:
         reason: str,
         explanation_summary: str = "",
         explanation_path: str = "",
+        patch_fingerprint: str = "",
+        explanation_fingerprint: str = "",
     ) -> None:
         event = {
             "target": target,
@@ -468,6 +476,8 @@ class MetaRuntime:
             "reason": reason,
             "explanation_summary": explanation_summary,
             "explanation_path": explanation_path,
+            "patch_fingerprint": patch_fingerprint,
+            "explanation_fingerprint": explanation_fingerprint,
         }
         self.state.evolution_log.append(event)
         limit = 20
@@ -545,6 +555,7 @@ class MetaRuntime:
             lines.append(
                 f"  target={entry['target']} status={entry['status']} "
                 f"suite={entry['suite']} tests={entry['tests']} patch={entry['patch'] or '-'} "
+                f"fp={entry.get('patch_fingerprint') or '-'} "
                 f"summary={entry.get('explanation_summary') or '-'}"
             )
         return "\n".join(lines)

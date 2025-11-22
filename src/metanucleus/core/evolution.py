@@ -14,6 +14,8 @@ import copy
 import difflib
 import operator
 import inspect
+import hashlib
+import json
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, Sequence, Tuple
 
@@ -74,6 +76,8 @@ class EvolutionResult:
     analysis: Optional[MetaAnalysis] = None
     explanation: Optional[PatchExplanation] = None
     original_source: Optional[str] = None
+    patch_fingerprint: str = ""
+    explanation_fingerprint: str = ""
 
 
 @dataclass(slots=True)
@@ -85,6 +89,7 @@ class EvolutionRequest:
     samples: Sequence[Tuple[Any, ...]] = field(
         default_factory=lambda: [(0,), (1,), (2,), (5,), (-3,)]
     )
+    diff_label: Optional[str] = None
 
 
 # ---------------------------------------------------------------------------
@@ -221,17 +226,31 @@ def _sources_equal(a: str, b: str) -> bool:
     return a.strip() == b.strip()
 
 
-def _diff_strings(original: str, optimized: str, path: str) -> str:
+def _diff_strings(original: str, optimized: str, label: str) -> str:
     diff_lines = list(
         difflib.unified_diff(
             original.splitlines(),
             optimized.splitlines(),
-            fromfile=f"{path} (original)",
-            tofile=f"{path} (optimized)",
+            fromfile=f"a/{label}",
+            tofile=f"b/{label}",
             lineterm="",
         )
     )
-    return "\n".join(diff_lines)
+    if not diff_lines:
+        return ""
+    return "\n".join(diff_lines) + "\n"
+
+
+def _diff_label_from_path(path: Path) -> str:
+    try:
+        rel = path.resolve().relative_to(Path.cwd().resolve())
+        return rel.as_posix()
+    except ValueError:
+        return path.name
+
+
+def _sha256_text(content: str) -> str:
+    return hashlib.sha256(content.encode("utf-8")).hexdigest()
 
 
 def _jsonify_value(value: object) -> object:
@@ -548,11 +567,21 @@ class MetaEvolution:
             regression=regression_report,
         )
 
+        diff_label = (request.diff_label or f"{request.function_name}.py").replace("\\", "/")
         diff = _diff_strings(
             request.source,
             optimized_source,
-            path=f"{request.function_name}.py",
+            label=diff_label,
         )
+        patch_fingerprint = _sha256_text(diff)
+
+        explanation_payload = None
+        explanation_fingerprint = ""
+        if explanation is not None:
+            explanation_payload = explanation_to_dict(explanation)
+            explanation_fingerprint = _sha256_text(
+                json.dumps(explanation_payload, ensure_ascii=False, sort_keys=True)
+            )
 
         return EvolutionResult(
             success=True,
@@ -562,6 +591,8 @@ class MetaEvolution:
             analysis=analysis,
             explanation=explanation,
             original_source=request.source,
+            patch_fingerprint=patch_fingerprint,
+            explanation_fingerprint=explanation_fingerprint,
         )
 
     def evolve_file(
@@ -576,14 +607,9 @@ class MetaEvolution:
             source=source,
             function_name=function_name,
             samples=samples or [(0,), (1,), (2,), (5,), (-3,)],
+            diff_label=_diff_label_from_path(path),
         )
         result = self.evolve(request)
-        if result.success and result.optimized_source:
-            result.diff = _diff_strings(
-                source,
-                result.optimized_source,
-                path=str(path),
-            )
         return result
 
 

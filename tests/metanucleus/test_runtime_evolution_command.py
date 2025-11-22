@@ -1,4 +1,5 @@
 import json
+import hashlib
 
 from metanucleus.core.state import MetaState
 from metanucleus.runtime.meta_runtime import MetaRuntime
@@ -37,6 +38,9 @@ def test_evolve_command_generates_patch(tmp_path):
     assert event["patch"].endswith(".meta.patch")
     assert event["explanation_summary"]
     assert event["explanation_path"].endswith(".meta.explain.json")
+    expected_patch_fp = hashlib.sha256(diff_contents.encode("utf-8")).hexdigest()
+    assert event["patch_fingerprint"] == expected_patch_fp
+    assert event["explanation_fingerprint"] == explain_data["fingerprint"]
 
 
 def test_evolve_command_can_run_test_suite(tmp_path):
@@ -78,6 +82,7 @@ def test_evolutions_command_lists_recent_events(tmp_path):
     assert "target" in output
     assert str(target_file) in output
     assert "summary=" in output
+    assert "fp=" in output
 
 
 def test_evolve_command_with_suite_file(tmp_path):

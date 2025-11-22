@@ -9,7 +9,7 @@ import sys
 import json
 import subprocess
 import time
-import difflib
+import hashlib
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
@@ -79,24 +79,17 @@ def _git_commit(message: str) -> None:
     _run_git(["git", "commit", "-m", message])
 
 
-def _build_patch(original: str, optimized: str, file_path: Path) -> str:
+def _fingerprint_file(path: Path) -> str:
+    data = path.read_bytes()
+    return hashlib.sha256(data).hexdigest()
+
+
+def _relative_label(path: Path) -> str:
     try:
-        relative = file_path.relative_to(Path.cwd())
+        rel = path.resolve().relative_to(Path.cwd().resolve())
+        return rel.as_posix()
     except ValueError:
-        relative = Path(file_path.name)
-    rel_text = relative.as_posix()
-    diff_lines = list(
-        difflib.unified_diff(
-            original.splitlines(),
-            optimized.splitlines(),
-            fromfile=f"a/{rel_text}",
-            tofile=f"b/{rel_text}",
-            lineterm="",
-        )
-    )
-    if not diff_lines:
-        return ""
-    return "\n".join(diff_lines) + "\n"
+        return path.name
 
 
 def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
@@ -169,13 +162,14 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
         source=path.read_text(encoding="utf-8"),
         function_name=args.function,
         samples=samples or ((0,), (1,), (2,), (5,), (-3,)),
+        diff_label=_relative_label(path),
     )
     result = MetaEvolution().evolve(request)
     if not result.success or not result.optimized_source:
         print(f"[META-EVOLVE] Nenhuma otimização aplicada ({result.reason}).")
         return 2
 
-    patch_text = _build_patch(request.source, result.optimized_source, path)
+    patch_text = result.diff or ""
 
     suite_results = []
 
@@ -224,6 +218,7 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     explain_path = path.with_suffix(path.suffix + ".meta.explain.json")
     if explanation:
         explanation_payload = explanation_to_dict(explanation)
+        explanation_payload["fingerprint"] = result.explanation_fingerprint
     else:
         explanation_payload = {"summary": "indisponível"}
     explain_path.write_text(
@@ -235,6 +230,9 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     print(f"  alvo: {path}:{args.function}")
     print(f"  patch: {patch_path}")
     print(f"  explicação: {explain_path}")
+    print(f"  patch sha256: {result.patch_fingerprint}")
+    if result.explanation_fingerprint:
+        print(f"  explique sha256: {result.explanation_fingerprint}")
     if analysis:
         print(f"  custo: {analysis.cost_before} -> {analysis.cost_after}")
     if explanation:
@@ -307,6 +305,10 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
             "analysis": {
                 "cost_before": analysis.cost_before if analysis else None,
                 "cost_after": analysis.cost_after if analysis else None,
+            },
+            "fingerprints": {
+                "patch": result.patch_fingerprint,
+                "explanation": result.explanation_fingerprint,
             },
             "tests": suite_results or [{"type": "builtin", "source": "skipped", "status": "skipped"}],
             "timestamp": time.time(),
@@ -393,6 +395,16 @@ def build_parser() -> argparse.ArgumentParser:
         "metrics",
         help="Exibe métricas do runtime.",
     )
+
+    audit_cmd = sub.add_parser(
+        "audit",
+        help="Calcula o SHA-256 de um arquivo e compara com um esperado opcional.",
+    )
+    audit_cmd.add_argument("path", help="arquivo a verificar")
+    audit_cmd.add_argument(
+        "--expect",
+        help="fingerprint esperado (sha256) para comparação",
+    )
     return parser
 
 
@@ -470,6 +482,22 @@ def main(argv: Iterable[str] | None = None) -> int:
     if args.command == "metrics":
         runtime = MetaRuntime(state=MetaState())
         print(runtime.handle_request("/metrics"))
+        return 0
+    if args.command == "audit":
+        target = Path(args.path).expanduser()
+        if not target.is_absolute():
+            target = Path.cwd() / target
+        if not target.exists():
+            print(f"[META-AUDIT] Arquivo não encontrado: {target}")
+            return 1
+        digest = _fingerprint_file(target)
+        print(f"[META-AUDIT] {target} sha256={digest}")
+        if args.expect:
+            if digest.lower() == args.expect.lower():
+                print("[META-AUDIT] OK: fingerprint confere.")
+                return 0
+            print("[META-AUDIT] FALHA: fingerprint divergente.")
+            return 2
         return 0
 
     parser.print_help()
