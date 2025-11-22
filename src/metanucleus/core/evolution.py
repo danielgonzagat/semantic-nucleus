@@ -39,6 +39,31 @@ class MetaAnalysis:
 
 
 @dataclass(slots=True)
+class RegressionSample:
+    inputs: Tuple[Any, ...]
+    original_output: Any
+    candidate_output: Any
+    matched: bool
+
+
+@dataclass(slots=True)
+class RegressionReport:
+    passed: bool
+    samples: List[RegressionSample]
+
+
+@dataclass(slots=True)
+class PatchExplanation:
+    summary: str
+    operations: List[str]
+    cost_before: int
+    cost_after: int
+    redundant_terms: List[str]
+    liu_signature: str
+    regression: RegressionReport
+
+
+@dataclass(slots=True)
 class EvolutionResult:
     """Retorno completo de uma tentativa de evolução."""
 
@@ -47,6 +72,7 @@ class EvolutionResult:
     optimized_source: Optional[str] = None
     diff: Optional[str] = None
     analysis: Optional[MetaAnalysis] = None
+    explanation: Optional[PatchExplanation] = None
     original_source: Optional[str] = None
 
 
@@ -185,6 +211,12 @@ def _ast_cost(node: ast.AST) -> int:
     return sum(1 for _ in ast.walk(node))
 
 
+def _ast_equal(a: ast.AST, b: ast.AST) -> bool:
+    return ast.dump(a, include_attributes=False) == ast.dump(
+        b, include_attributes=False
+    )
+
+
 def _sources_equal(a: str, b: str) -> bool:
     return a.strip() == b.strip()
 
@@ -202,12 +234,42 @@ def _diff_strings(original: str, optimized: str, path: str) -> str:
     return "\n".join(diff_lines)
 
 
+def _describe_operations(
+    original_expr: ast.AST,
+    simplified_expr: ast.AST,
+    factored_expr: ast.AST,
+    optimized_expr: ast.AST,
+) -> List[str]:
+    ops: List[str] = []
+    if not _ast_equal(original_expr, simplified_expr):
+        ops.append("constant_folding")
+    if not _ast_equal(simplified_expr, factored_expr):
+        ops.append("multiplication_factorization")
+    if not _ast_equal(factored_expr, optimized_expr):
+        ops.append("linear_term_reduction")
+    return ops
+
+
+def _build_summary(cost_before: int, cost_after: int, operations: List[str]) -> str:
+    delta = cost_before - cost_after
+    if delta > 0:
+        delta_txt = f"reduziu custo {cost_before}→{cost_after} (-{delta})"
+    elif delta < 0:
+        delta_txt = f"aumentou custo {cost_before}→{cost_after} (+{abs(delta)})"
+    else:
+        delta_txt = f"manteve custo {cost_before}"
+    if operations:
+        ops_txt = ", ".join(operations)
+        return f"{delta_txt} aplicando {ops_txt}"
+    return f"{delta_txt} sem transformações adicionais"
+
+
 def _run_regression(
     original_src: str,
     optimized_src: str,
     function_name: str,
     samples: Sequence[Tuple[Any, ...]],
-) -> bool:
+) -> RegressionReport:
     original_env: Dict[str, Any] = {}
     candidate_env: Dict[str, Any] = {}
     exec(original_src, original_env)  # noqa: S102 - execução isolada e controlada
@@ -224,14 +286,29 @@ def _run_regression(
     else:
         sample_inputs = samples
 
+    executed = False
+    sample_reports: List[RegressionSample] = []
+    all_ok = True
     for args in sample_inputs:
         if param_count != len(args):
             continue
+        executed = True
         orig_out = original_fn(*args)
         cand_out = candidate_fn(*args)
-        if orig_out != cand_out:
-            return False
-    return True
+        matched = orig_out == cand_out
+        sample_reports.append(
+            RegressionSample(
+                inputs=args,
+                original_output=orig_out,
+                candidate_output=cand_out,
+                matched=matched,
+            )
+        )
+        if not matched:
+            all_ok = False
+    if not executed:
+        all_ok = True
+    return RegressionReport(passed=all_ok, samples=sample_reports)
 
 
 def _is_number_constant(node: ast.AST) -> bool:
@@ -386,9 +463,7 @@ class MetaEvolution:
         meta_terms = _reduce_terms(_collect_terms(factored_expr))
         optimized_expr = _build_expression(meta_terms)
 
-        if ast.dump(original_expr, include_attributes=False) == ast.dump(
-            optimized_expr, include_attributes=False
-        ):
+        if _ast_equal(original_expr, optimized_expr):
             return EvolutionResult(
                 success=False,
                 reason="no_optimization_found",
@@ -402,9 +477,10 @@ class MetaEvolution:
         opt_return.value = optimized_expr
         optimized_source = ast.unparse(optimized_module)
 
-        if not _run_regression(
+        regression_report = _run_regression(
             request.source, optimized_source, request.function_name, request.samples
-        ):
+        )
+        if not regression_report.passed:
             return EvolutionResult(
                 success=False,
                 reason="regression_failed",
@@ -422,6 +498,24 @@ class MetaEvolution:
             liu_repr=liu_repr,
         )
 
+        operations = _describe_operations(
+            original_expr, simplified_expr, factored_expr, optimized_expr
+        )
+        summary = _build_summary(
+            analysis.cost_before,
+            analysis.cost_after,
+            operations,
+        )
+        explanation = PatchExplanation(
+            summary=summary,
+            operations=operations,
+            cost_before=analysis.cost_before,
+            cost_after=analysis.cost_after,
+            redundant_terms=analysis.redundant_terms,
+            liu_signature=analysis.liu_repr,
+            regression=regression_report,
+        )
+
         diff = _diff_strings(
             request.source,
             optimized_source,
@@ -434,6 +528,7 @@ class MetaEvolution:
             optimized_source=optimized_source,
             diff=diff,
             analysis=analysis,
+            explanation=explanation,
             original_source=request.source,
         )
 
@@ -460,4 +555,12 @@ class MetaEvolution:
         return result
 
 
-__all__ = ["MetaEvolution", "EvolutionRequest", "EvolutionResult", "MetaAnalysis"]
+__all__ = [
+    "MetaEvolution",
+    "EvolutionRequest",
+    "EvolutionResult",
+    "MetaAnalysis",
+    "PatchExplanation",
+    "RegressionReport",
+    "RegressionSample",
+]

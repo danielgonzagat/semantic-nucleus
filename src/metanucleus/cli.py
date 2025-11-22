@@ -13,7 +13,11 @@ import difflib
 from pathlib import Path
 from typing import Iterable, List, Sequence, Tuple
 
-from metanucleus.core.evolution import EvolutionRequest, MetaEvolution
+from metanucleus.core.evolution import (
+    EvolutionRequest,
+    MetaEvolution,
+    PatchExplanation,
+)
 from metanucleus.core.state import MetaState
 from metanucleus.runtime.meta_runtime import MetaRuntime
 from metanucleus.runtime.test_suites import get_suite, list_suites
@@ -93,6 +97,38 @@ def _build_patch(original: str, optimized: str, file_path: Path) -> str:
     if not diff_lines:
         return ""
     return "\n".join(diff_lines) + "\n"
+
+
+def _jsonify_value(value: object) -> object:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    return repr(value)
+
+
+def _serialize_explanation(expl: PatchExplanation) -> dict:
+    return {
+        "summary": expl.summary,
+        "operations": expl.operations,
+        "cost": {
+            "before": expl.cost_before,
+            "after": expl.cost_after,
+            "delta": expl.cost_before - expl.cost_after,
+        },
+        "redundant_terms": expl.redundant_terms,
+        "liu_signature": expl.liu_signature,
+        "regression": {
+            "passed": expl.regression.passed,
+            "samples": [
+                {
+                    "inputs": list(sample.inputs),
+                    "original_output": _jsonify_value(sample.original_output),
+                    "candidate_output": _jsonify_value(sample.candidate_output),
+                    "matched": sample.matched,
+                }
+                for sample in expl.regression.samples
+            ],
+        },
+    }
 
 
 def _parse_samples_arg(value: str) -> Sequence[Tuple[float, ...]]:
@@ -216,12 +252,25 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
     patch_path = path.with_suffix(path.suffix + ".meta.patch")
     patch_path.write_text(patch_text, encoding="utf-8")
     analysis = result.analysis
+    explanation = result.explanation
+    explain_path = path.with_suffix(path.suffix + ".meta.explain.json")
+    if explanation:
+        explanation_payload = _serialize_explanation(explanation)
+    else:
+        explanation_payload = {"summary": "indisponível"}
+    explain_path.write_text(
+        json.dumps(explanation_payload, ensure_ascii=False, indent=2),
+        encoding="utf-8",
+    )
 
     print("[META-EVOLVE] Evolução bem-sucedida.")
     print(f"  alvo: {path}:{args.function}")
     print(f"  patch: {patch_path}")
+    print(f"  explicação: {explain_path}")
     if analysis:
         print(f"  custo: {analysis.cost_before} -> {analysis.cost_after}")
+    if explanation:
+        print(f"  resumo: {explanation.summary}")
     print("  diff preview:")
     preview = "\n".join(patch_text.splitlines()[:10]) or "(diff vazio)"
     print(preview)
@@ -286,6 +335,7 @@ def _cmd_evolve(args: argparse.Namespace) -> int:
             "target": str(path),
             "function": args.function,
             "patch": str(patch_path),
+            "explanation": explanation_payload,
             "analysis": {
                 "cost_before": analysis.cost_before if analysis else None,
                 "cost_after": analysis.cost_after if analysis else None,

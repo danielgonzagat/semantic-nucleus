@@ -32,9 +32,16 @@ def test_cli_evolve_creates_patch(tmp_path):
     patch_file = target_file.with_suffix(".py.meta.patch")
     assert patch_file.exists()
     assert "return (x * 2) + (x * 2)" in patch_file.read_text(encoding="utf-8")
+    explain_file = target_file.with_suffix(".py.meta.explain.json")
+    assert explain_file.exists()
+    explanation = json.loads(explain_file.read_text(encoding="utf-8"))
+    assert "summary" in explanation
+    assert explanation["operations"]
+    assert "linear_term_reduction" in explanation["operations"]
     report_data = json.loads(report_file.read_text(encoding="utf-8"))
     assert report_data["target"].endswith("sample_module.py")
     assert report_data["tests"][0]["status"] == "skipped"
+    assert "explanation" in report_data
 
 
 def test_cli_evolve_invalid_suite(tmp_path, capsys):
@@ -175,6 +182,8 @@ def test_cli_evolve_git_branch_and_commit(tmp_path, monkeypatch):
     )
 
     assert exit_code == 0
+    explain_file = target_file.with_suffix(".py.meta.explain.json")
+    assert explain_file.exists()
     branch = subprocess.run(
         ["git", "rev-parse", "--abbrev-ref", "HEAD"],
         cwd=repo_dir,
