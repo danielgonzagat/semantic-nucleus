@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from enum import Enum
 from typing import Tuple
 
-from liu import Node, struct as liu_struct, entity, text as liu_text, number
+from liu import Node, struct as liu_struct, entity, text as liu_text, number, to_json
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -261,17 +261,28 @@ def _meta_output_node(answer_text: str, quality: float, halt_reason: str) -> Nod
     )
 
 
+def _meta_calc_node(calc_node: Node) -> Node:
+    return liu_struct(
+        tag=entity("meta_calc"),
+        payload=calc_node,
+    )
+
+
 def build_meta_summary(
     meta: MetaTransformResult,
     answer_text: str,
     quality: float,
     halt_reason: str,
 ) -> Tuple[Node, ...]:
-    return (
+    nodes = [
         _meta_route_node(meta.route, meta.language_hint),
         _meta_input_node(meta.input_text),
         _meta_output_node(answer_text, quality, halt_reason),
-    )
+    ]
+    calc_node = _extract_meta_calculation(meta)
+    if calc_node is not None:
+        nodes.append(calc_node)
+    return tuple(nodes)
 
 
 def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
@@ -279,7 +290,7 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
     route_fields = _fields(nodes["meta_route"])
     input_fields = _fields(nodes["meta_input"])
     output_fields = _fields(nodes["meta_output"])
-    return {
+    result = {
         "route": _label(route_fields["route"]),
         "language": _label(route_fields.get("language")),
         "input_size": _value(input_fields["size"]),
@@ -288,6 +299,13 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         "quality": _value(output_fields["quality"]),
         "halt": _label(output_fields["halt"]),
     }
+    calc_node = nodes.get("meta_calc")
+    if calc_node is not None:
+        calc_fields = _fields(calc_node)
+        payload = calc_fields.get("payload")
+        if payload is not None:
+            result["meta_calculation"] = to_json(payload)
+    return result
 
 
 def _fields(node: Node) -> dict[str, Node]:
@@ -306,6 +324,16 @@ def _value(node: Node | None) -> float:
     if node.value is not None:
         return float(node.value)
     return 0.0
+
+
+def _extract_meta_calculation(meta: MetaTransformResult | None) -> Node | None:
+    if meta is None or meta.lc_meta is None:
+        return None
+    fields = _fields(meta.lc_meta)
+    calc_node = fields.get("calculus")
+    if calc_node is None:
+        return None
+    return _meta_calc_node(calc_node)
 
 
 def _direct_answer_plan(route: MetaRoute, answer: Node | None) -> MetaCalculationPlan | None:

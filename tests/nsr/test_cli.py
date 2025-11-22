@@ -95,6 +95,26 @@ def test_cli_includes_meta_summary(capsys):
     assert meta["answer"]
 
 
+def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+    exit_code = nsr_cli.main(["como você está?", "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    meta = data.get("meta_summary")
+    assert meta is not None
+    calc_json = meta.get("meta_calculation")
+    assert calc_json
+    calc_payload = json.loads(calc_json)
+    assert calc_payload["fields"]["operator"]["label"] == "STATE_QUERY"
+
+
 def test_cli_includes_lc_meta(capsys, monkeypatch):
     for target in (
         "maybe_route_math",
