@@ -93,3 +93,10 @@ def test_testcore_command_runs_suite(runtime):
     output = runtime.handle_request("/testcore")
     assert "[TESTCORE]" in output
     assert "greeting_pt" in output
+
+
+def test_testcore_json_output(runtime):
+    runtime.handle_request("Oi!")
+    output = runtime.handle_request("/testcore json")
+    assert output.startswith("{")
+    assert '"total"' in output

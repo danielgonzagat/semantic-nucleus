@@ -5,6 +5,7 @@ Orquestrador determinístico do Metanúcleo.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 from typing import Tuple
 
 from metanucleus.core.liu import Node, NodeKind, op
@@ -84,7 +85,9 @@ class MetaRuntime:
                 limit = max(1, min(10, int(parts[1])))
             return self._format_meta(limit)
         if command.startswith("/testcore"):
-            return self._run_builtin_testcore()
+            parts = command.split()
+            json_mode = len(parts) > 1 and parts[1].lower() == "json"
+            return self._run_builtin_testcore(as_json=json_mode)
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -140,11 +143,30 @@ class MetaRuntime:
         if len(self.state.meta_history) > limit:
             del self.state.meta_history[:-limit]
 
-    def _run_builtin_testcore(self) -> str:
+    def _run_builtin_testcore(self, as_json: bool = False) -> str:
         temp_runtime = MetaRuntime(state=MetaState())
         results = run_test_suite(temp_runtime, BASIC_RUNTIME_SUITE)
         total = len(results)
         passed = sum(1 for r in results if r.passed)
+        if as_json:
+            payload = {
+                "total": total,
+                "passed": passed,
+                "failed": total - passed,
+                "results": [
+                    {
+                        "name": r.case.name,
+                        "status": "OK" if r.passed else "FAIL",
+                        "detected_intent": r.detected_intent,
+                        "detected_lang": r.detected_lang,
+                        "answer": r.raw_answer,
+                        "patch": r.patch.module if r.patch else None,
+                    }
+                    for r in results
+                ],
+            }
+            return json.dumps(payload, ensure_ascii=False)
+
         lines = [
             f"[TESTCORE] total={total} passed={passed} failed={total - passed}"
         ]
