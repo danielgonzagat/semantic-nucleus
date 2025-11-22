@@ -8,6 +8,8 @@ from dataclasses import dataclass, field
 import re
 from typing import Dict, List, Mapping, Sequence, Tuple
 
+from .langpacks import iter_language_packs
+
 # ---------------------------------------------------------------------------
 # Alfabeto ↔ código (nascimento alfabetizado)
 # ---------------------------------------------------------------------------
@@ -68,6 +70,8 @@ CONJUGATION_TABLE: Dict[Tuple[str, str, str, str], str] = {
     ("falar", "pres", "2", "plur"): "falam",
     ("falar", "pres", "3", "plur"): "falam",
 }
+
+DEFAULT_LANGUAGE_CODES: Tuple[str, ...] = ("pt", "en", "es", "fr")
 
 
 def encode_word(word: str, table: Mapping[str, int] | None = None) -> Tuple[int, ...]:
@@ -149,6 +153,12 @@ def conjugate(lemma: str, tense: str = "pres", person: int = 1, number: str = "s
     return CONJUGATION_TABLE[key]
 
 
+def _register_conjugations(entries) -> None:
+    for entry in entries:
+        key = (entry.lemma.lower(), entry.tense.lower(), str(entry.person), entry.number.lower())
+        CONJUGATION_TABLE.setdefault(key, entry.form)
+
+
 # ---------------------------------------------------------------------------
 # Léxico inato + estrutura de tokens
 # ---------------------------------------------------------------------------
@@ -165,6 +175,10 @@ class Lexeme:
         return candidate in self.forms
 
 
+def _normalize_forms(forms: Sequence[str]) -> Tuple[str, ...]:
+    return tuple(form.upper() for form in forms)
+
+
 @dataclass(frozen=True)
 class IANToken:
     surface: str
@@ -178,6 +192,7 @@ class IANToken:
 class Utterance:
     role: str
     semantics: str
+    language: str
     tokens: Tuple[IANToken, ...]
 
 
@@ -187,6 +202,7 @@ class ReplyPlan:
     semantics: str
     tokens: Tuple[str, ...]
     token_codes: Tuple[Tuple[int, ...], ...]
+    language: str
 
 
 @dataclass(frozen=True)
@@ -195,12 +211,21 @@ class DialogRule:
     reply_role: str
     reply_semantics: str
     surface_tokens: Tuple[str, ...]
+    reply_language: str = "und"
 
     def matches(self, utterance: Utterance) -> bool:
         return utterance.role == self.trigger_role
 
 
 TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[!?.,]")
+EN_GREETING_SURFACES = frozenset({"HI", "HELLO", "HEY"})
+ES_GREETING_SURFACES = frozenset({"HOLA"})
+FR_GREETING_SURFACES = frozenset({"BONJOUR", "SALUT"})
+PT_VERBOSE_SEQUENCE = ("QUESTION_HOW", "YOU", "BE_STATE")
+EN_VERBOSE_SEQUENCE = ("QUESTION_HOW", "BE_STATE", "YOU")
+ES_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
+ES_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "BE_STATE", "YOU")
+FR_VERBOSE_KEYWORDS = frozenset({"COMMENT", "ÇA", "CA"})
 
 
 @dataclass
@@ -242,7 +267,8 @@ class IANInstinct:
     def analyze(self, text: str) -> Utterance:
         tokens = self.tokenize(text)
         role, semantics = self._infer_role(tokens)
-        return Utterance(role=role, semantics=semantics, tokens=tokens)
+        language = self._infer_language(role, tokens)
+        return Utterance(role=role, semantics=semantics, language=language, tokens=tokens)
 
     def reply(self, text: str) -> ReplyPlan:
         utterance = self.analyze(text)
@@ -259,6 +285,7 @@ class IANInstinct:
                     semantics=rule.reply_semantics,
                     tokens=materialized,
                     token_codes=codes,
+                    language=rule.reply_language,
                 )
         codes = tuple(self._encode_token_surface(token) for token in self.unknown_reply)
         return ReplyPlan(
@@ -266,6 +293,7 @@ class IANInstinct:
             semantics="UNKNOWN",
             tokens=self.unknown_reply,
             token_codes=codes,
+            language=utterance.language or "und",
         )
 
     def render(self, plan: ReplyPlan) -> str:
@@ -282,16 +310,16 @@ class IANInstinct:
         return encode_word(token, self.char_to_code)
 
     def _infer_role(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
-        semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in tokens if not t.is_punctuation]
-        if self._matches_verbose_health_question(tokens, semantics_seq):
-            return "QUESTION_HEALTH_VERBOSE", "STATE_QUERY"
+        content_tokens = tuple(token for token in tokens if not token.is_punctuation)
+        semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in content_tokens]
+        verbose_role = self._matches_verbose_health_question(tokens, semantics_seq)
+        if verbose_role:
+            return verbose_role, "STATE_QUERY"
+        health_role = self._health_question_role(content_tokens, semantics_seq)
+        if health_role:
+            return health_role, "STATE_QUERY"
         if self._contains_greeting(semantics_seq):
-            # if a health question is also present, prefer the more specific intent
-            if self._contains_health_question(tokens, semantics_seq):
-                return "QUESTION_HEALTH", "STATE_QUERY"
-            return "GREETING_SIMPLE", "GREETING_SIMPLE"
-        if self._contains_health_question(tokens, semantics_seq):
-            return "QUESTION_HEALTH", "STATE_QUERY"
+            return self._greeting_role(content_tokens), "GREETING_SIMPLE"
         state_role = self._detect_state_statement(tokens)
         if state_role == "POSITIVE":
             return "STATE_POSITIVE", "STATE_POSITIVE"
@@ -299,23 +327,105 @@ class IANInstinct:
             return "STATE_NEGATIVE", "STATE_NEGATIVE"
         return "UNKNOWN", "UNKNOWN"
 
+    def _infer_language(self, role: str, tokens: Sequence[IANToken]) -> str:
+        lang = self._language_from_role(role)
+        if lang != "und":
+            return lang
+        if self._is_english_greeting(tokens):
+            return "en"
+        if self._is_spanish_greeting(tokens):
+            return "es"
+        return "pt"
+
+    @staticmethod
+    def _language_from_role(role: str) -> str:
+        if role.endswith("_EN") or "_EN_" in role:
+            return "en"
+        if role.endswith("_ES") or "_ES_" in role:
+            return "es"
+        if role.endswith("_FR") or "_FR_" in role:
+            return "fr"
+        if role.endswith("_PT") or "_PT_" in role:
+            return "pt"
+        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE"}:
+            return "pt"
+        return "und"
+
     @staticmethod
     def _contains_greeting(semantics_seq: Sequence[str | None]) -> bool:
         return any(item == "GREETING_SIMPLE" for item in semantics_seq)
 
-    @staticmethod
-    def _contains_health_question(tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]) -> bool:
-        for idx in range(len(semantics_seq) - 1):
-            if semantics_seq[idx] == "ALL_THINGS" and semantics_seq[idx + 1] == "STATE_GOOD":
-                has_question_mark = any(tok.surface == "?" for tok in tokens)
-                return has_question_mark or True
-        return False
+    def _matches_verbose_health_question(
+        self, tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]
+    ) -> str | None:
+        filtered = [sem for sem in semantics_seq if sem and sem != "GREETING_SIMPLE"]
+        has_question_mark = any(token.surface == "?" for token in tokens)
+        if not has_question_mark or len(filtered) < 2:
+            return None
+        head = tuple(filtered[:3])
+        if head == PT_VERBOSE_SEQUENCE:
+            if self._contains_french_verbose_marker(tokens):
+                return "QUESTION_HEALTH_VERBOSE_FR"
+            return "QUESTION_HEALTH_VERBOSE"
+        if head == EN_VERBOSE_SEQUENCE:
+            return "QUESTION_HEALTH_VERBOSE_EN"
+        if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+            return "QUESTION_HEALTH_VERBOSE_ES"
+        return None
 
     @staticmethod
-    def _matches_verbose_health_question(tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]) -> bool:
-        filtered = [sem for sem in semantics_seq if sem]
-        pattern = ("QUESTION_HOW", "YOU", "BE_STATE")
-        return tuple(filtered[:3]) == pattern and any(tok.surface == "?" for tok in tokens)
+    def _is_english_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in EN_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
+    def _is_spanish_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in ES_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
+    def _is_french_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in FR_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
+    def _contains_french_verbose_marker(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in FR_VERBOSE_KEYWORDS for token in tokens)
+
+    def _greeting_role(self, tokens: Sequence[IANToken]) -> str:
+        if self._is_english_greeting(tokens):
+            return "GREETING_SIMPLE_EN"
+        if self._is_spanish_greeting(tokens):
+            return "GREETING_SIMPLE_ES"
+        if self._is_french_greeting(tokens):
+            return "GREETING_SIMPLE_FR"
+        return "GREETING_SIMPLE"
+
+    def _health_question_role(
+        self, tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]
+    ) -> str | None:
+        for idx, semantic in enumerate(semantics_seq):
+            if semantic != "ALL_THINGS":
+                continue
+            next_idx = self._next_semantic_index(semantics_seq, idx + 1)
+            if next_idx is None:
+                continue
+            if semantics_seq[next_idx] != "STATE_GOOD":
+                continue
+            first_surface = tokens[idx].normalized
+            second_surface = tokens[next_idx].normalized
+            if first_surface.startswith("TODO"):
+                return "QUESTION_HEALTH_ES"
+            if first_surface == "TOUT":
+                return "QUESTION_HEALTH_FR"
+            return "QUESTION_HEALTH"
+        return None
+
+    @staticmethod
+    def _next_semantic_index(semantics_seq: Sequence[str | None], start: int) -> int | None:
+        for idx in range(start, len(semantics_seq)):
+            semantic = semantics_seq[idx]
+            if semantic is None or semantic == "BE_STATE":
+                continue
+            return idx
+        return None
 
     @staticmethod
     def _detect_state_statement(tokens: Sequence[IANToken]) -> str | None:
@@ -349,53 +459,32 @@ class IANInstinct:
 
     @classmethod
     def default(cls) -> "IANInstinct":
-        lexicon = (
-            Lexeme(lemma="OI", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("OI", "OLÁ", "OLA")),
-            Lexeme(lemma="TUDO", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TUDO",)),
-            Lexeme(lemma="BEM", semantics="STATE_GOOD", pos="ADV", forms=("BEM",)),
-            Lexeme(lemma="E", semantics="CONJ_AND", pos="CONJ", forms=("E",)),
-            Lexeme(lemma="VOCÊ", semantics="YOU", pos="PRON", forms=("VOCÊ", "VOCE")),
-            Lexeme(lemma="EU", semantics="SELF", pos="PRON", forms=("EU",)),
-            Lexeme(lemma="SIM", semantics="AFFIRM", pos="ADV", forms=("SIM",)),
-            Lexeme(lemma="NÃO", semantics="NEGATE", pos="ADV", forms=("NÃO", "NAO")),
-            Lexeme(lemma="COMO", semantics="QUESTION_HOW", pos="ADV", forms=("COMO",)),
-            Lexeme(lemma="ESTAR", semantics="BE_STATE", pos="VERB", forms=("ESTÁ", "ESTA", "ESTOU", "ESTAS")),
-            Lexeme(lemma="MAL", semantics="STATE_BAD", pos="ADV", forms=("MAL",)),
-            Lexeme(lemma="RUIM", semantics="STATE_BAD", pos="ADJ", forms=("RUIM",)),
-            Lexeme(lemma="TRISTE", semantics="STATE_BAD", pos="ADJ", forms=("TRISTE",)),
-        )
-        dialog_rules = (
-            DialogRule(
-                trigger_role="QUESTION_HEALTH",
-                reply_role="ANSWER_HEALTH_AND_RETURN",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=("tudo", "bem", ",", "e", "você", "?"),
-            ),
-            DialogRule(
-                trigger_role="GREETING_SIMPLE",
-                reply_role="GREETING_SIMPLE_REPLY",
-                reply_semantics="GREETING_SIMPLE",
-                surface_tokens=("oi",),
-            ),
-            DialogRule(
-                trigger_role="QUESTION_HEALTH_VERBOSE",
-                reply_role="ANSWER_HEALTH_VERBOSE",
-                reply_semantics="STATE_GOOD_AND_RETURN",
-                surface_tokens=(":CONJ:estar:pres:1:sing", "bem", ",", "e", "você", "?"),
-            ),
-            DialogRule(
-                trigger_role="STATE_POSITIVE",
-                reply_role="ACK_POSITIVE",
-                reply_semantics="STATE_POSITIVE_ACK",
-                surface_tokens=("que", "bom", "!"),
-            ),
-            DialogRule(
-                trigger_role="STATE_NEGATIVE",
-                reply_role="CARE_NEGATIVE",
-                reply_semantics="STATE_NEGATIVE_SUPPORT",
-                surface_tokens=("sinto", "muito", ".", "posso", "ajudar", "?"),
-            ),
-        )
+        packs = iter_language_packs(DEFAULT_LANGUAGE_CODES)
+        lexicon_entries = []
+        dialog_entries = []
+        for pack in packs:
+            lexicon_entries.extend(
+                Lexeme(
+                    lemma=spec.lemma.upper(),
+                    semantics=spec.semantics,
+                    pos=spec.pos,
+                    forms=_normalize_forms(spec.forms),
+                )
+                for spec in pack.lexemes
+            )
+            dialog_entries.extend(
+                DialogRule(
+                    trigger_role=spec.trigger_role,
+                    reply_role=spec.reply_role,
+                    reply_semantics=spec.reply_semantics,
+                    surface_tokens=spec.surface_tokens,
+                    reply_language=spec.language,
+                )
+                for spec in pack.dialog_rules
+            )
+            _register_conjugations(pack.conjugations)
+        lexicon = tuple(lexicon_entries)
+        dialog_rules = tuple(dialog_entries)
         return cls(
             char_to_code=CHAR_TO_CODE,
             code_to_char=CODE_TO_CHAR,

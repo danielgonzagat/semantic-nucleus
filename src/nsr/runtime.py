@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, operation, fingerprint
+from liu import Node, operation, fingerprint, struct as liu_struct, entity
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -135,9 +135,11 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         trace_hint = f"IAN[{instinct_hook.utterance.role}]"
         preseed_context = instinct_hook.context_nodes
         preseed_quality = instinct_hook.quality
+        session.language_hint = instinct_hook.reply_plan.language
     else:
         tokens = tokenize(text, lexicon)
         struct0 = build_struct(tokens)
+        struct0 = _attach_language_field(struct0, session.language_hint or "pt")
         preseed_answer = None
         trace_hint = None
         preseed_context = None
@@ -337,6 +339,16 @@ def _audit_state(
     if not status.ok:
         trace.add_invariant_failure(label, status, stats)
     return snapshot, stats, status
+
+
+def _attach_language_field(node: Node, language: str | None) -> Node:
+    if not language:
+        return node
+    fields = dict(node.fields)
+    if "language" in fields:
+        return node
+    fields["language"] = entity(language)
+    return liu_struct(**fields)
 
 
 def _finalize_convergence(

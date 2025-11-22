@@ -54,7 +54,7 @@ def render_explanation(
     return "\n".join(parts)
 
 
-def render_struct_sentence(node: Node) -> str:
+def render_struct_sentence(node: Node, language: str | None = None) -> str:
     """
     Converte um STRUCT LIU em sentença legível, preservando relações derivadas.
     """
@@ -72,21 +72,21 @@ def render_struct_sentence(node: Node) -> str:
     sent = " ".join(filter(None, pieces)).strip()
     clauses: list[str] = []
     if not sent:
-        clauses.append("Resposta não determinada")
+        clauses.append(_localized_placeholder(language))
     else:
-        clauses.append(sent[0].upper() + sent[1:])
+        clauses.append(_titlecase(sent))
     if relations_summary:
-        clauses.append(f"Relações: {relations_summary}")
+        clauses.append(_localized_relations_intro(language) + relations_summary)
     final = ". ".join(clauses) + "."
     return final
 
 
-def render_struct_node(node: Node) -> Node:
+def render_struct_node(node: Node, language: str | None = None) -> Node:
     """
     Retorna um nó TEXT contendo a frase determinística do STRUCT informado.
     """
 
-    return text(render_struct_sentence(node))
+    return text(render_struct_sentence(node, language=language))
 
 
 def _focus_description(node: Node) -> str:
@@ -168,7 +168,7 @@ def _describe_node(node: Node) -> str:
         relation_text = _render_relation(node)
         return relation_text or f"REL:{node.label or '?'}"
     if node.kind is NodeKind.STRUCT:
-        return render_struct_sentence(node)
+        return render_struct_sentence(node, language=_detect_node_language(node))
     if node.kind is NodeKind.TEXT:
         return node.label or "texto vazio"
     if node.kind is NodeKind.ENTITY:
@@ -228,6 +228,40 @@ def _render_relation(node: Node) -> str | None:
         return None
     rel_label = node.label.replace("_", " ").lower()
     return f"{source} {rel_label} {target}"
+
+
+def _titlecase(sentence: str) -> str:
+    if not sentence:
+        return ""
+    return sentence[0].upper() + sentence[1:]
+
+
+def _localized_placeholder(language: str | None) -> str:
+    mapping = {
+        "en": "Answer not determined",
+        "es": "Respuesta no determinada",
+        "fr": "Réponse non déterminée",
+    }
+    return mapping.get(language or "pt", "Resposta não determinada")
+
+
+def _localized_relations_intro(language: str | None) -> str:
+    mapping = {
+        "en": "Relations: ",
+        "es": "Relaciones: ",
+        "fr": "Relations : ",
+    }
+    return mapping.get(language or "pt", "Relações: ")
+
+
+def _detect_node_language(node: Node) -> str | None:
+    lang_field = _field_node(node, "language")
+    if lang_field and lang_field.label:
+        return lang_field.label
+    plan_lang = _field_node(node, "plan_language")
+    if plan_lang and plan_lang.label:
+        return plan_lang.label
+    return None
 
 
 def _node_token(node: Node) -> str:

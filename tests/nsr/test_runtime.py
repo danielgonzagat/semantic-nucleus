@@ -21,6 +21,15 @@ from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 
 
+def _extract_ian_reply(outcome):
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag is not None and (tag.label or "") == "ian_reply":
+            return fields
+    return None
+
+
 def test_run_text_simple():
     session = SessionCtx()
     answer, trace = run_text("O carro anda rapido", session)
@@ -323,6 +332,87 @@ def test_run_text_handles_verbose_health_question():
     answer, trace = run_text("como você está?", session)
     assert answer == "estou bem, e você?"
     assert any("IAN[QUESTION_HEALTH_VERBOSE" in step for step in trace.steps)
+
+
+def test_run_text_handles_english_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("hi, how are you?", session)
+    assert answer == "i am fine, and you?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_EN" in step for step in trace.steps)
+
+
+def test_run_text_handles_spanish_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("hola, todo bien?", session)
+    assert answer == "todo bien, y tú?"
+    assert any("IAN[QUESTION_HEALTH_ES" in step for step in trace.steps)
+
+
+def test_run_text_handles_spanish_verbose_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("hola, ¿cómo estás?", session)
+    assert answer == "estoy bien, y tú?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_ES" in step for step in trace.steps)
+
+
+def test_run_text_handles_french_greeting():
+    session = SessionCtx()
+    answer, trace = run_text("bonjour!", session)
+    assert answer == "bonjour"
+    assert any("IAN[GREETING_SIMPLE_FR" in step for step in trace.steps)
+
+
+def test_run_text_handles_french_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("tout va bien?", session)
+    assert answer == "tout va bien, et toi?"
+    assert any("IAN[QUESTION_HEALTH_FR" in step for step in trace.steps)
+
+
+def test_run_text_handles_french_verbose_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("bonjour, comment ça va?")
+    assert answer == "je vais bien, et toi?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_FR" in step for step in trace.steps)
+
+
+def test_ian_reply_language_portuguese():
+    session = SessionCtx()
+    outcome = run_text_full("oi, tudo bem?", session)
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "pt"
+
+
+def test_ian_reply_language_english():
+    session = SessionCtx()
+    outcome = run_text_full("hi, how are you?", session)
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "en"
+
+
+def test_ian_reply_language_spanish():
+    session = SessionCtx()
+    outcome = run_text_full("hola, ¿cómo estás?", session)
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "es"
+
+
+def test_ian_reply_language_french():
+    session = SessionCtx()
+    outcome = run_text_full("bonjour, comment ça va?")
+    reply_fields = _extract_ian_reply(outcome)
+    assert reply_fields is not None
+    assert (reply_fields["plan_language"].label or "") == "fr"
+
+
+def test_language_hint_controls_non_ian_renderer():
+    session = SessionCtx()
+    session.language_hint = "en"
+    answer, _ = run_text("O carro tem roda", session)
+    assert "Relations:" in answer
 
 
 def test_run_text_full_short_circuits_for_ian():
