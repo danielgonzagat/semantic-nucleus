@@ -325,6 +325,13 @@ def test_run_text_handles_verbose_health_question():
     assert any("IAN[QUESTION_HEALTH_VERBOSE" in step for step in trace.steps)
 
 
+def test_run_text_handles_english_health_question():
+    session = SessionCtx()
+    answer, trace = run_text("hi, how are you?", session)
+    assert answer == "i am fine, and you?"
+    assert any("IAN[QUESTION_HEALTH_VERBOSE_EN" in step for step in trace.steps)
+
+
 def test_run_text_full_short_circuits_for_ian():
     session = SessionCtx()
     outcome = run_text_full("como você está?", session)
