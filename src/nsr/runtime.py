@@ -135,6 +135,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         trace_hint = f"IAN[{instinct_hook.utterance.role}]"
         preseed_context = instinct_hook.context_nodes
         preseed_quality = instinct_hook.quality
+        preseed_relations = instinct_hook.relation_nodes
     else:
         tokens = tokenize(text, lexicon)
         struct0 = build_struct(tokens)
@@ -142,12 +143,14 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         trace_hint = None
         preseed_context = None
         preseed_quality = None
+        preseed_relations = None
     return run_struct_full(
         struct0,
         session,
         preseed_answer=preseed_answer,
         preseed_context=preseed_context,
         preseed_quality=preseed_quality,
+        preseed_relations=preseed_relations,
         trace_hint=trace_hint,
     )
 
@@ -158,6 +161,7 @@ def run_struct(
     preseed_answer: Node | None = None,
     preseed_context: Tuple[Node, ...] | None = None,
     preseed_quality: float | None = None,
+    preseed_relations: Tuple[Node, ...] | None = None,
 ) -> Tuple[str, Trace]:
     outcome = run_struct_full(
         struct_node,
@@ -165,6 +169,7 @@ def run_struct(
         preseed_answer=preseed_answer,
         preseed_context=preseed_context,
         preseed_quality=preseed_quality,
+        preseed_relations=preseed_relations,
     )
     return outcome.answer, outcome.trace
 
@@ -175,6 +180,7 @@ def run_struct_full(
     preseed_answer: Node | None = None,
     preseed_context: Tuple[Node, ...] | None = None,
     preseed_quality: float | None = None,
+    preseed_relations: Tuple[Node, ...] | None = None,
     trace_hint: str | None = None,
 ) -> RunOutcome:
     isr = initial_isr(struct_node, session)
@@ -182,6 +188,8 @@ def run_struct_full(
         isr.answer = preseed_answer
     if preseed_context:
         isr.context = tuple((*isr.context, *preseed_context))
+    if preseed_relations:
+        isr.relations = tuple((*isr.relations, *preseed_relations))
     if preseed_quality is not None:
         isr.quality = preseed_quality
     trace = Trace(steps=[])

@@ -332,13 +332,19 @@ def test_run_text_full_short_circuits_for_ian():
     assert outcome.finalized is True
     assert outcome.quality >= session.config.min_quality
     has_reply_context = False
+    has_relation = False
     for node in outcome.isr.context:
         node_fields = dict(node.fields)
         tag = node_fields.get("tag")
         if tag is not None and tag.label == "ian_reply":
             has_reply_context = "plan_role" in node_fields
             break
+    for rel in outcome.isr.relations:
+        if rel.label == "IAN_INTENT":
+            has_relation = True
+            break
     assert has_reply_context
+    assert has_relation
 
 
 def test_code_eval_pure_binop_enriches_context():

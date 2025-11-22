@@ -51,6 +51,10 @@ def test_maybe_route_text_builds_struct_and_answer():
         if tag_node is not None and tag_node.label:
             tags.append(tag_node.label)
     assert "ian_reply" in tags
+    assert hook.relation_nodes
+    relation_labels = {rel.label for rel in hook.relation_nodes}
+    assert "IAN_INTENT" in relation_labels
+    assert "IAN_MAPS_TO" in relation_labels
 
 
 def test_verbose_health_question_response():

@@ -7,7 +7,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Iterable, Tuple
 
-from liu import entity, list_node, number, struct, text, Node
+from liu import entity, list_node, number, relation, struct, text, Node
 
 from .ian import DEFAULT_INSTINCT, IANInstinct, ReplyPlan, Utterance
 
@@ -20,6 +20,7 @@ class InstinctHook:
     struct_node: Node
     answer_node: Node
     context_nodes: Tuple[Node, ...]
+    relation_nodes: Tuple[Node, ...]
     quality: float
 
 
@@ -33,6 +34,7 @@ def maybe_route_text(text_value: str, instinct: IANInstinct | None = None) -> In
     rendered = instinct.render(reply_plan)
     answer_node = reply_plan_to_answer(reply_plan, instinct, rendered)
     context_nodes = context_nodes_for_interaction(utterance, reply_plan, rendered, instinct)
+    relation_nodes = relation_nodes_for_interaction(utterance, reply_plan)
     return InstinctHook(
         instinct=instinct,
         utterance=utterance,
@@ -40,6 +42,7 @@ def maybe_route_text(text_value: str, instinct: IANInstinct | None = None) -> In
         struct_node=struct_node,
         answer_node=answer_node,
         context_nodes=context_nodes,
+        relation_nodes=relation_nodes,
         quality=0.85,
     )
 
@@ -100,6 +103,16 @@ def context_nodes_for_interaction(
     return (utter_struct, reply_struct)
 
 
+def relation_nodes_for_interaction(utterance: Utterance, plan: ReplyPlan) -> Tuple[Node, ...]:
+    intent_entity = entity(utterance.role.lower())
+    reply_entity = entity(plan.role.lower())
+    rel_intent = relation("IAN_INTENT", entity("user"), intent_entity)
+    rel_semantics = relation("IAN_SEMANTICS", intent_entity, entity(utterance.semantics.lower()))
+    rel_reply = relation("IAN_REPLY", reply_entity, entity(plan.semantics.lower()))
+    rel_mapping = relation("IAN_MAPS_TO", intent_entity, reply_entity)
+    return (rel_intent, rel_semantics, rel_reply, rel_mapping)
+
+
 def _token_struct(token) -> Node:
     fields: dict[str, Node] = {
         "surface": text(token.surface),
@@ -129,4 +142,5 @@ __all__ = [
     "utterance_to_struct",
     "reply_plan_to_answer",
     "context_nodes_for_interaction",
+    "relation_nodes_for_interaction",
 ]
