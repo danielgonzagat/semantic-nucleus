@@ -24,4 +24,4 @@ def soma(a, b):
 def test_code_input_still_produces_answer(runtime):
     code = "def inc(x): return x + 1"
     output = runtime.handle_request(code)
-    assert "[META]" in output or "resultado" in output
+    assert "code snippet" in output.lower() or "trecho de código" in output.lower()

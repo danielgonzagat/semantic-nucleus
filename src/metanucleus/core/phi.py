@@ -110,15 +110,20 @@ def phi_structure(state: MetaState, args: tuple[Node, ...]) -> None:
     if msg.kind is not NodeKind.STRUCT:
         return
 
-    tokens_node = _field(msg, "tokens")
-    if tokens_node is None or tokens_node.kind is not NodeKind.STRUCT:
-        raw = _content_text(msg)
-        toks = tokenize(raw)
-        tokens_node = tokens_to_struct(toks)
-        msg = _with_field(msg, "tokens", tokens_node)
+    if _is_code_snippet(msg):
+        ast_node = _field(msg, "ast")
+        if ast_node:
+            msg = _with_field(msg, "structure", ast_node)
+    else:
+        tokens_node = _field(msg, "tokens")
+        if tokens_node is None or tokens_node.kind is not NodeKind.STRUCT:
+            raw = _content_text(msg)
+            toks = tokenize(raw)
+            tokens_node = tokens_to_struct(toks)
+            msg = _with_field(msg, "tokens", tokens_node)
 
-    token_count = len(tokens_node.fields)
-    msg = _with_field(msg, "length", text(str(token_count)))
+        token_count = len(tokens_node.fields)
+        msg = _with_field(msg, "length", text(str(token_count)))
 
     state.isr.context.append(msg)
     state.isr.quality = min(1.0, state.isr.quality + 0.03)
@@ -133,14 +138,19 @@ def phi_semantics(state: MetaState, args: tuple[Node, ...]) -> None:
 
     tokens = _token_list(_field(msg, "tokens"))
     lang = _guess_lang(msg)
-    has_math = any(ch.isdigit() for ch in _content_text(msg)) and any(op in _content_text(msg) for op in "+-*/")
+    if _is_code_snippet(msg):
+        has_math = False
+    else:
+        has_math = any(ch.isdigit() for ch in _content_text(msg)) and any(op in _content_text(msg) for op in "+-*/")
     logic_ops = _detect_logic_ops(tokens, lang)
     unique_tokens = len(set(token.lower() for token in tokens if token))
     semantic_cost = unique_tokens + len(tokens) * 0.5 + len(logic_ops) * 2 + (2 if has_math else 0)
 
     intent = _as_text(_field(msg, "intent"))
     raw = _content_text(msg)
-    if has_math and ("?" in raw or intent == "question"):
+    if _is_code_snippet(msg):
+        semantic_kind = "code_snippet"
+    elif has_math and ("?" in raw or intent == "question"):
         semantic_kind = "math_question"
     elif intent == "greeting":
         semantic_kind = "greeting"
@@ -170,6 +180,20 @@ def phi_calculus(state: MetaState, args: tuple[Node, ...]) -> None:
         return
     msg = args[0]
     if msg.kind is not NodeKind.STRUCT:
+        return
+
+    if _is_code_snippet(msg):
+        structure = _field(msg, "structure") or _field(msg, "ast")
+        if structure:
+            complexity = float(_node_complexity(structure))
+            calculus_struct = struct(
+                kind=text("code_structure"),
+                cost_struct=number(complexity),
+                solved=text("false"),
+            )
+            msg = _with_field(msg, "calculus", calculus_struct)
+            state.isr.context.append(msg)
+            state.isr.quality = min(1.0, state.isr.quality + 0.02)
         return
 
     raw = _content_text(msg)
@@ -214,6 +238,9 @@ def phi_equivalence(state: MetaState, args: tuple[Node, ...]) -> None:
     if msg.kind is not NodeKind.STRUCT:
         return
 
+    if _is_code_snippet(msg):
+        return
+
     calculus = _field(msg, "calculus")
     if calculus is None or calculus.kind is not NodeKind.STRUCT:
         return
@@ -240,7 +267,9 @@ def phi_determine(state: MetaState, args: tuple[Node, ...]) -> None:
     semantic_kind = _as_text(semantics.fields.get("semantic_kind")) if semantics else ""
 
     intent = _as_text(_field(msg, "intent"))
-    if semantic_kind == "math_question":
+    if semantic_kind == "code_snippet":
+        mode = "explain_code"
+    elif semantic_kind == "math_question":
         mode = "math_answer"
     elif intent == "greeting":
         mode = "greeting"
@@ -275,6 +304,24 @@ def phi_answer(state: MetaState, args: tuple[Node, ...]) -> None:
     intent = _as_text(_field(msg, "intent"))
     preview = _preview_text(msg)
     calculus = _field(msg, "calculus")
+
+    if _is_code_snippet(msg):
+        ast_node = _field(msg, "structure") or _field(msg, "ast")
+        if ast_node:
+            ans_text = (
+                "Recebi um trecho de código e o representei em LIU. Posso compará-lo ou otimizá-lo em seguida."
+                if lang == "pt"
+                else "I received a code snippet and mapped it into LIU. I can compare or optimize it next."
+            )
+        else:
+            ans_text = (
+                "Recebi um código, mas não consegui analisá-lo completamente."
+                if lang == "pt"
+                else "I received code, but could not fully analyse it."
+            )
+        state.isr.answer = struct(answer=text(ans_text))
+        state.isr.quality = min(1.0, state.isr.quality + 0.05)
+        return
 
     if calculus is not None and calculus.kind is NodeKind.STRUCT:
         solved = _as_text(calculus.fields.get("solved")) == "true"
@@ -431,6 +478,11 @@ def _detect_logic_ops(tokens: Iterable[str], lang: str) -> List[str]:
 
 def _list_node(items: Iterable[Node]) -> Node:
     return Node(kind=NodeKind.LIST, args=list(items))
+
+
+def _is_code_snippet(msg: Node) -> bool:
+    kind_field = _field(msg, "kind")
+    return bool(kind_field and kind_field.kind is NodeKind.TEXT and kind_field.label == "code_snippet")
 
 
 def _node_complexity(node: Node) -> int:
