@@ -1,6 +1,6 @@
 import pytest
 
-from nsr import MetaTransformer, MetaRoute, SessionCtx
+from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
 from svm.opcodes import Opcode
 
 
@@ -124,3 +124,18 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
     assert dict(calc_payload.fields)["operator"].label == "STATE_QUERY"
+
+
+def test_text_route_appends_lc_meta_calc_to_context(monkeypatch):
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+    outcome = run_text_full("como você está?", session=SessionCtx())
+    tags = [dict(node.fields).get("tag").label for node in outcome.isr.context if dict(node.fields).get("tag")]
+    assert "lc_meta_calc" in tags
+    assert outcome.calc_result is not None
+    assert outcome.calc_result.answer is not None
