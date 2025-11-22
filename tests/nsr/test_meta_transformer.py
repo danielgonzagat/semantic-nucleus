@@ -24,6 +24,19 @@ def test_meta_transformer_routes_math():
     plan_fields = dict(plan_nodes[0].fields)
     assert plan_fields["description"].label == "math_direct_answer"
     assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
+
+
+def test_language_detection_updates_hint_and_context(monkeypatch):
+    monkeypatch.setattr("nsr.meta_transformer.maybe_route_math", lambda *args, **kwargs: None)
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    result = transformer.transform("The car is blue and you know it.")
+    assert session.language_hint == "en"
+    language_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "language_profile"]
+    assert language_nodes
+    profile_fields = dict(language_nodes[0].fields)
+    assert profile_fields["language"].label == "en"
 
 
 def test_meta_transformer_routes_logic():
@@ -39,6 +52,7 @@ def test_meta_transformer_routes_logic():
     plan_fields = dict(plan_nodes[0].fields)
     assert plan_fields["description"].label == "logic_direct_answer"
     assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
 
 
 def test_meta_transformer_routes_instinct():
@@ -54,6 +68,7 @@ def test_meta_transformer_routes_instinct():
     plan_fields = dict(plan_nodes[0].fields)
     assert plan_fields["description"].label == "instinct_direct_answer"
     assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
 
 
 def test_meta_transformer_falls_back_to_text_route():
@@ -87,6 +102,7 @@ def test_meta_transformer_falls_back_to_text_route():
     context_tags = [dict(node.fields)["tag"].label for node in result.preseed_context]
     assert "lc_meta" in context_tags
     assert "meta_plan" in context_tags
+    assert "language_profile" in context_tags
     plan_node = next(node for node in result.preseed_context if dict(node.fields)["tag"].label == "meta_plan")
     plan_fields = dict(plan_node.fields)
     assert plan_fields["description"].label == "text_phi_pipeline"
@@ -121,6 +137,7 @@ def soma(x, y):
     plan_fields = dict(plan_nodes[0].fields)
     assert plan_fields["description"].label == "code_direct_answer"
     assert plan_fields["digest"].label
+    assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
 
 
 def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):

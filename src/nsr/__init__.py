@@ -45,6 +45,7 @@ from .meta_structures import (
     lc_term_to_node,
     meta_calculation_to_node,
 )
+from .language_detector import detect_language_profile
 
 __all__ = [
     "run_text",
@@ -103,4 +104,5 @@ __all__ = [
     "build_lc_meta_struct",
     "lc_term_to_node",
     "meta_calculation_to_node",
+    "detect_language_profile",
 ]

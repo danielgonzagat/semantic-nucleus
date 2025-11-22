@@ -28,6 +28,7 @@ from .math_bridge import maybe_route_math
 from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
+from .language_detector import detect_language_profile, language_profile_to_node
 from .lc_omega import MetaCalculation
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
@@ -61,6 +62,7 @@ class MetaTransformResult:
     lc_meta: Node | None = None
     meta_calculation: MetaCalculation | None = None
     phi_plan_ops: Tuple[str, ...] | None = None
+    language_profile: Node | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -88,6 +90,13 @@ class MetaTransformer:
     def transform(self, text_value: str) -> MetaTransformResult:
         """Executa o pipeline de roteamento determinístico."""
 
+        detection = detect_language_profile(text_value)
+        language_profile_node = language_profile_to_node(detection)
+        language_hint = (self.session.language_hint or "").lower() or None
+        if detection.category == "text" and detection.language:
+            language_hint = detection.language.lower()
+            self.session.language_hint = language_hint
+
         math_hook = maybe_route_math(text_value)
         if math_hook:
             plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
@@ -97,6 +106,7 @@ class MetaTransformer:
                 MetaRoute.MATH,
                 math_hook.reply.language,
                 text_value,
+                language_profile_node,
             )
             plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
             if plan_node is not None:
@@ -111,6 +121,7 @@ class MetaTransformer:
                 preseed_quality=math_hook.quality,
                 language_hint=math_hook.reply.language,
                 calc_plan=plan,
+                language_profile=language_profile_node,
             )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
@@ -123,6 +134,7 @@ class MetaTransformer:
                 MetaRoute.LOGIC,
                 self.session.language_hint,
                 text_value,
+                language_profile_node,
             )
             plan_node = _meta_plan_node(MetaRoute.LOGIC, None, plan)
             if plan_node is not None:
@@ -136,6 +148,7 @@ class MetaTransformer:
                 preseed_context=preseed_context,
                 preseed_quality=logic_hook.quality,
                 calc_plan=plan,
+                language_profile=language_profile_node,
             )
 
         code_hook = maybe_route_code(text_value)
@@ -146,6 +159,7 @@ class MetaTransformer:
                 MetaRoute.CODE,
                 code_hook.language,
                 text_value,
+                language_profile_node,
             )
             plan_node = _meta_plan_node(MetaRoute.CODE, None, plan)
             if plan_node is not None:
@@ -160,6 +174,7 @@ class MetaTransformer:
                 preseed_quality=code_hook.quality,
                 language_hint=code_hook.language,
                 calc_plan=plan,
+                language_profile=language_profile_node,
             )
 
         instinct_hook = maybe_route_text(text_value)
@@ -171,6 +186,7 @@ class MetaTransformer:
                 MetaRoute.INSTINCT,
                 instinct_hook.reply_plan.language,
                 text_value,
+                language_profile_node,
             )
             plan_node = _meta_plan_node(MetaRoute.INSTINCT, None, plan)
             if plan_node is not None:
@@ -185,9 +201,10 @@ class MetaTransformer:
                 preseed_quality=instinct_hook.quality,
                 language_hint=instinct_hook.reply_plan.language,
                 calc_plan=plan,
+                language_profile=language_profile_node,
             )
 
-        language = (self.session.language_hint or "pt").lower()
+        language = (language_hint or "pt").lower()
         lexicon = self._effective_lexicon()
         tokens = tokenize(text_value, lexicon)
         struct_node = build_struct(tokens, language=language, text_input=text_value)
@@ -201,6 +218,7 @@ class MetaTransformer:
             MetaRoute.TEXT,
             language,
             text_value,
+            language_profile_node,
         )
         if lc_meta_node is not None:
             meta_context = tuple((*meta_context, lc_meta_node))
@@ -223,6 +241,7 @@ class MetaTransformer:
             lc_meta=lc_meta_node,
             meta_calculation=lc_parsed.calculus if lc_parsed else None,
             phi_plan_ops=phi_plan_ops,
+            language_profile=language_profile_node,
         )
 
     def _effective_lexicon(self):
@@ -237,10 +256,15 @@ class MetaTransformer:
         route: MetaRoute,
         language: str | None,
         text_value: str,
+        language_profile: Node | None,
     ) -> Tuple[Node, ...]:
         route_node = _meta_route_node(route, language)
         input_node = _meta_input_node(text_value)
-        extra = (route_node, input_node)
+        extra: Tuple[Node, ...]
+        if language_profile is not None:
+            extra = (route_node, input_node, language_profile)
+        else:
+            extra = (route_node, input_node)
         if base_context:
             return tuple((*base_context, *extra))
         return extra
