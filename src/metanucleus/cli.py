@@ -238,6 +238,18 @@ def build_parser() -> argparse.ArgumentParser:
         "--suite-file",
         help="arquivo JSON com testes personalizados",
     )
+
+    snapshot_cmd = sub.add_parser(
+        "snapshot",
+        help="Exporta ou importa snapshots de estado.",
+    )
+    snapshot_cmd.add_argument("action", choices=["export", "import"])
+    snapshot_cmd.add_argument("path")
+
+    metrics_cmd = sub.add_parser(
+        "metrics",
+        help="Exibe métricas do runtime.",
+    )
     return parser
 
 
@@ -307,6 +319,15 @@ def main(argv: Iterable[str] | None = None) -> int:
                     line += f" diffs={diffs}"
                 print(line)
         return 0 if failed == 0 else 2
+    if args.command == "snapshot":
+        runtime = MetaRuntime(state=MetaState())
+        return_code = runtime.handle_request(f"/snapshot {args.action} {args.path}")
+        print(return_code)
+        return 0
+    if args.command == "metrics":
+        runtime = MetaRuntime(state=MetaState())
+        print(runtime.handle_request("/metrics"))
+        return 0
 
     parser.print_help()
     return 0

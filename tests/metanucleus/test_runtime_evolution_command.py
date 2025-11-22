@@ -115,9 +115,17 @@ def test_snapshot_command_writes_file(tmp_path):
     )
     snapshot_path = tmp_path / "snapshot.json"
 
-    output = runtime.handle_request(f"/snapshot {snapshot_path}")
+    output = runtime.handle_request(f"/snapshot export {snapshot_path}")
 
-    assert "Snapshot gravado" in output
+    assert "Snapshot exportado" in output
     data = json.loads(snapshot_path.read_text(encoding="utf-8"))
     assert data["meta_history"]
     assert data["evolution_log"]
+
+    # import snapshot
+    runtime.state.meta_history.clear()
+    runtime.state.evolution_log.clear()
+    output = runtime.handle_request(f"/snapshot import {snapshot_path}")
+    assert "importado" in output
+    assert runtime.state.meta_history
+    assert runtime.state.evolution_log

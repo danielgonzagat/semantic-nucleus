@@ -117,3 +117,22 @@ def test_cli_testcore_suite_file(tmp_path, capsys):
     captured = capsys.readouterr()
     assert exit_code in (0, 2)
     assert suite_file.name in captured.out
+
+
+def test_cli_snapshot_and_metrics(tmp_path, capsys):
+    snapshot = tmp_path / "snap.json"
+    exit_code = main(["snapshot", "export", str(snapshot)])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "exportado" in captured.out
+    assert snapshot.exists()
+
+    exit_code = main(["snapshot", "import", str(snapshot)])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "importado" in captured.out
+
+    exit_code = main(["metrics"])
+    captured = capsys.readouterr()
+    assert exit_code == 0
+    assert "META-METRICS" in captured.out

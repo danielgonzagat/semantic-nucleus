@@ -99,6 +99,8 @@ class MetaRuntime:
             return self._handle_snapshot_command(command)
         if command.startswith("/evolutions"):
             return self._handle_evolutions_command(command)
+        if command.startswith("/metrics"):
+            return self._handle_metrics_command()
         return f"[META] Comando desconhecido: {command}"
 
     def _format_state(self) -> str:
@@ -453,21 +455,48 @@ class MetaRuntime:
         if len(self.state.evolution_log) > limit:
             del self.state.evolution_log[:-limit]
 
+    def _handle_metrics_command(self) -> str:
+        return (
+            "[META-METRICS] "
+            f"state_id={self.state.id} "
+            f"cycles={self.state.metrics.total_cycles} "
+            f"requests={self.state.metrics.total_requests} "
+            f"context={len(self.state.isr.context)} "
+            f"evolutions={len(self.state.evolution_log)} "
+            f"last_updated={self.state.last_updated_at}"
+        )
+
     def _handle_snapshot_command(self, command: str) -> str:
-        parts = command.split(maxsplit=1)
-        if len(parts) == 1 or not parts[1].strip():
-            return "[META] Uso: /snapshot caminho/arquivo.json"
-        path = Path(parts[1].strip()).expanduser()
+        parts = command.split()
+        if len(parts) < 3:
+            return "[META] Uso: /snapshot export|import caminho/arquivo.json"
+        action = parts[1].lower()
+        path = Path(parts[2]).expanduser()
         if not path.is_absolute():
             path = Path.cwd() / path
-        payload = {
-            "state_id": self.state.id,
-            "timestamp": time(),
-            "meta_history": self.state.meta_history,
-            "evolution_log": self.state.evolution_log,
-        }
-        path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
-        return f"[META] Snapshot gravado em {path}"
+        if action == "export":
+            payload = {
+                "state_id": self.state.id,
+                "timestamp": time(),
+                "meta_history": self.state.meta_history,
+                "evolution_log": self.state.evolution_log,
+            }
+            path.write_text(
+                json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8"
+            )
+            return f"[META] Snapshot exportado para {path}"
+        if action == "import":
+            if not path.exists():
+                return f"[META] Snapshot não encontrado: {path}"
+            try:
+                payload = json.loads(path.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                return f"[META] Snapshot inválido: {exc}"
+            self.state.meta_history = payload.get("meta_history", [])
+            self.state.evolution_log = payload.get("evolution_log", [])
+            self.state.touch()
+            return f"[META] Snapshot importado de {path}"
+        return "[META] Ação inválida. Use export ou import."
 
     def _handle_evolutions_command(self, command: str) -> str:
         parts = command.split()
