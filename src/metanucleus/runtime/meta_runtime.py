@@ -10,6 +10,7 @@ from typing import Tuple
 
 from metanucleus.core.liu import Node, NodeKind, op
 from metanucleus.core.state import MetaState, register_utterance_relation
+from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.test.testcore import run_test_suite
 from .adapters import TextInputAdapter, CodeInputAdapter, classify_input, InputKind
 from .renderer import OutputRenderer
@@ -144,7 +145,8 @@ class MetaRuntime:
             del self.state.meta_history[:-limit]
 
     def _run_builtin_testcore(self, as_json: bool = False) -> str:
-        temp_runtime = MetaRuntime(state=MetaState())
+        sandbox = MetaSandbox.from_state(self.state)
+        temp_runtime = sandbox.spawn_runtime()
         results = run_test_suite(temp_runtime, BASIC_RUNTIME_SUITE)
         total = len(results)
         passed = sum(1 for r in results if r.passed)
