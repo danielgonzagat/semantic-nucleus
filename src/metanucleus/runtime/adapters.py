@@ -7,8 +7,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from enum import Enum
 
-from metanucleus.core.liu import Node, struct, text
-from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
+from metanucleus.core.liu import Node, text
+from metanucleus.lang.lxu_pse import parse_utterance
 
 
 class InputKind(str, Enum):
@@ -31,12 +31,10 @@ class TextInputAdapter:
     default_lang: str = "pt"
 
     def to_liu(self, raw: str, lang: str | None = None) -> Node:
+        utterance = parse_utterance(raw)
         language = (lang or self.default_lang).lower()
-        tokens = tokenize(raw)
-        return struct(
-            kind=text("utterance"),
-            lang=text(language),
-            content=text(raw),
-            tokens=tokens_to_struct(tokens),
-            length=text(str(len(tokens))),
-        )
+        utterance.fields["lang"] = text(language)
+        # compat: garantir campo content
+        if "content" not in utterance.fields:
+            utterance.fields["content"] = text(raw)
+        return utterance

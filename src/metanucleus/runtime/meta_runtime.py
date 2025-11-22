@@ -44,7 +44,6 @@ class MetaRuntime:
         # manter fila determinística: normalize → answer
         isr.ops_queue.append(op("NORMALIZE"))
         isr.ops_queue.append(op("INTENT", msg))
-        isr.ops_queue.append(op("ANSWER", msg))
 
     def _handle_control(self, command: str) -> str:
         if command.startswith("/facts"):

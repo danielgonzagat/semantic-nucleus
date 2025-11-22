@@ -1,137 +1,369 @@
 """
-Operadores Φ determinísticos (versão mínima).
+Operadores Φ determinísticos (versão 1.0).
 """
 
 from __future__ import annotations
 
 import ast
 import operator
-from typing import Tuple
+from typing import Iterable, List, Optional
+
+from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
 
 from .liu import Node, NodeKind, struct, text, op, number, rel
 from .state import MetaState, _rel_signature
 
 
-def apply_phi(state: MetaState, operator: Node) -> None:
-    """
-    Despacha a operação Φ apropriada.
-    """
-
-    if operator.kind is not NodeKind.OP:
+def apply_phi(state: MetaState, operator_node: Node) -> None:
+    if operator_node.kind is not NodeKind.OP:
         return
-    label = (operator.label or "").upper()
-    args = tuple(operator.args)
+    label = (operator_node.label or "").upper()
+    args = tuple(operator_node.args)
 
     if label == "NORMALIZE":
-        phi_normalize(state, args)
+        phi_normalize(state)
     elif label == "INTENT":
         phi_intent(state, args)
+    elif label == "LANGUAGE":
+        phi_language(state, args)
     elif label == "STRUCTURE":
         phi_structure(state, args)
     elif label == "SEMANTICS":
         phi_semantics(state, args)
     elif label == "CALCULUS":
         phi_calculus(state, args)
+    elif label == "EQUIVALENCE":
+        phi_equivalence(state, args)
+    elif label == "DETERMINE":
+        phi_determine(state, args)
     elif label == "ANSWER":
         phi_answer(state, args)
 
 
-def phi_normalize(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Versão mínima: limita o tamanho do contexto e melhora qualidade.
-    """
-
+def phi_normalize(state: MetaState) -> None:
     isr = state.isr
-    max_ctx = 16
+    max_ctx = 32
     if len(isr.context) > max_ctx:
         isr.context = isr.context[-max_ctx:]
-    isr.quality = min(1.0, isr.quality + 0.05)
+    isr.quality = min(1.0, isr.quality + 0.02)
 
 
-def phi_intent(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Clasifica a intenção básica da utterance (saudação, pergunta, etc.).
-    """
-
+def phi_intent(state: MetaState, args: tuple[Node, ...]) -> None:
     if not args:
         return
     msg = args[0]
     if msg.kind is not NodeKind.STRUCT:
         return
-    intent = _classify_intent(_content_text(msg))
-    msg.fields["intent"] = text(intent)
-    state.isr.quality = min(1.0, state.isr.quality + 0.1)
-    # garantir pipeline: STRUCTURE -> SEMANTICS antes do ANSWER restante
-    isr = state.isr
-    isr.ops_queue.insert(0, op("SEMANTICS", msg))
-    isr.ops_queue.insert(0, op("STRUCTURE", msg))
+
+    intent = _as_text(_field(msg, "intent"))
+    raw = _content_text(msg)
+
+    if not intent:
+        normalized = raw.lower()
+        if any(normalized.startswith(greet) for greet in ("oi", "olá", "ola", "hello", "hi", "hey", "bom dia", "boa tarde", "boa noite")):
+            intent = "greeting"
+        elif "?" in normalized:
+            intent = "question"
+        elif normalized.split(" ", 1)[0] in {"faça", "faz", "cria", "gera", "show", "do"}:
+            intent = "command"
+        else:
+            intent = "statement"
+        msg = _with_field(msg, "intent", text(intent))
+
+    # injeta novamente no contexto para facilitar debug
+    state.isr.context.append(msg)
+
+    # pipeline Φ em ordem determinística
+    plan = [
+        op("LANGUAGE", msg),
+        op("STRUCTURE", msg),
+        op("SEMANTICS", msg),
+        op("CALCULUS", msg),
+        op("EQUIVALENCE", msg),
+        op("DETERMINE", msg),
+        op("ANSWER", msg),
+    ]
+    for operation in reversed(plan):
+        state.isr.ops_queue.insert(0, operation)
+
+    state.isr.quality = min(1.0, state.isr.quality + 0.05)
 
 
-def phi_answer(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Produz uma resposta textual determinística baseada no último input.
-    """
+def phi_language(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
 
+    lang = _guess_lang(msg)
+    msg = _with_field(msg, "lang", text(lang))
+    msg = _with_field(msg, "lang_code", text(lang))
+    state.isr.context.append(msg)
+    state.isr.quality = min(1.0, state.isr.quality + 0.02)
+
+
+def phi_structure(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+
+    tokens_node = _field(msg, "tokens")
+    if tokens_node is None or tokens_node.kind is not NodeKind.STRUCT:
+        raw = _content_text(msg)
+        toks = tokenize(raw)
+        tokens_node = tokens_to_struct(toks)
+        msg = _with_field(msg, "tokens", tokens_node)
+
+    token_count = len(tokens_node.fields)
+    msg = _with_field(msg, "length", text(str(token_count)))
+
+    state.isr.context.append(msg)
+    state.isr.quality = min(1.0, state.isr.quality + 0.03)
+
+
+def phi_semantics(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+
+    tokens = _token_list(_field(msg, "tokens"))
+    lang = _guess_lang(msg)
+    has_math = any(ch.isdigit() for ch in _content_text(msg)) and any(op in _content_text(msg) for op in "+-*/")
+    logic_ops = _detect_logic_ops(tokens, lang)
+    unique_tokens = len(set(token.lower() for token in tokens if token))
+    semantic_cost = unique_tokens + len(tokens) * 0.5 + len(logic_ops) * 2 + (2 if has_math else 0)
+
+    intent = _as_text(_field(msg, "intent"))
+    raw = _content_text(msg)
+    if has_math and ("?" in raw or intent == "question"):
+        semantic_kind = "math_question"
+    elif intent == "greeting":
+        semantic_kind = "greeting"
+    elif intent == "command":
+        semantic_kind = "command"
+    elif intent == "question" or "?" in raw:
+        semantic_kind = "question"
+    else:
+        semantic_kind = "statement"
+
+    semantics_struct = struct(
+        kind=text("semantics"),
+        semantic_kind=text(semantic_kind),
+        semantic_cost=number(float(semantic_cost)),
+        tokens_count=number(float(len(tokens))),
+        unique_tokens=number(float(unique_tokens)),
+        has_math=text("true" if has_math else "false"),
+        logic_ops=_list_node(text(op_name) for op_name in logic_ops),
+    )
+    msg = _with_field(msg, "semantics", semantics_struct)
+    state.isr.context.append(msg)
+    state.isr.quality = min(1.0, state.isr.quality + 0.04)
+
+
+def phi_calculus(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+
+    raw = _content_text(msg)
+    expr = _extract_math_expr(raw)
+    solved = False
+    result_node = struct(kind=text("empty"))
+    cost_expr = 0
+
+    if expr:
+        try:
+            value = _safe_eval_math(expr)
+            result_node = number(float(value))
+            solved = True
+            try:
+                tree = ast.parse(expr, mode="eval")
+                cost_expr = sum(1 for _ in ast.walk(tree))
+            except Exception:
+                cost_expr = 0
+            fact = rel("EQUALS", text(expr), number(float(value)))
+            state.isr.relations.add(_rel_signature(fact))
+        except ValueError:
+            solved = False
+
+    calculus_struct = struct(
+        kind=text("meta_calculus"),
+        has_math=text("true" if expr else "false"),
+        expression=text(expr),
+        result=result_node if solved else text(""),
+        cost_expr=number(float(cost_expr)),
+        cost_struct=number(float(_node_complexity(msg))),
+        solved=text("true" if solved else "false"),
+    )
+    msg = _with_field(msg, "calculus", calculus_struct)
+    state.isr.context.append(msg)
+    state.isr.quality = min(1.0, state.isr.quality + (0.08 if solved else 0.02))
+
+
+def phi_equivalence(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+
+    calculus = _field(msg, "calculus")
+    if calculus is None or calculus.kind is not NodeKind.STRUCT:
+        return
+
+    expr = _as_text(calculus.fields.get("expression"))
+    result = calculus.fields.get("result")
+    solved = _as_text(calculus.fields.get("solved")) == "true"
+
+    if expr and result and result.kind is NodeKind.NUMBER and solved:
+        equivalence_text = f"{expr} = {result.value_num}"
+        msg = _with_field(msg, "equivalence", text(equivalence_text))
+        state.isr.context.append(msg)
+        state.isr.quality = min(1.0, state.isr.quality + 0.03)
+
+
+def phi_determine(state: MetaState, args: tuple[Node, ...]) -> None:
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+
+    semantics = _field(msg, "semantics")
+    semantic_kind = _as_text(semantics.fields.get("semantic_kind")) if semantics else ""
+
+    intent = _as_text(_field(msg, "intent"))
+    if semantic_kind == "math_question":
+        mode = "math_answer"
+    elif intent == "greeting":
+        mode = "greeting"
+    elif intent == "command":
+        mode = "command"
+    elif intent == "question":
+        mode = "qa"
+    else:
+        mode = "ack"
+
+    msg = _with_field(msg, "response_mode", text(mode))
+    state.isr.context.append(msg)
+    state.isr.quality = min(1.0, state.isr.quality + 0.02)
+
+
+def phi_answer(state: MetaState, args: tuple[Node, ...]) -> None:
     msg = args[0] if args else None
-    preview = _extract_preview(msg) if msg is not None else "entrada desconhecida"
-    intent = ""
-    semantic_kind = ""
+    if msg is None or msg.kind is not NodeKind.STRUCT:
+        state.isr.answer = struct(answer=text("[META] Entrada desconhecida."))
+        return
+
+    lang = _guess_lang(msg)
+    semantics = _field(msg, "semantics")
+    semantic_kind = _as_text(semantics.fields.get("semantic_kind")) if semantics else ""
     semantic_cost = 0.0
-    calc_result = None
-    calc_expr = ""
-    if msg and msg.kind is NodeKind.STRUCT:
-        intent_node = msg.fields.get("intent")
-        if intent_node and intent_node.kind is NodeKind.TEXT:
-            intent = intent_node.label or ""
-        semantics = msg.fields.get("semantics")
-        if semantics and semantics.kind is NodeKind.STRUCT:
-            sk = semantics.fields.get("semantic_kind")
-            if sk and sk.kind is NodeKind.TEXT and sk.label:
-                semantic_kind = sk.label
-            cost_node = semantics.fields.get("semantic_cost")
-            if cost_node and cost_node.kind is NodeKind.NUMBER and cost_node.value_num is not None:
-                semantic_cost = float(cost_node.value_num)
-        calculus = msg.fields.get("calculus")
-        if calculus and calculus.kind is NodeKind.STRUCT:
-            res = calculus.fields.get("result")
-            expr_node = calculus.fields.get("expression")
-            if res and res.kind is NodeKind.NUMBER and res.value_num is not None:
-                calc_result = res.value_num
-                calc_expr = expr_node.label if expr_node and expr_node.kind is NodeKind.TEXT else ""
+    if semantics:
+        cost_node = semantics.fields.get("semantic_cost")
+        if cost_node and cost_node.kind is NodeKind.NUMBER and cost_node.value_num is not None:
+            semantic_cost = float(cost_node.value_num)
 
-    isr = state.isr
+    response_mode = _as_text(_field(msg, "response_mode"))
+    intent = _as_text(_field(msg, "intent"))
+    preview = _preview_text(msg)
+    calculus = _field(msg, "calculus")
 
-    if calc_result is not None:
-        ans_text = f"{calc_expr} = {calc_result}" if calc_expr else f"O resultado é {calc_result}"
+    if calculus is not None and calculus.kind is NodeKind.STRUCT:
+        solved = _as_text(calculus.fields.get("solved")) == "true"
+        expr = _as_text(calculus.fields.get("expression"))
+        result = calculus.fields.get("result")
+        if solved and result and result.kind is NodeKind.NUMBER and result.value_num is not None:
+            value = float(result.value_num)
+            value_str = str(int(value)) if value.is_integer() else str(value)
+            if lang == "pt":
+                ans_text = f"O resultado é {value_str} para {expr}."
+            else:
+                ans_text = f"The result is {value_str} for {expr}."
+            state.isr.answer = struct(answer=text(ans_text))
+            state.isr.quality = min(1.0, state.isr.quality + 0.15)
+            return
+
+    if response_mode == "greeting":
+        ans_text = "Olá! Sou o Metanúcleo determinístico. Prazer em te ouvir."
+    elif response_mode == "command":
+        ans_text = (
+            "Entendi isso como um comando. Vou tratar a instrução de forma determinística."
+            if lang == "pt"
+            else "I understood that as a command. I'll treat the instruction deterministically."
+        )
+    elif intent == "question" or response_mode == "qa":
+        short = " ".join(_token_list(_field(msg, "tokens"))[:10])
+        if semantic_kind == "math_question":
+            ans_text = (
+                f"Entendi que é uma pergunta matemática sobre \"{short}\". Estou analisando a expressão."
+                if lang == "pt"
+                else f"I see this is a math question about \"{short}\". I'm analysing the expression."
+            )
+        elif semantic_cost >= 20:
+            ans_text = (
+                f"Pergunta complexa registrada: \"{short}\". Vou decompô-la em partes menores."
+                if lang == "pt"
+                else f"Complex question captured: \"{short}\". I'll decompose it internally."
+            )
+        else:
+            ans_text = (
+                f"Pergunta registrada: \"{short}\"."
+                if lang == "pt"
+                else f"Question registered: \"{short}\"."
+            )
     elif intent == "greeting":
         ans_text = "Olá! Sou o Metanúcleo determinístico. Prazer em te ouvir."
-    elif semantic_kind == "question" or intent == "question":
-        if semantic_cost >= 15:
-            ans_text = f"Pergunta complexa registrada: {preview}"
-        else:
-            ans_text = f"Pergunta registrada: {preview}"
     else:
         ans_text = f"[META] Recebi: {preview}. Estou processando simbolicamente."
 
-    response = struct(answer=text(ans_text))
-    isr.answer = response
-    isr.quality = min(1.0, isr.quality + 0.2)
+    state.isr.answer = struct(answer=text(ans_text))
+    state.isr.quality = min(1.0, state.isr.quality + 0.08)
 
 
-def _extract_preview(msg: Node | None) -> str:
-    text_value = _content_text(msg)
-    if not text_value:
-        return "entrada desconhecida"
-    return text_value if len(text_value) <= 60 else text_value[:57] + "..."
+# ---------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------
 
 
-def _content_text(msg: Node | None) -> str:
+def _field(node: Node, name: str) -> Optional[Node]:
+    if node.kind is NodeKind.STRUCT:
+        return node.fields.get(name)
+    return None
+
+
+def _with_field(node: Node, name: str, value: Node) -> Node:
+    if node.kind is not NodeKind.STRUCT:
+        return node
+    node.fields[name] = value
+    return node
+
+
+def _as_text(node: Optional[Node]) -> str:
+    if node is None:
+        return ""
+    if node.kind is NodeKind.TEXT and node.label:
+        return node.label
+    if node.kind is NodeKind.NUMBER and node.value_num is not None:
+        return str(node.value_num)
+    return ""
+
+
+def _content_text(msg: Optional[Node]) -> str:
     if msg is None:
         return ""
     if msg.kind is NodeKind.STRUCT:
-        content = msg.fields.get("content") or msg.fields.get("raw")
-        if content and content.kind is NodeKind.TEXT and content.label:
-            return content.label
+        for key in ("content", "raw"):
+            candidate = msg.fields.get(key)
+            if candidate and candidate.kind is NodeKind.TEXT and candidate.label:
+                return candidate.label
     if msg.kind is NodeKind.TEXT and msg.label:
         return msg.label
     if msg.label:
@@ -139,147 +371,88 @@ def _content_text(msg: Node | None) -> str:
     return ""
 
 
-def _classify_intent(text_value: str) -> str:
-    normalized = text_value.lower().strip()
-    if not normalized:
-        return "statement"
-    greetings = {"oi", "olá", "ola", "hello", "hi", "hey", "bom dia", "boa tarde", "boa noite"}
-    for greet in greetings:
-        if normalized.startswith(greet):
-            return "greeting"
-    if "?" in normalized:
-        return "question"
-    return "statement"
+def _guess_lang(msg: Node) -> str:
+    lang_field = _field(msg, "lang")
+    lang = _as_text(lang_field)
+    if lang:
+        return lang.lower()
+    raw = _content_text(msg).lower()
+    if any(ch in raw for ch in "ãõáéíóúâêôç"):
+        return "pt"
+    return "en"
 
 
-def phi_structure(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Garante que a utterance tenha tokens e length.
-    Caso o adaptador tenha fornecido, apenas reforça a qualidade.
-    """
-
-    if not args:
-        return
-    msg = args[0]
-    if msg.kind is not NodeKind.STRUCT:
-        return
-    tokens = msg.fields.get("tokens")
-    length = msg.fields.get("length")
-    if tokens and length:
-        state.isr.quality = min(1.0, state.isr.quality + 0.05)
-        return
-    raw = _content_text(msg)
-    from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
-
-    toks = tokenize(raw)
-    msg.fields["tokens"] = tokens_to_struct(toks)
-    msg.fields["length"] = text(str(len(toks)))
-    state.isr.quality = min(1.0, state.isr.quality + 0.05)
-
-
-def phi_semantics(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Deriva rótulos semânticos simples e um custo determinístico.
-    """
-
-    if not args:
-        return
-    msg = args[0]
-    if msg.kind is not NodeKind.STRUCT:
-        return
-    raw = _content_text(msg)
-    tokens_struct = msg.fields.get("tokens")
-    tokens_list = _flatten_tokens(tokens_struct)
-    total_tokens = len(tokens_list)
-    unique_tokens = len({tok.lower() for tok in tokens_list})
-
-    has_math = any(ch.isdigit() for ch in raw) and any(op in raw for op in {"+", "-", "*", "/"} )
-    intent = msg.fields.get("intent")
-    intent_label = intent.label if intent and intent.kind is NodeKind.TEXT else ""
-
-    if has_math and ("?" in raw or intent_label == "question"):
-        semantic_kind = "math_question"
-    elif intent_label == "question" or "?" in raw:
-        semantic_kind = "question"
-    elif intent_label == "greeting":
-        semantic_kind = "greeting"
-    else:
-        semantic_kind = "statement"
-
-    semantic_cost = unique_tokens + total_tokens * 0.5
-    if has_math:
-        semantic_cost += 2
-
-    msg.fields["semantics"] = struct(
-        kind=text("semantics"),
-        semantic_kind=text(semantic_kind),
-        tokens_count=number(float(total_tokens)),
-        unique_tokens=number(float(unique_tokens)),
-        semantic_cost=number(float(semantic_cost)),
-        has_math=text("true" if has_math else "false"),
-    )
-    state.isr.quality = min(1.0, state.isr.quality + 0.05)
-    state.isr.ops_queue.insert(0, op("CALCULUS", msg))
-
-
-def _flatten_tokens(tokens_struct: Node | None) -> list[str]:
-    if tokens_struct is None or tokens_struct.kind is not NodeKind.STRUCT:
+def _token_list(tokens_node: Optional[Node]) -> List[str]:
+    if tokens_node is None or tokens_node.kind is not NodeKind.STRUCT:
         return []
-    flattened = []
-    for entry in tokens_struct.fields.values():
+    tokens: List[str] = []
+    for entry in tokens_node.fields.values():
         if entry.kind is NodeKind.STRUCT:
-            surface = entry.fields.get("surface")
-            if surface and surface.kind is NodeKind.TEXT and surface.label:
-                flattened.append(surface.label)
-    return flattened
+            surf = entry.fields.get("surface")
+            if surf and surf.kind is NodeKind.TEXT and surf.label:
+                tokens.append(surf.label)
+    return tokens
 
 
-def phi_calculus(state: MetaState, args: Tuple[Node, ...]) -> None:
-    """
-    Detecta expressões matemáticas simples e avalia de forma segura.
-    """
+def _preview_text(msg: Node, limit: int = 60) -> str:
+    text_value = _content_text(msg)
+    if not text_value:
+        return "entrada desconhecida"
+    return text_value if len(text_value) <= limit else text_value[: limit - 3] + "..."
 
-    if not args:
-        return
-    msg = args[0]
-    if msg.kind is not NodeKind.STRUCT:
-        return
-    expr = _extract_math_expr(_content_text(msg))
-    if not expr:
-        return
-    try:
-        value = _safe_eval(expr)
-    except ValueError:
-        return
-    calculus_struct = struct(
-        kind=text("calculus"),
-        expression=text(expr),
-        result=number(value),
-    )
-    msg.fields["calculus"] = calculus_struct
 
-    equivalence_text = f"{expr} = {value}"
-    msg.fields["equivalence"] = text(equivalence_text)
-    # registra relação simbólica
-    fact = rel("EQUALS", text(expr), number(value))
-    state.isr.relations.add(_rel_signature(fact))
+def _detect_logic_ops(tokens: Iterable[str], lang: str) -> List[str]:
+    lowered = [tok.lower() for tok in tokens]
+    ops = []
+    if lang == "en":
+        if "and" in lowered:
+            ops.append("AND")
+        if "or" in lowered:
+            ops.append("OR")
+        if "not" in lowered:
+            ops.append("NOT")
+        if "if" in lowered:
+            ops.append("IF")
+        if "then" in lowered:
+            ops.append("THEN")
+    else:
+        if "e" in lowered:
+            ops.append("AND")
+        if "ou" in lowered:
+            ops.append("OR")
+        if "não" in lowered or "nao" in lowered:
+            ops.append("NOT")
+        if "se" in lowered:
+            ops.append("IF")
+        if "então" in lowered or "entao" in lowered:
+            ops.append("THEN")
+    return ops
 
-    state.isr.quality = min(1.0, state.isr.quality + 0.08)
+
+def _list_node(items: Iterable[Node]) -> Node:
+    return Node(kind=NodeKind.LIST, args=list(items))
+
+
+def _node_complexity(node: Node) -> int:
+    if node.kind in {NodeKind.TEXT, NodeKind.NUMBER, NodeKind.BOOL, NodeKind.NIL}:
+        return 1
+    if node.kind in {NodeKind.LIST, NodeKind.REL, NodeKind.OP}:
+        return 1 + sum(_node_complexity(child) for child in node.args)
+    if node.kind is NodeKind.STRUCT:
+        return 1 + sum(_node_complexity(child) for child in node.fields.values())
+    return 1
 
 
 def _extract_math_expr(raw: str) -> str:
-    digits_seen = any(ch.isdigit() for ch in raw)
-    ops_seen = any(op in raw for op in {"+", "-", "*", "/", "%"})
-    if not (digits_seen and ops_seen):
+    digits = [idx for idx, ch in enumerate(raw) if ch.isdigit()]
+    if not digits:
         return ""
-    # pega substring entre primeiro e último dígito
-    first = next((i for i, ch in enumerate(raw) if ch.isdigit()), None)
-    last = next((i for i in range(len(raw) - 1, -1, -1) if raw[i].isdigit()), None)
-    if first is None or last is None or first >= last:
+    first, last = digits[0], digits[-1]
+    if first >= last:
         return ""
-    expr = raw[first : last + 1]
-    allowed = set("0123456789+-*/().% ")
-    cleaned = "".join(ch for ch in expr if ch in allowed)
+    snippet = raw[first : last + 1]
+    allowed = set("0123456789+-*/().,% ")
+    cleaned = "".join(ch for ch in snippet if ch in allowed)
     return cleaned.strip()
 
 
@@ -290,6 +463,7 @@ _BIN_OPS = {
     ast.Div: operator.truediv,
     ast.FloorDiv: operator.floordiv,
     ast.Mod: operator.mod,
+    ast.Pow: operator.pow,
 }
 
 _UNARY_OPS = {
@@ -298,24 +472,27 @@ _UNARY_OPS = {
 }
 
 
-def _safe_eval(expr: str) -> float:
-    tree = ast.parse(expr, mode="eval")
+def _safe_eval_math(expr: str) -> float:
+    try:
+        tree = ast.parse(expr, mode="eval")
+    except SyntaxError as exc:
+        raise ValueError("expressão inválida") from exc
 
     def _eval(node: ast.AST) -> float:
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return float(node.value)
-        if isinstance(node, ast.Num):  # py<3.8 compat
+        if isinstance(node, ast.Num):
             return float(node.n)
         if isinstance(node, ast.BinOp):
             op_type = type(node.op)
             if op_type not in _BIN_OPS:
                 raise ValueError("operador não permitido")
-            return _BIN_OPS[op_type](_eval(node.left), _eval(node.right))
+            return float(_BIN_OPS[op_type](_eval(node.left), _eval(node.right)))
         if isinstance(node, ast.UnaryOp):
             op_type = type(node.op)
             if op_type not in _UNARY_OPS:
                 raise ValueError("operador unário não permitido")
-            return _UNARY_OPS[op_type](_eval(node.operand))
-        raise ValueError("expressão inválida")
+            return float(_UNARY_OPS[op_type](_eval(node.operand)))
+        raise ValueError("nó não suportado")
 
     return _eval(tree.body)  # type: ignore[arg-type]
