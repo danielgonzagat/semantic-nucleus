@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, operation, fingerprint, struct as liu_struct, entity
+from liu import Node, operation, fingerprint
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -18,15 +18,11 @@ from .equation import (
     EquationSnapshotStats,
     snapshot_equation,
 )
-from .lex import tokenize, DEFAULT_LEXICON
 from .operators import apply_operator
-from .parser import build_struct
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
-from .ian_bridge import maybe_route_text
-from .math_bridge import maybe_route_math
-from .logic_bridge import maybe_route_logic
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
+from .meta_transformer import MetaTransformer
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -135,53 +131,16 @@ def run_text_with_explanation(
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
     _ensure_logic_engine(session)
-    lexicon = session.lexicon
-    if not (lexicon.synonyms or lexicon.pos_hint or lexicon.qualifiers or lexicon.rel_words):
-        lexicon = DEFAULT_LEXICON
-    math_hook = maybe_route_math(text)
-    if math_hook:
-        struct0 = math_hook.struct_node
-        preseed_answer = math_hook.answer_node
-        trace_hint = f"MATH[{math_hook.utterance.role}]"
-        preseed_context = math_hook.context_nodes
-        preseed_quality = math_hook.quality
-        session.language_hint = math_hook.reply.language
-    else:
-        engine = session.logic_engine
-        logic_hook = maybe_route_logic(text, engine=engine)
-        if logic_hook:
-            struct0 = logic_hook.struct_node
-            preseed_answer = logic_hook.answer_node
-            trace_hint = logic_hook.trace_label
-            preseed_context = logic_hook.context_nodes
-            preseed_quality = logic_hook.quality
-            session.logic_engine = logic_hook.result.engine
-            session.logic_serialized = logic_hook.snapshot
-        else:
-            instinct_hook = maybe_route_text(text)
-            if instinct_hook:
-                struct0 = instinct_hook.struct_node
-                preseed_answer = instinct_hook.answer_node
-                trace_hint = f"IAN[{instinct_hook.utterance.role}]"
-                preseed_context = instinct_hook.context_nodes
-                preseed_quality = instinct_hook.quality
-                session.language_hint = instinct_hook.reply_plan.language
-            else:
-                tokens = tokenize(text, lexicon)
-                language = (session.language_hint or "pt").lower()
-                struct0 = build_struct(tokens, language=language, text_input=text)
-                struct0 = _attach_language_field(struct0, language)
-                preseed_answer = None
-                trace_hint = None
-                preseed_context = None
-                preseed_quality = None
+    transformer = MetaTransformer(session)
+    meta = transformer.transform(text)
+    struct0 = meta.struct_node
     return run_struct_full(
         struct0,
         session,
-        preseed_answer=preseed_answer,
-        preseed_context=preseed_context,
-        preseed_quality=preseed_quality,
-        trace_hint=trace_hint,
+        preseed_answer=meta.preseed_answer,
+        preseed_context=meta.preseed_context,
+        preseed_quality=meta.preseed_quality,
+        trace_hint=meta.trace_label,
     )
 
 
@@ -372,16 +331,6 @@ def _audit_state(
     if not status.ok:
         trace.add_invariant_failure(label, status, stats)
     return snapshot, stats, status
-
-
-def _attach_language_field(node: Node, language: str | None) -> Node:
-    if not language:
-        return node
-    fields = dict(node.fields)
-    if "language" in fields:
-        return node
-    fields["language"] = entity(language)
-    return liu_struct(**fields)
 
 
 def _finalize_convergence(

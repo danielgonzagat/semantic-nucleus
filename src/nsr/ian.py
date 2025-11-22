@@ -441,18 +441,17 @@ class IANInstinct:
         if not has_question_mark or len(filtered) < 2:
             return None
         head = tuple(filtered[:3])
+        first_surface = (self._first_surface_with_semantics(tokens, "QUESTION_HOW") or "").upper()
         if head == PT_VERBOSE_SEQUENCE:
             if self._contains_french_verbose_marker(tokens):
                 return "QUESTION_HEALTH_VERBOSE_FR"
             return "QUESTION_HEALTH_VERBOSE"
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
-        if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+        if (head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG) and first_surface in {"COMO", "CÓMO"}:
             return "QUESTION_HEALTH_VERBOSE_ES"
-        if head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG:
-            first_surface = self._first_surface_with_semantics(tokens, "QUESTION_HOW")
-            if first_surface == "COME":
-                return "QUESTION_HEALTH_VERBOSE_IT"
+        if (head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG) and first_surface == "COME":
+            return "QUESTION_HEALTH_VERBOSE_IT"
         return None
 
     @staticmethod
