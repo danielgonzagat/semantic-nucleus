@@ -4,6 +4,8 @@ Operadores Φ determinísticos (versão mínima).
 
 from __future__ import annotations
 
+import ast
+import operator
 from typing import Tuple
 
 from .liu import Node, NodeKind, struct, text, op, number
@@ -28,6 +30,8 @@ def apply_phi(state: MetaState, operator: Node) -> None:
         phi_structure(state, args)
     elif label == "SEMANTICS":
         phi_semantics(state, args)
+    elif label == "CALCULUS":
+        phi_calculus(state, args)
     elif label == "ANSWER":
         phi_answer(state, args)
 
@@ -73,6 +77,8 @@ def phi_answer(state: MetaState, args: Tuple[Node, ...]) -> None:
     intent = ""
     semantic_kind = ""
     semantic_cost = 0.0
+    calc_result = None
+    calc_expr = ""
     if msg and msg.kind is NodeKind.STRUCT:
         intent_node = msg.fields.get("intent")
         if intent_node and intent_node.kind is NodeKind.TEXT:
@@ -85,11 +91,18 @@ def phi_answer(state: MetaState, args: Tuple[Node, ...]) -> None:
             cost_node = semantics.fields.get("semantic_cost")
             if cost_node and cost_node.kind is NodeKind.NUMBER and cost_node.value_num is not None:
                 semantic_cost = float(cost_node.value_num)
+        calculus = msg.fields.get("calculus")
+        if calculus and calculus.kind is NodeKind.STRUCT:
+            res = calculus.fields.get("result")
+            expr_node = calculus.fields.get("expression")
+            if res and res.kind is NodeKind.NUMBER and res.value_num is not None:
+                calc_result = res.value_num
+                calc_expr = expr_node.label if expr_node and expr_node.kind is NodeKind.TEXT else ""
 
     isr = state.isr
 
-    if semantic_kind == "math_question":
-        ans_text = f"Analisei sua expressão; trata-se de uma questão matemática: {preview}"
+    if calc_result is not None:
+        ans_text = f"{calc_expr} = {calc_result}" if calc_expr else f"O resultado é {calc_result}"
     elif intent == "greeting":
         ans_text = "Olá! Sou o Metanúcleo determinístico. Prazer em te ouvir."
     elif semantic_kind == "question" or intent == "question":
@@ -206,6 +219,7 @@ def phi_semantics(state: MetaState, args: Tuple[Node, ...]) -> None:
         has_math=text("true" if has_math else "false"),
     )
     state.isr.quality = min(1.0, state.isr.quality + 0.05)
+    state.isr.ops_queue.insert(0, op("CALCULUS", msg))
 
 
 def _flatten_tokens(tokens_struct: Node | None) -> list[str]:
@@ -218,3 +232,83 @@ def _flatten_tokens(tokens_struct: Node | None) -> list[str]:
             if surface and surface.kind is NodeKind.TEXT and surface.label:
                 flattened.append(surface.label)
     return flattened
+
+
+def phi_calculus(state: MetaState, args: Tuple[Node, ...]) -> None:
+    """
+    Detecta expressões matemáticas simples e avalia de forma segura.
+    """
+
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+    expr = _extract_math_expr(_content_text(msg))
+    if not expr:
+        return
+    try:
+        value = _safe_eval(expr)
+    except ValueError:
+        return
+    msg.fields["calculus"] = struct(
+        kind=text("calculus"),
+        expression=text(expr),
+        result=number(value),
+    )
+    msg.fields["equivalence"] = text(f"{expr} = {value}")
+    state.isr.quality = min(1.0, state.isr.quality + 0.08)
+
+
+def _extract_math_expr(raw: str) -> str:
+    digits_seen = any(ch.isdigit() for ch in raw)
+    ops_seen = any(op in raw for op in {"+", "-", "*", "/", "%"})
+    if not (digits_seen and ops_seen):
+        return ""
+    # pega substring entre primeiro e último dígito
+    first = next((i for i, ch in enumerate(raw) if ch.isdigit()), None)
+    last = next((i for i in range(len(raw) - 1, -1, -1) if raw[i].isdigit()), None)
+    if first is None or last is None or first >= last:
+        return ""
+    expr = raw[first : last + 1]
+    allowed = set("0123456789+-*/().% ")
+    cleaned = "".join(ch for ch in expr if ch in allowed)
+    return cleaned.strip()
+
+
+_BIN_OPS = {
+    ast.Add: operator.add,
+    ast.Sub: operator.sub,
+    ast.Mult: operator.mul,
+    ast.Div: operator.truediv,
+    ast.FloorDiv: operator.floordiv,
+    ast.Mod: operator.mod,
+}
+
+_UNARY_OPS = {
+    ast.UAdd: operator.pos,
+    ast.USub: operator.neg,
+}
+
+
+def _safe_eval(expr: str) -> float:
+    tree = ast.parse(expr, mode="eval")
+
+    def _eval(node: ast.AST) -> float:
+        if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
+            return float(node.value)
+        if isinstance(node, ast.Num):  # py<3.8 compat
+            return float(node.n)
+        if isinstance(node, ast.BinOp):
+            op_type = type(node.op)
+            if op_type not in _BIN_OPS:
+                raise ValueError("operador não permitido")
+            return _BIN_OPS[op_type](_eval(node.left), _eval(node.right))
+        if isinstance(node, ast.UnaryOp):
+            op_type = type(node.op)
+            if op_type not in _UNARY_OPS:
+                raise ValueError("operador unário não permitido")
+            return _UNARY_OPS[op_type](_eval(node.operand))
+        raise ValueError("expressão inválida")
+
+    return _eval(tree.body)  # type: ignore[arg-type]

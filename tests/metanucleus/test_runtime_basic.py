@@ -32,3 +32,8 @@ def test_tokens_are_injected(runtime):
 def test_question_receives_question_reply(runtime):
     output = runtime.handle_request("Pode me explicar o que é o Metanúcleo?")
     assert "Pergunta registrada" in output
+
+
+def test_math_question_returns_result(runtime):
+    output = runtime.handle_request("Quanto é 10 + 5?")
+    assert "10 + 5 = 15" in output or "resultado é 15" in output
