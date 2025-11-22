@@ -202,8 +202,11 @@ class DialogRule:
 
 TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÖØ-öø-ÿ0-9]+|[!?.,]")
 EN_GREETING_SURFACES = frozenset({"HI", "HELLO", "HEY"})
+ES_GREETING_SURFACES = frozenset({"HOLA"})
 PT_VERBOSE_SEQUENCE = ("QUESTION_HOW", "YOU", "BE_STATE")
 EN_VERBOSE_SEQUENCE = ("QUESTION_HOW", "BE_STATE", "YOU")
+ES_VERBOSE_SEQUENCE_SHORT = ("QUESTION_HOW", "BE_STATE")
+ES_VERBOSE_SEQUENCE_LONG = ("QUESTION_HOW", "BE_STATE", "YOU")
 
 
 @dataclass
@@ -285,18 +288,16 @@ class IANInstinct:
         return encode_word(token, self.char_to_code)
 
     def _infer_role(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
-        semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in tokens if not t.is_punctuation]
+        content_tokens = tuple(token for token in tokens if not token.is_punctuation)
+        semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in content_tokens]
         verbose_role = self._matches_verbose_health_question(tokens, semantics_seq)
         if verbose_role:
             return verbose_role, "STATE_QUERY"
+        health_role = self._health_question_role(content_tokens, semantics_seq)
+        if health_role:
+            return health_role, "STATE_QUERY"
         if self._contains_greeting(semantics_seq):
-            if self._contains_health_question(tokens, semantics_seq):
-                return "QUESTION_HEALTH", "STATE_QUERY"
-            if self._is_english_greeting(tokens):
-                return "GREETING_SIMPLE_EN", "GREETING_SIMPLE"
-            return "GREETING_SIMPLE", "GREETING_SIMPLE"
-        if self._contains_health_question(tokens, semantics_seq):
-            return "QUESTION_HEALTH", "STATE_QUERY"
+            return self._greeting_role(content_tokens), "GREETING_SIMPLE"
         state_role = self._detect_state_statement(tokens)
         if state_role == "POSITIVE":
             return "STATE_POSITIVE", "STATE_POSITIVE"
@@ -309,31 +310,48 @@ class IANInstinct:
         return any(item == "GREETING_SIMPLE" for item in semantics_seq)
 
     @staticmethod
-    def _contains_health_question(tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]) -> bool:
-        for idx in range(len(semantics_seq) - 1):
-            if semantics_seq[idx] == "ALL_THINGS" and semantics_seq[idx + 1] == "STATE_GOOD":
-                has_question_mark = any(tok.surface == "?" for tok in tokens)
-                return has_question_mark or True
-        return False
-
-    @staticmethod
     def _matches_verbose_health_question(
         tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]
     ) -> str | None:
         filtered = [sem for sem in semantics_seq if sem and sem != "GREETING_SIMPLE"]
-        has_question_mark = any(tok.surface == "?" for tok in tokens)
-        if not has_question_mark or len(filtered) < 3:
+        has_question_mark = any(token.surface == "?" for token in tokens)
+        if not has_question_mark or len(filtered) < 2:
             return None
         head = tuple(filtered[:3])
         if head == PT_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE"
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
+        if head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG:
+            return "QUESTION_HEALTH_VERBOSE_ES"
         return None
 
     @staticmethod
     def _is_english_greeting(tokens: Sequence[IANToken]) -> bool:
         return any((not token.is_punctuation) and token.normalized in EN_GREETING_SURFACES for token in tokens)
+
+    @staticmethod
+    def _is_spanish_greeting(tokens: Sequence[IANToken]) -> bool:
+        return any((not token.is_punctuation) and token.normalized in ES_GREETING_SURFACES for token in tokens)
+
+    def _greeting_role(self, tokens: Sequence[IANToken]) -> str:
+        if self._is_english_greeting(tokens):
+            return "GREETING_SIMPLE_EN"
+        if self._is_spanish_greeting(tokens):
+            return "GREETING_SIMPLE_ES"
+        return "GREETING_SIMPLE"
+
+    def _health_question_role(
+        self, tokens: Sequence[IANToken], semantics_seq: Sequence[str | None]
+    ) -> str | None:
+        for idx in range(len(semantics_seq) - 1):
+            if semantics_seq[idx] == "ALL_THINGS" and semantics_seq[idx + 1] == "STATE_GOOD":
+                first_surface = tokens[idx].normalized
+                second_surface = tokens[idx + 1].normalized
+                if first_surface.startswith("TODO") or second_surface == "BIEN":
+                    return "QUESTION_HEALTH_ES"
+                return "QUESTION_HEALTH"
+        return None
 
     @staticmethod
     def _detect_state_statement(tokens: Sequence[IANToken]) -> str | None:
@@ -370,19 +388,29 @@ class IANInstinct:
         lexicon = (
             Lexeme(lemma="OI", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("OI", "OLÁ", "OLA")),
             Lexeme(lemma="HI", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("HI", "HELLO", "HEY")),
+            Lexeme(lemma="HOLA", semantics="GREETING_SIMPLE", pos="INTERJ", forms=("HOLA",)),
             Lexeme(lemma="TUDO", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TUDO",)),
+            Lexeme(lemma="TODO", semantics="ALL_THINGS", pos="PRON_INDEF", forms=("TODO",)),
             Lexeme(lemma="BEM", semantics="STATE_GOOD", pos="ADV", forms=("BEM",)),
             Lexeme(lemma="FINE", semantics="STATE_GOOD", pos="ADJ", forms=("FINE", "GOOD")),
+            Lexeme(lemma="BIEN", semantics="STATE_GOOD", pos="ADV", forms=("BIEN",)),
             Lexeme(lemma="E", semantics="CONJ_AND", pos="CONJ", forms=("E",)),
+            Lexeme(lemma="Y", semantics="CONJ_AND", pos="CONJ", forms=("Y",)),
             Lexeme(lemma="VOCÊ", semantics="YOU", pos="PRON", forms=("VOCÊ", "VOCE")),
             Lexeme(lemma="YOU", semantics="YOU", pos="PRON", forms=("YOU",)),
+            Lexeme(lemma="TÚ", semantics="YOU", pos="PRON", forms=("TÚ", "TU")),
             Lexeme(lemma="EU", semantics="SELF", pos="PRON", forms=("EU",)),
             Lexeme(lemma="I", semantics="SELF", pos="PRON", forms=("I",)),
             Lexeme(lemma="SIM", semantics="AFFIRM", pos="ADV", forms=("SIM",)),
             Lexeme(lemma="NÃO", semantics="NEGATE", pos="ADV", forms=("NÃO", "NAO")),
-            Lexeme(lemma="COMO", semantics="QUESTION_HOW", pos="ADV", forms=("COMO",)),
+            Lexeme(lemma="COMO", semantics="QUESTION_HOW", pos="ADV", forms=("COMO", "CÓMO")),
             Lexeme(lemma="HOW", semantics="QUESTION_HOW", pos="ADV", forms=("HOW",)),
-            Lexeme(lemma="ESTAR", semantics="BE_STATE", pos="VERB", forms=("ESTÁ", "ESTA", "ESTOU", "ESTAS")),
+            Lexeme(
+                lemma="ESTAR",
+                semantics="BE_STATE",
+                pos="VERB",
+                forms=("ESTÁ", "ESTA", "ESTOU", "ESTAS", "ESTOY", "ESTÁS", "ESTAS"),
+            ),
             Lexeme(lemma="BE", semantics="BE_STATE", pos="VERB", forms=("ARE", "AM", "IS")),
             Lexeme(lemma="MAL", semantics="STATE_BAD", pos="ADV", forms=("MAL",)),
             Lexeme(lemma="RUIM", semantics="STATE_BAD", pos="ADJ", forms=("RUIM",)),
@@ -408,6 +436,12 @@ class IANInstinct:
                 surface_tokens=("hi",),
             ),
             DialogRule(
+                trigger_role="GREETING_SIMPLE_ES",
+                reply_role="GREETING_SIMPLE_ES_REPLY",
+                reply_semantics="GREETING_SIMPLE",
+                surface_tokens=("hola",),
+            ),
+            DialogRule(
                 trigger_role="QUESTION_HEALTH_VERBOSE",
                 reply_role="ANSWER_HEALTH_VERBOSE",
                 reply_semantics="STATE_GOOD_AND_RETURN",
@@ -418,6 +452,18 @@ class IANInstinct:
                 reply_role="ANSWER_HEALTH_VERBOSE_EN",
                 reply_semantics="STATE_GOOD_AND_RETURN",
                 surface_tokens=("i", "am", "fine", ",", "and", "you", "?"),
+            ),
+            DialogRule(
+                trigger_role="QUESTION_HEALTH_VERBOSE_ES",
+                reply_role="ANSWER_HEALTH_VERBOSE_ES",
+                reply_semantics="STATE_GOOD_AND_RETURN",
+                surface_tokens=("estoy", "bien", ",", "y", "tú", "?"),
+            ),
+            DialogRule(
+                trigger_role="QUESTION_HEALTH_ES",
+                reply_role="ANSWER_HEALTH_ES",
+                reply_semantics="STATE_GOOD_AND_RETURN",
+                surface_tokens=("todo", "bien", ",", "y", "tú", "?"),
             ),
             DialogRule(
                 trigger_role="STATE_POSITIVE",
