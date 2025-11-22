@@ -16,3 +16,14 @@ def test_runtime_handles_statement(runtime):
 def test_runtime_handles_greeting(runtime):
     output = runtime.handle_request("Oi Metanúcleo!")
     assert "Olá! Sou o Metanúcleo" in output
+
+
+def test_tokens_are_injected(runtime):
+    runtime.handle_request("Teste determinístico completo.")
+    isr = runtime.state.isr
+    utter = isr.context[-1]
+    assert utter.kind.name == "STRUCT"
+    assert "tokens" in utter.fields
+    tokens_struct = utter.fields["tokens"]
+    assert tokens_struct.kind.name == "STRUCT"
+    assert any(field.kind.name == "STRUCT" for field in tokens_struct.fields.values())

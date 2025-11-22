@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from typing import Tuple
 
-from .liu import Node, NodeKind, struct, text
+from .liu import Node, NodeKind, struct, text, op
 from .state import MetaState
 
 
@@ -24,6 +24,8 @@ def apply_phi(state: MetaState, operator: Node) -> None:
         phi_normalize(state, args)
     elif label == "INTENT":
         phi_intent(state, args)
+    elif label == "STRUCTURE":
+        phi_structure(state, args)
     elif label == "ANSWER":
         phi_answer(state, args)
 
@@ -53,6 +55,7 @@ def phi_intent(state: MetaState, args: Tuple[Node, ...]) -> None:
     intent = _classify_intent(_content_text(msg))
     msg.fields["intent"] = text(intent)
     state.isr.quality = min(1.0, state.isr.quality + 0.1)
+    state.isr.ops_queue.append(op("STRUCTURE", msg))
 
 
 def phi_answer(state: MetaState, args: Tuple[Node, ...]) -> None:
@@ -113,3 +116,28 @@ def _classify_intent(text_value: str) -> str:
     if "?" in normalized:
         return "question"
     return "statement"
+
+
+def phi_structure(state: MetaState, args: Tuple[Node, ...]) -> None:
+    """
+    Garante que a utterance tenha tokens e length.
+    Caso o adaptador tenha fornecido, apenas reforça a qualidade.
+    """
+
+    if not args:
+        return
+    msg = args[0]
+    if msg.kind is not NodeKind.STRUCT:
+        return
+    tokens = msg.fields.get("tokens")
+    length = msg.fields.get("length")
+    if tokens and length:
+        state.isr.quality = min(1.0, state.isr.quality + 0.05)
+        return
+    raw = _content_text(msg)
+    from metanucleus.lang.tokenizer import tokenize, tokens_to_struct
+
+    toks = tokenize(raw)
+    msg.fields["tokens"] = tokens_to_struct(toks)
+    msg.fields["length"] = text(str(len(toks)))
+    state.isr.quality = min(1.0, state.isr.quality + 0.05)
