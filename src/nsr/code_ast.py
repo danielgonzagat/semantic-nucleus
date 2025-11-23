@@ -7,9 +7,18 @@ from __future__ import annotations
 import ast
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Iterable
+from typing import Iterable, Tuple
 
-from liu import Node, entity, struct as liu_struct, list_node, text as liu_text, number, boolean, fingerprint
+from liu import (
+    Node,
+    entity,
+    struct as liu_struct,
+    list_node,
+    text as liu_text,
+    number,
+    boolean,
+    fingerprint,
+)
 
 MAX_AST_NODES = 512
 MAX_LITERAL_PREVIEW = 80
@@ -166,10 +175,17 @@ def _summary_nodes(counter: Counter) -> list[Node]:
 
 
 @dataclass(frozen=True)
+class CodeFunctionInfo:
+    name: str
+    param_count: int | None = None
+
+
+@dataclass(frozen=True)
 class CodeAstStats:
     language: str
     node_count: int
     function_count: int
+    functions: Tuple[CodeFunctionInfo, ...] = ()
 
 
 def compute_code_ast_stats(node: Node) -> CodeAstStats:
@@ -177,26 +193,46 @@ def compute_code_ast_stats(node: Node) -> CodeAstStats:
     language_field = fields.get("language")
     language = (language_field.label or "unknown").lower() if language_field else "unknown"
     node_count = _node_to_int(fields.get("node_count"))
-    fn_count = 0
+    functions: Tuple[CodeFunctionInfo, ...] = ()
     if language.startswith("python") and "root" in fields:
-        fn_count = _count_python_functions(fields["root"])
+        functions = tuple(_collect_python_functions(fields["root"]))
     else:
         functions_node = fields.get("functions")
         if functions_node and functions_node.kind.name == "LIST":
-            fn_count = len(functions_node.args)
-    return CodeAstStats(language=language or "unknown", node_count=node_count, function_count=fn_count)
+            functions = tuple(_collect_outline_functions(functions_node))
+    fn_count = len(functions)
+    if not fn_count and language.startswith("python") and "root" in fields:
+        fn_count = _count_python_functions(fields["root"])
+    return CodeAstStats(
+        language=language or "unknown",
+        node_count=node_count,
+        function_count=fn_count,
+        functions=functions,
+    )
 
 
 def build_code_ast_summary(node: Node, stats: CodeAstStats | None = None) -> Node:
     stats = stats or compute_code_ast_stats(node)
     digest = fingerprint(node)
-    return liu_struct(
-        tag=entity("code_ast_summary"),
-        language=entity(stats.language),
-        node_count=number(stats.node_count),
-        function_count=number(stats.function_count),
-        digest=entity(digest),
-    )
+    summary_fields = {
+        "tag": entity("code_ast_summary"),
+        "language": entity(stats.language),
+        "node_count": number(stats.node_count),
+        "function_count": number(stats.function_count),
+        "digest": entity(digest),
+    }
+    if stats.functions:
+        function_nodes = []
+        for info in stats.functions:
+            fn_fields = {
+                "tag": entity("code_function"),
+                "name": entity(info.name),
+            }
+            if info.param_count is not None:
+                fn_fields["param_count"] = number(info.param_count)
+            function_nodes.append(liu_struct(**fn_fields))
+        summary_fields["functions"] = list_node(function_nodes)
+    return liu_struct(**summary_fields)
 
 
 def _node_to_int(node: Node | None) -> int:
@@ -215,6 +251,60 @@ def _count_python_functions(root: Node) -> int:
         for child in children.args:
             count += _count_python_functions(child)
     return count
+
+
+def _collect_python_functions(root: Node) -> list[CodeFunctionInfo]:
+    infos: list[CodeFunctionInfo] = []
+
+    def _walk(node: Node) -> None:
+        if node.kind.name != "STRUCT":
+            return
+        fields = dict(node.fields)
+        type_field = fields.get("type")
+        if type_field and (type_field.label or "").lower() == "functiondef":
+            name = _extract_ast_field_value(node, "name")
+            if name:
+                infos.append(CodeFunctionInfo(name=name))
+        children = fields.get("children")
+        if children and children.kind.name == "LIST":
+            for child in children.args:
+                _walk(child)
+
+    _walk(root)
+    return infos
+
+
+def _extract_ast_field_value(node: Node, target: str) -> str:
+    fields_node = dict(node.fields).get("fields")
+    if not fields_node or fields_node.kind.name != "LIST":
+        return ""
+    for entry in fields_node.args:
+        entry_fields = dict(entry.fields)
+        name_field = entry_fields.get("name")
+        if name_field and (name_field.label or "").lower() == target.lower():
+            value_node = entry_fields.get("value")
+            if value_node and value_node.kind.name == "TEXT":
+                return _strip_quotes(value_node.label or "")
+    return ""
+
+
+def _strip_quotes(value: str) -> str:
+    if len(value) >= 2 and value[0] == value[-1] and value[0] in {"'", '"'}:
+        return value[1:-1]
+    return value
+
+
+def _collect_outline_functions(functions_node: Node) -> list[CodeFunctionInfo]:
+    infos: list[CodeFunctionInfo] = []
+    for entry in functions_node.args:
+        entry_fields = dict(entry.fields)
+        name_field = entry_fields.get("name")
+        if not name_field or not name_field.label:
+            continue
+        param_count_node = entry_fields.get("param_count")
+        count = int(param_count_node.value) if (param_count_node and param_count_node.value is not None) else None
+        infos.append(CodeFunctionInfo(name=name_field.label, param_count=count))
+    return infos
 
 
 __all__ = [

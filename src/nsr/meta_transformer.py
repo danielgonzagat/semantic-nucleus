@@ -521,6 +521,11 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         if fn_count is not None:
             result["code_summary_function_count"] = int(_value(fn_count))
         result["code_summary_digest"] = _label(summary_fields.get("digest"))
+        functions_node = summary_fields.get("functions")
+        if functions_node is not None and functions_node.kind.name == "LIST":
+            result["code_summary_functions"] = [
+                _label(_fields(entry).get("name")) for entry in functions_node.args
+            ]
     math_ast_node = nodes.get("math_ast")
     if math_ast_node is not None:
         math_fields = _fields(math_ast_node)

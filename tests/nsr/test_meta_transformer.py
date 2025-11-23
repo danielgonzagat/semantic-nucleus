@@ -150,6 +150,12 @@ def soma(x, y):
     assert summary_nodes, "expected code_ast_summary in preseed context"
     summary_fields = dict(summary_nodes[0].fields)
     assert summary_fields["function_count"].value >= 1
+    functions_node = summary_fields.get("functions")
+    assert functions_node is not None
+    assert functions_node.kind.name == "LIST"
+    fn_entry = functions_node.args[0]
+    fn_entry_fields = dict(fn_entry.fields)
+    assert fn_entry_fields["name"].label == "soma"
     assert summary_fields["digest"].label
     assert result.code_summary is not None
     assert dict(result.code_summary.fields)["tag"].label == "code_ast_summary"
@@ -269,6 +275,7 @@ def soma(x, y):
     assert summary_dict["code_ast_node_count"] >= 1
     assert summary_dict["code_summary_language"] == "python"
     assert summary_dict["code_summary_function_count"] >= 1
+    assert "soma" in summary_dict["code_summary_functions"]
 
 
 def test_meta_summary_includes_calc_exec_snapshot():

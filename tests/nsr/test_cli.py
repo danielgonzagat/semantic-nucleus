@@ -281,6 +281,8 @@ def soma(x, y):
     assert fields["language"]["label"] == "python"
     assert fields["function_count"]["value"] >= 1
     assert fields["digest"]["label"]
+    functions = fields["functions"]["args"]
+    assert any(entry["fields"]["name"]["label"] == "soma" for entry in functions)
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):

@@ -422,10 +422,16 @@ def soma(x, y):
     summary_fields = dict(outcome.code_summary.fields)
     assert summary_fields["function_count"].value >= 1
     assert summary_fields["digest"].label
+    functions_field = summary_fields.get("functions")
+    assert functions_field is not None
+    assert functions_field.kind.name == "LIST"
+    names = [dict(entry.fields)["name"].label for entry in functions_field.args]
+    assert "soma" in names
     assert outcome.meta_summary is not None
     meta_dict = meta_summary_to_dict(outcome.meta_summary)
     assert meta_dict["code_summary_function_count"] >= 1
     assert meta_dict["code_summary_digest"]
+    assert "soma" in meta_dict["code_summary_functions"]
 
 
 def test_text_route_with_detected_code_runs_rewrite(monkeypatch):

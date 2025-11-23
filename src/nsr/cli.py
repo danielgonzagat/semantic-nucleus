@@ -213,24 +213,29 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
     fn_count = None
     node_count = None
     language = None
+    function_names: list[str] | None = None
     if outcome.meta_summary:
         summary_dict = meta_summary_to_dict(outcome.meta_summary)
         digest = summary_dict.get("code_summary_digest") or None
         fn = summary_dict.get("code_summary_function_count")
         nc = summary_dict.get("code_summary_node_count")
         lang = summary_dict.get("code_summary_language")
+        fn_names = summary_dict.get("code_summary_functions")
         if fn is not None:
             fn_count = int(fn)
         if nc is not None:
             node_count = int(nc)
         if lang:
             language = lang
+        if isinstance(fn_names, list):
+            function_names = [str(item) for item in fn_names if isinstance(item, str)]
         if digest and fn_count is not None:
             return {
                 "digest": digest,
                 "function_count": fn_count,
                 "node_count": node_count,
                 "language": language,
+                "functions": function_names,
             }
     if outcome.code_summary is not None:
         summary_json = to_json(outcome.code_summary)
@@ -239,17 +244,29 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
         fn_node = fields.get("function_count")
         node_node = fields.get("node_count")
         lang_node = fields.get("language")
+        functions_node = fields.get("functions")
         if fn_node is not None:
             fn_count = int(fn_node.get("value", 0))
         if node_node is not None:
             node_count = int(node_node.get("value", 0))
         if lang_node is not None:
             language = lang_node.get("label")
+        if functions_node and functions_node.get("kind") == "LIST":
+            items = functions_node.get("args") or []
+            function_names = []
+            for item in items:
+                entry_fields = item.get("fields") or {}
+                name_field = entry_fields.get("name")
+                if name_field and name_field.get("label"):
+                    function_names.append(name_field["label"])
+        result = {
+            "digest": digest,
+            "function_count": fn_count,
+            "node_count": node_count,
+            "language": language,
+        }
+        if function_names:
+            result["functions"] = function_names
         if digest:
-            return {
-                "digest": digest,
-                "function_count": fn_count,
-                "node_count": node_count,
-                "language": language,
-            }
+            return result
     return None
