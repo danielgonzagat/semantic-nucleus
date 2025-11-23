@@ -19,6 +19,7 @@ from liu import (
     to_json,
     list_node,
     fingerprint,
+    from_json,
 )
 
 if TYPE_CHECKING:
@@ -33,7 +34,7 @@ from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
-from .code_ast import build_python_ast_meta
+from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
@@ -69,6 +70,7 @@ class MetaTransformResult:
     phi_plan_ops: Tuple[str, ...] | None = None
     language_profile: Node | None = None
     code_ast: Node | None = None
+    code_summary: Node | None = None
     math_ast: Node | None = None
 
 
@@ -178,6 +180,9 @@ class MetaTransformer:
                 text_value,
                 language_profile_node,
             )
+            summary_node = build_code_ast_summary(code_hook.ast_node) if code_hook.ast_node is not None else None
+            if summary_node is not None:
+                preseed_context = tuple((*preseed_context, summary_node))
             plan_node = _meta_plan_node(MetaRoute.CODE, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
@@ -193,6 +198,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=code_hook.ast_node,
+                code_summary=summary_node,
                 math_ast=None,
             )
 
@@ -250,10 +256,13 @@ class MetaTransformer:
             if filtered:
                 phi_plan_ops = filtered
         fallback_code_ast = None
+        code_summary = None
         if should_build_code_ast:
             fallback_code_ast = build_python_ast_meta(text_value)
             if fallback_code_ast is not None:
                 meta_context = tuple((*meta_context, fallback_code_ast))
+                code_summary = build_code_ast_summary(fallback_code_ast)
+                meta_context = tuple((*meta_context, code_summary))
         plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops, text_plan)
         if plan_context is not None:
             meta_context = tuple((*meta_context, plan_context))
@@ -269,6 +278,7 @@ class MetaTransformer:
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
             code_ast=fallback_code_ast,
+            code_summary=code_summary,
             math_ast=None,
         )
 
@@ -433,6 +443,8 @@ def build_meta_summary(
         nodes.append(meta.language_profile)
     if meta.code_ast is not None:
         nodes.append(meta.code_ast)
+    if meta.code_summary is not None:
+        nodes.append(meta.code_summary)
     if meta.math_ast is not None:
         nodes.append(meta.math_ast)
     if calc_result is not None:
@@ -499,6 +511,38 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         truncated_node = ast_fields.get("truncated")
         if truncated_node is not None:
             result["code_ast_truncated"] = (_label(truncated_node).lower() == "true")
+    code_summary_node = nodes.get("code_ast_summary")
+    if code_summary_node is not None:
+        summary_fields = _fields(code_summary_node)
+        result["code_summary_language"] = _label(summary_fields.get("language"))
+        node_count = summary_fields.get("node_count")
+        if node_count is not None:
+            result["code_summary_node_count"] = int(_value(node_count))
+        fn_count = summary_fields.get("function_count")
+        if fn_count is not None:
+            result["code_summary_function_count"] = int(_value(fn_count))
+        result["code_summary_digest"] = _label(summary_fields.get("digest"))
+        functions_node = summary_fields.get("functions")
+        if functions_node is not None and functions_node.kind.name == "LIST":
+            function_names: list[str] = []
+            function_details: list[dict[str, object]] = []
+            for entry in functions_node.args:
+                entry_fields = _fields(entry)
+                name = _label(entry_fields.get("name"))
+                if name:
+                    function_names.append(name)
+                detail: dict[str, object] = {"name": name}
+                param_count_node = entry_fields.get("param_count")
+                if param_count_node is not None:
+                    detail["param_count"] = int(_value(param_count_node))
+                params_node = entry_fields.get("parameters")
+                if params_node is not None and params_node.kind.name == "LIST":
+                    detail["parameters"] = [_label(arg) for arg in params_node.args]
+                function_details.append(detail)
+            if function_names:
+                result["code_summary_functions"] = function_names
+            if any(item.get("name") for item in function_details):
+                result["code_summary_function_details"] = function_details
     math_ast_node = nodes.get("math_ast")
     if math_ast_node is not None:
         math_fields = _fields(math_ast_node)
@@ -630,9 +674,34 @@ def _meta_calc_exec_node(calc_result: "MetaCalculationResult") -> Node | None:
         depth = snapshot.get("stack_depth")
         if isinstance(depth, (int, float)):
             fields["snapshot_stack_depth"] = number(depth)
+        if (summary_json := snapshot.get("code_summary")):
+            node = _json_to_node(summary_json)
+            if node is not None:
+                fields["code_summary"] = node
+        if (fn_names := snapshot.get("code_summary_functions")):
+            fields["code_summary_functions"] = list_node(entity(name) for name in fn_names)
+        if (fn_details := snapshot.get("code_summary_function_details")):
+            detail_nodes = []
+            for entry in fn_details:
+                detail_fields: dict[str, Node] = {"name": entity(str(entry.get("name", "")))}
+                if entry.get("param_count") is not None:
+                    detail_fields["param_count"] = number(int(entry["param_count"]))
+                params = entry.get("parameters")
+                if params:
+                    detail_fields["parameters"] = list_node(entity(str(p)) for p in params)
+                detail_nodes.append(liu_struct(**detail_fields))
+            if detail_nodes:
+                fields["code_summary_function_details"] = list_node(detail_nodes)
     return liu_struct(**fields)
 
 
 def _snapshot_digest(snapshot: dict[str, Any]) -> str:
     serialized = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
     return blake2b(serialized.encode("utf-8"), digest_size=16).hexdigest()
+
+
+def _json_to_node(payload: dict[str, Any]) -> Node | None:
+    try:
+        return from_json(json.dumps(payload))
+    except Exception:
+        return None

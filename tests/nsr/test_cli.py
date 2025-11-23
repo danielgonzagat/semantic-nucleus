@@ -209,6 +209,102 @@ def test_cli_expect_meta_digest_fails_on_mismatch(capsys):
         )
 
 
+def test_cli_expect_code_digest(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["code_summary_digest"]
+    assert digest
+    exit_code = nsr_cli.main(
+        [code, "--format", "json", "--include-meta", "--expect-code-digest", digest]
+    )
+    assert exit_code == 0
+
+
+def test_cli_expect_code_digest_fails_on_mismatch(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["code_summary_digest"]
+    bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
+    with pytest.raises(SystemExit):
+        nsr_cli.main(
+            [
+                code,
+                "--format",
+                "json",
+                "--include-meta",
+                "--expect-code-digest",
+                bad_digest,
+            ]
+        )
+
+
+def test_cli_expect_code_functions(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "1"])
+    assert exit_code == 0
+
+
+def test_cli_expect_code_functions_fails_on_mismatch(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    with pytest.raises(SystemExit):
+        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "2"])
+
+
+def test_cli_expect_code_function_name(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "soma"])
+    assert exit_code == 0
+
+
+def test_cli_expect_code_function_name_fails(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    with pytest.raises(SystemExit):
+        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "subtrai"])
+
+
+def test_cli_include_code_summary(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-code-summary"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    summary_raw = payload.get("code_summary")
+    assert summary_raw is not None
+    summary = json.loads(summary_raw)
+    fields = summary["fields"]
+    assert fields["language"]["label"] == "python"
+    assert fields["function_count"]["value"] >= 1
+    assert fields["digest"]["label"]
+    functions = fields["functions"]["args"]
+    assert any(entry["fields"]["name"]["label"] == "soma" for entry in functions)
+    params = functions[0]["fields"]["parameters"]["args"]
+    assert [arg["label"] for arg in params] == ["x", "y"]
+
+
 def test_cli_includes_lc_meta(capsys, monkeypatch):
     for target in (
         "maybe_route_math",

@@ -76,6 +76,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inclui o pacote `lc_meta` serializado quando o MetaTransformer produzir cálculo LC-Ω.",
     )
     parser.add_argument(
+        "--include-code-summary",
+        action="store_true",
+        help="Inclui o resumo de código (`code_ast_summary`) serializado quando disponível.",
+    )
+    parser.add_argument(
         "--calc-mode",
         choices=("hybrid", "plan_only", "skip"),
         default=None,
@@ -84,6 +89,20 @@ def _build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--expect-meta-digest",
         help="Verifica se o meta_digest calculado coincide com o valor informado; falha se divergir.",
+    )
+    parser.add_argument(
+        "--expect-code-digest",
+        help="Verifica se o code_summary_digest coincide com o valor informado (requer --include-meta e código detectado).",
+    )
+    parser.add_argument(
+        "--expect-code-functions",
+        type=int,
+        help="Verifica se o resumo de código detectou exatamente N funções.",
+    )
+    parser.add_argument(
+        "--expect-code-function-name",
+        action="append",
+        help="Garante que o resumo de código contém uma função com o nome informado (pode repetir a flag).",
     )
     return parser
 
@@ -123,6 +142,33 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("meta_digest indisponível para comparação.")
         if digest.lower() != args.expect_meta_digest.lower():
             raise SystemExit(f"meta_digest divergente: esperado {args.expect_meta_digest}, obtido {digest}.")
+    summary_data = _extract_code_summary_data(outcome)
+    if args.expect_code_digest:
+        if summary_data is None or not summary_data.get("digest"):
+            raise SystemExit("code_summary_digest indisponível para comparação.")
+        if summary_data["digest"].lower() != args.expect_code_digest.lower():
+            raise SystemExit(
+                f"code_summary_digest divergente: esperado {args.expect_code_digest}, obtido {summary_data['digest']}."
+            )
+    if args.expect_code_functions is not None:
+        if summary_data is None:
+            raise SystemExit("expect-code-functions requer um resumo de código (rota CODE ou --include-code-summary).")
+        fn_count = summary_data.get("function_count")
+        if fn_count is None:
+            raise SystemExit("Resumo de código não contém contagem de funções.")
+        if fn_count != args.expect_code_functions:
+            raise SystemExit(
+                f"code_summary_function_count divergente: esperado {args.expect_code_functions}, obtido {fn_count}."
+            )
+    if args.expect_code_function_name:
+        if summary_data is None or not summary_data.get("functions"):
+            raise SystemExit("expect-code-function-name requer um resumo de código (rota CODE ou --include-code-summary).")
+        functions = summary_data.get("functions") or []
+        missing = [name for name in args.expect_code_function_name if name not in functions]
+        if missing:
+            raise SystemExit(
+                f"Funções ausentes no resumo: {', '.join(sorted(set(missing)))}."
+            )
     payload = {
         "answer": outcome.answer,
         "quality": outcome.quality,
@@ -162,6 +208,8 @@ def main(argv: list[str] | None = None) -> int:
         payload["meta_calc"] = calc_payload
     if args.include_lc_meta and outcome.lc_meta is not None:
         payload["lc_meta"] = to_json(outcome.lc_meta)
+    if args.include_code_summary and outcome.code_summary is not None:
+        payload["code_summary"] = to_json(outcome.code_summary)
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
@@ -172,3 +220,109 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _extract_code_summary_data(outcome) -> dict[str, object] | None:
+    digest = None
+    fn_count = None
+    node_count = None
+    language = None
+    function_names: list[str] | None = None
+    function_details: list[dict[str, object]] | None = None
+    if outcome.meta_summary:
+        summary_dict = meta_summary_to_dict(outcome.meta_summary)
+        digest = summary_dict.get("code_summary_digest") or None
+        fn = summary_dict.get("code_summary_function_count")
+        nc = summary_dict.get("code_summary_node_count")
+        lang = summary_dict.get("code_summary_language")
+        fn_details = summary_dict.get("code_summary_function_details")
+        if isinstance(fn_details, list):
+            function_details = fn_details
+            function_names = [str(item.get("name")) for item in fn_details if item.get("name")]
+        fn_names = summary_dict.get("code_summary_functions")
+        if fn is not None:
+            fn_count = int(fn)
+        if nc is not None:
+            node_count = int(nc)
+        if lang:
+            language = lang
+        if function_names is None and isinstance(fn_names, list):
+            function_names = [str(item) for item in fn_names if isinstance(item, str)]
+        if digest and fn_count is not None:
+            return {
+                "digest": digest,
+                "function_count": fn_count,
+                "node_count": node_count,
+                "language": language,
+                "functions": function_names,
+                "function_details": function_details,
+            }
+    if outcome.code_summary is not None:
+        summary_json = json.loads(to_json(outcome.code_summary))
+        fields = summary_json.get("fields") or {}
+        digest = fields.get("digest", {}).get("label")
+        fn_node = fields.get("function_count")
+        node_node = fields.get("node_count")
+        lang_node = fields.get("language")
+        functions_node = fields.get("functions")
+        if fn_node is not None:
+            fn_count = int(fn_node.get("value", 0))
+        if node_node is not None:
+            node_count = int(node_node.get("value", 0))
+        if lang_node is not None:
+            language = lang_node.get("label")
+        function_details = None
+        if functions_node and functions_node.get("kind") == "LIST":
+            items = functions_node.get("args") or []
+            names: list[str] = []
+            details: list[dict[str, object]] = []
+            for item in items:
+                entry_fields = item.get("fields") or {}
+                name_field = entry_fields.get("name")
+                name_value = name_field.get("label") if name_field else ""
+                if name_value:
+                    names.append(name_value)
+                detail: dict[str, object] = {"name": name_value}
+                param_count_field = entry_fields.get("param_count")
+                if param_count_field and param_count_field.get("value") is not None:
+                    detail["param_count"] = int(param_count_field["value"])
+                params_field = entry_fields.get("parameters")
+                if params_field and params_field.get("kind") == "LIST":
+                    detail["parameters"] = [arg.get("label", "") for arg in params_field.get("args", [])]
+                details.append(detail)
+            function_names = names
+            function_details = details
+        result = {
+            "digest": digest,
+            "function_count": fn_count,
+            "node_count": node_count,
+            "language": language,
+            "functions": function_names,
+            "function_details": function_details,
+        }
+        if digest:
+            return result
+    calc_result = getattr(outcome, "calc_result", None)
+    if calc_result and calc_result.snapshot:
+        snapshot = calc_result.snapshot
+        summary_json = snapshot.get("code_summary")
+        if summary_json:
+            fields = summary_json.get("fields") or {}
+            digest = fields.get("digest", {}).get("label")
+            fn_node = fields.get("function_count")
+            node_node = fields.get("node_count")
+            lang_node = fields.get("language")
+            fn_count = int(fn_node.get("value", 0)) if fn_node and fn_node.get("value") is not None else None
+            node_count = int(node_node.get("value", 0)) if node_node and node_node.get("value") is not None else None
+            language = lang_node.get("label") if lang_node else None
+            function_names = snapshot.get("code_summary_functions")
+            function_details = snapshot.get("code_summary_function_details")
+            return {
+                "digest": digest,
+                "function_count": fn_count,
+                "node_count": node_count,
+                "language": language,
+                "functions": function_names,
+                "function_details": function_details,
+            }
+    return None

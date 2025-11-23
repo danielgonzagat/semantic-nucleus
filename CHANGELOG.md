@@ -23,6 +23,10 @@ Todas as mudanças relevantes neste repositório serão documentadas aqui.
 - Conversão estruturada de código: `nsr.code_ast.build_python_ast_meta` serializa ASTs Python para LIU (`code_ast`) e `nsr.code_ast.build_rust_ast_meta` gera outlines determinísticos para Rust (funções, parâmetros, retorno, corpo). O `code_bridge` usa esses nós como `code_ast` tanto na rota CODE quanto quando o detector sinaliza dialetos de código, expondo `code_ast_*` no `meta_summary`/CLI com contagens, linguagem e flag de truncamento.
 - Auditoria end-to-end: todo `meta_summary` agora carrega um `meta_digest` (BLAKE2b sobre rota/inputs/ASTs/meta_calc), exposto pelo CLI e pela API via `meta_summary_to_dict`, permitindo verificar que nenhuma etapa entre Meta-LER e Meta-Resultado foi adulterada.
 - Operador Φ `REWRITE_CODE`: detecta `code_ast` no contexto, gera resumos determinísticos (`code_ast_summary`) e relações `code/FUNCTION_COUNT`, aumentando a qualidade e preparando o Meta-PENSAR para reescritas formais antes de `Φ_NORMALIZE`/`Φ_INFER`.
+- MetaTransformer passa a gerar e propagar `code_ast_summary` durante o Meta-LER sempre que existir um `code_ast` (rotas CODE e TEXT com código detectado), anexando o resumo ao contexto inicial, ao `meta_summary` e ao `RunOutcome`; o runtime executa automaticamente `REWRITE_CODE`, garantindo que as estatísticas de código (inclusive o digest BLAKE2b do AST) apareçam no trace (`Φ_CODE[REWRITE_CODE]`) mesmo em execuções `plan_only`.
+- O `code_ast_summary` agora inclui a lista determinística de funções (nome + `param_count` quando disponível), permitindo auditar quais símbolos foram detectados pelo Meta-LER.
+- CLI `python -m nsr.cli` recebe `--expect-code-digest HEX`, permitindo validar deterministamente o `code_summary_digest` produzido pelo Meta-LER (útil para auditoria de snippets e pipelines externos).
+- CLI agora aceita `--expect-code-functions N`, `--expect-code-function-name NAME` (verificações estruturais) e `--include-code-summary` (injeta o `code_ast_summary` serializado no payload principal), possibilitando auditorias detalhadas sem depender apenas do `meta_summary`.
 
 ## [0.1.0] - 2025-11-21
 

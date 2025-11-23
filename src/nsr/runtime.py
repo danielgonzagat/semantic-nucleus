@@ -109,6 +109,7 @@ class RunOutcome:
     lc_meta: Node | None = None
     language_profile: Node | None = None
     code_ast: Node | None = None
+    code_summary: Node | None = None
     math_ast: Node | None = None
 
     @property
@@ -199,13 +200,23 @@ def run_struct_full(
         trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
     if plan_label:
         trace.add(plan_label, isr.quality, len(isr.relations), len(isr.context))
+    isr, code_label = _apply_code_rewrite_if_needed(isr, session, meta_info)
+    if code_label:
+        trace.add(code_label, isr.quality, len(isr.relations), len(isr.context))
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
         trace.halt(HaltReason.QUALITY_THRESHOLD, isr, finalized=True)
         calc_plan = meta_info.calc_plan if meta_info else None
         calc_result = (
-            execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
+            execute_meta_plan(
+                calc_plan,
+                struct_node,
+                session,
+                code_summary=meta_info.code_summary if meta_info else None,
+            )
+            if (calc_plan and plan_exec_enabled)
+            else None
         )
         calc_result = _validate_calc_result(calc_result, isr, trace)
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
@@ -236,6 +247,7 @@ def run_struct_full(
             lc_meta=meta_info.lc_meta if meta_info else None,
             language_profile=meta_info.language_profile if meta_info else None,
             code_ast=meta_info.code_ast if meta_info else None,
+            code_summary=meta_info.code_summary if meta_info else None,
             math_ast=meta_info.math_ast if meta_info else None,
         )
     steps = 0
@@ -329,7 +341,14 @@ def run_struct_full(
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
     calc_plan = meta_info.calc_plan if meta_info else None
     calc_result = (
-        execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
+        execute_meta_plan(
+            calc_plan,
+            struct_node,
+            session,
+            code_summary=meta_info.code_summary if meta_info else None,
+        )
+        if (calc_plan and plan_exec_enabled)
+        else None
     )
     calc_result = _validate_calc_result(calc_result, isr, trace)
     context_updated = _maybe_attach_calc_answer(isr, calc_result, meta_info)
@@ -359,6 +378,7 @@ def run_struct_full(
         lc_meta=meta_info.lc_meta if meta_info else None,
         language_profile=meta_info.language_profile if meta_info else None,
         code_ast=meta_info.code_ast if meta_info else None,
+        code_summary=meta_info.code_summary if meta_info else None,
         math_ast=meta_info.math_ast if meta_info else None,
     )
 
@@ -449,11 +469,22 @@ def _prime_ops_from_meta_calc(
     return f"Φ_PLAN[{operator}:{chain}]"
 
 
+def _apply_code_rewrite_if_needed(
+    isr: ISR,
+    session: SessionCtx,
+    meta_info: MetaTransformResult | None,
+) -> tuple[ISR, str | None]:
+    if meta_info is None or meta_info.code_ast is None:
+        return isr, None
+    updated = apply_operator(isr, operation("REWRITE_CODE"), session)
+    return updated, "Φ_CODE[REWRITE_CODE]"
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
         return None
-    calc_result = execute_meta_plan(plan, meta.struct_node, session)
+    calc_result = execute_meta_plan(plan, meta.struct_node, session, code_summary=meta.code_summary)
     if calc_result.answer is None:
         return None
     isr = initial_isr(meta.struct_node, session)
@@ -489,6 +520,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         lc_meta=meta.lc_meta,
         language_profile=meta.language_profile,
         code_ast=meta.code_ast,
+        code_summary=meta.code_summary,
         math_ast=meta.math_ast,
     )
 

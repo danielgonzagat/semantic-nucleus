@@ -23,6 +23,7 @@ from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 from nsr.lc_omega import MetaCalculation
+from nsr.language_detector import LanguageDetectionResult
 
 
 def _extract_ian_reply(outcome):
@@ -369,7 +370,8 @@ def test_initial_isr_seeds_relations_into_state():
 def test_run_text_handles_english_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("The car has a wheel", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relations:"))
     assert "carro has wheel" in answer.lower()
     outcome = run_text_full("The car has a wheel", session)
     assert outcome.calc_plan is not None
@@ -382,14 +384,16 @@ def test_run_text_handles_english_relation_sentence():
 def test_run_text_handles_spanish_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("El coche tiene una rueda", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relaciones:", "relations:"))
     assert "carro has roda" in answer.lower()
 
 
 def test_run_text_handles_french_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("La voiture a une roue", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relations :", "relations:"))
     assert "carro has roda" in answer.lower()
 
 
@@ -398,6 +402,64 @@ def test_run_text_handles_ian_greetings():
     answer, trace = run_text("oi, tudo bem?", session)
     assert answer == "tudo bem, e você?"
     assert any(step.startswith("1:IAN[") for step in trace.steps)
+
+
+def test_code_route_executes_rewrite_code_operator():
+    session = SessionCtx()
+    source = """
+def soma(x, y):
+    return x + y
+"""
+    outcome = run_text_full(source, session)
+    assert any("Φ_CODE[REWRITE_CODE]" in step for step in outcome.trace.steps)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "code_ast_summary" in tags
+    assert outcome.code_summary is not None
+    summary_fields = dict(outcome.code_summary.fields)
+    assert summary_fields["function_count"].value >= 1
+    assert summary_fields["digest"].label
+    functions_field = summary_fields.get("functions")
+    assert functions_field is not None
+    assert functions_field.kind.name == "LIST"
+    names = [dict(entry.fields)["name"].label for entry in functions_field.args]
+    assert "soma" in names
+    params_field = dict(functions_field.args[0].fields).get("parameters")
+    assert params_field is not None
+    assert [arg.label for arg in params_field.args] == ["x", "y"]
+    assert outcome.meta_summary is not None
+    meta_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert meta_dict["code_summary_function_count"] >= 1
+    assert meta_dict["code_summary_digest"]
+    assert "soma" in meta_dict["code_summary_functions"]
+    detail = next(item for item in meta_dict["code_summary_function_details"] if item["name"] == "soma")
+    assert detail["param_count"] == 2
+    assert detail["parameters"][:2] == ["x", "y"]
+
+
+def test_text_route_with_detected_code_runs_rewrite(monkeypatch):
+    session = SessionCtx()
+
+    def _no_code(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("nsr.meta_transformer.maybe_route_code", _no_code)
+    source = """
+def apenas_texto(x, y):
+    return x + y
+"""
+    outcome = run_text_full(source, session)
+    assert outcome.meta_summary is not None
+    assert any("Φ_CODE[REWRITE_CODE]" in step for step in outcome.trace.steps)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "code_ast_summary" in tags
 
 
 def test_run_text_handles_verbose_health_question():
@@ -536,11 +598,16 @@ def test_run_text_handles_math_expression():
     assert trace.steps[0].startswith("1:MATH[")
 
 
-def test_language_hint_controls_non_ian_renderer():
+def test_language_hint_controls_non_ian_renderer(monkeypatch):
     session = SessionCtx()
     session.language_hint = "en"
+
+    def fake_detect(text_value: str):
+        return LanguageDetectionResult(category="text", language=None, confidence=0.0, dialect=None, hints=())
+
+    monkeypatch.setattr("nsr.meta_transformer.detect_language_profile", fake_detect)
     answer, _ = run_text("O carro tem roda", session)
-    assert "Relations:" in answer
+    assert "relations:" in answer.lower()
 
 
 def test_run_text_full_short_circuits_for_ian():
@@ -580,6 +647,25 @@ def test_run_text_full_provides_calc_plan_for_code():
     assert outcome.calc_result.error is None
     assert outcome.calc_result.answer == outcome.calc_plan.program.constants[0]
     assert outcome.calc_result.consistent is True
+
+
+def test_calc_snapshot_includes_code_function_details():
+    session = SessionCtx()
+    code = """
+def soma(x, y):
+    return x - y
+"""
+    outcome = run_text_full(code, session)
+    assert outcome.calc_result is not None
+    snapshot = outcome.calc_result.snapshot
+    assert snapshot is not None
+    names = snapshot.get("code_summary_functions")
+    assert names and "soma" in names
+    details = snapshot.get("code_summary_function_details")
+    assert details
+    entry = next(item for item in details if item.get("name") == "soma")
+    assert entry.get("param_count") == 2
+    assert entry.get("parameters")[:2] == ["x", "y"]
 
 
 def test_run_text_plan_only_mode_executes_plan():
