@@ -9,6 +9,7 @@ from .meta_evolution import (
     build_patch_plans,
     build_patch_prompt,
 )
+from .meta_patch_generator import MetaPatchGenerator
 
 __all__ = [
     "EvolutionConfig",
@@ -18,4 +19,5 @@ __all__ = [
     "run_evolution_session",
     "build_patch_plans",
     "build_patch_prompt",
+    "MetaPatchGenerator",
 ]
