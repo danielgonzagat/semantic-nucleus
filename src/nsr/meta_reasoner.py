@@ -134,7 +134,7 @@ def _to_int(value: str | None) -> int | None:
     if value is None:
         return None
     try:
-        return int(float(value))
+        return int(value)
     except ValueError:
         return None
 
