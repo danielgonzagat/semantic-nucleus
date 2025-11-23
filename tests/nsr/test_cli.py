@@ -209,6 +209,45 @@ def test_cli_expect_meta_digest_fails_on_mismatch(capsys):
         )
 
 
+def test_cli_expect_code_digest(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["code_summary_digest"]
+    assert digest
+    exit_code = nsr_cli.main(
+        [code, "--format", "json", "--include-meta", "--expect-code-digest", digest]
+    )
+    assert exit_code == 0
+
+
+def test_cli_expect_code_digest_fails_on_mismatch(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    digest = payload["meta_summary"]["code_summary_digest"]
+    bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
+    with pytest.raises(SystemExit):
+        nsr_cli.main(
+            [
+                code,
+                "--format",
+                "json",
+                "--include-meta",
+                "--expect-code-digest",
+                bad_digest,
+            ]
+        )
+
+
 def test_cli_includes_lc_meta(capsys, monkeypatch):
     for target in (
         "maybe_route_math",

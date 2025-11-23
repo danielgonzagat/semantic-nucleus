@@ -85,6 +85,10 @@ def _build_parser() -> argparse.ArgumentParser:
         "--expect-meta-digest",
         help="Verifica se o meta_digest calculado coincide com o valor informado; falha se divergir.",
     )
+    parser.add_argument(
+        "--expect-code-digest",
+        help="Verifica se o code_summary_digest coincide com o valor informado (requer --include-meta e código detectado).",
+    )
     return parser
 
 
@@ -123,6 +127,17 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("meta_digest indisponível para comparação.")
         if digest.lower() != args.expect_meta_digest.lower():
             raise SystemExit(f"meta_digest divergente: esperado {args.expect_meta_digest}, obtido {digest}.")
+    if args.expect_code_digest:
+        if not outcome.meta_summary:
+            raise SystemExit("expect-code-digest requer meta_summary (use --include-meta).")
+        summary_dict = meta_summary_to_dict(outcome.meta_summary)
+        digest = summary_dict.get("code_summary_digest", "")
+        if not digest:
+            raise SystemExit("code_summary_digest indisponível para comparação.")
+        if digest.lower() != args.expect_code_digest.lower():
+            raise SystemExit(
+                f"code_summary_digest divergente: esperado {args.expect_code_digest}, obtido {digest}."
+            )
     payload = {
         "answer": outcome.answer,
         "quality": outcome.quality,
