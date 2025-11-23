@@ -42,12 +42,12 @@ def test_integration_semantics_calculus_auto_evolution_smoke() -> None:
     )
 
     try:
-        patches = kernel.run_auto_evolution_cycle(domains=["intent", "calculus"])
+        patches = kernel.run_auto_evolution_cycle(domains=["intent", "meta_calculus"])
     except RuntimeError as exc:
         pytest.skip(f"auto-evolution ainda não disponível: {exc!r}")
     assert isinstance(patches, list)
     for patch in patches:
-        assert patch.type in {"intent", "calculus"}
+        assert patch.type in {"intent", "meta_calculus"}
         assert patch.diff
 
 

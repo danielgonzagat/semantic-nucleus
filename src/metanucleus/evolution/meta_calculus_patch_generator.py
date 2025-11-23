@@ -1,5 +1,5 @@
 """
-Gera patches para `meta_calculus_rules.json` a partir dos mismatches registrados.
+Gera diffs determinísticos para `meta_calculus_rules.json` (versão data/).
 """
 
 from __future__ import annotations
