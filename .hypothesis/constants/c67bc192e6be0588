@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/meta_calculator.py
+# hypothesis_version: 6.148.2
+
+['answer', 'call_stack', 'execute_meta_plan', 'isr_digest', 'pc', 'register_values', 'registers', 'stack', 'stack_depth']

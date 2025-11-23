@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/parser.py
+# hypothesis_version: 6.148.2
+
+['!', '?', 'ACTION', 'ENTITY', 'QUALIFIER', 'RELWORD', 'action', 'both', 'build_struct', 'canonical', 'command', 'imperative', 'indicative', 'interrogative', 'language', 'lemma', 'modifier', 'mood', 'negated', 'negation', 'number', 'object', 'person', 'pt', 'question', 'question_focus', 'relations', 'role', 'sentence_type', 'statement', 'subject', 'surface', 'tense', 'unknown']

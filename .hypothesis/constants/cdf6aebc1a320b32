@@ -1,0 +1,4 @@
+# file: /workspace/src/liu/kinds.py
+# hypothesis_version: 6.148.2
+
+['Action', 'Answer', 'Any', 'BOOL', 'Bool', 'Code', 'Context', 'ENTITY', 'Event', 'Goal', 'LIST', 'List', 'NIL', 'NUMBER', 'NodeKind', 'Number', 'OP', 'Operator', 'Prop', 'REL', 'Relation', 'STRUCT', 'Signature', 'Sort', 'State', 'Structure', 'TEXT', 'Text', 'Thing', 'Type', 'VAR']

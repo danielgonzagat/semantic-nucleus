@@ -1,0 +1,4 @@
+# file: /workspace/src/svm/bytecode.py
+# hypothesis_version: 6.148.2
+
+[b'SVMB', 'Instruction', 'MAGIC', 'VERSION', 'decode', 'encode', 'invalid magic']

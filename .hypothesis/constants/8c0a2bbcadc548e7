@@ -1,0 +1,4 @@
+# file: /workspace/src/liu/hash.py
+# hypothesis_version: 6.148.2
+
+[',', ':', ';', '=', '\\', '\\:', '\\;', '\\=', '\\\\', '\\|', 'fingerprint', 'utf-8', '|']

@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/ian_bridge.py
+# hypothesis_version: 6.148.2
+
+[0.85, 'InstinctHook', 'UNKNOWN', 'codes', 'ian_reply', 'ian_utterance', 'maybe_route_text', 'normalized', 'pos', 'reply_plan_to_answer', 'semantics', 'surface', 'utterance_to_struct']

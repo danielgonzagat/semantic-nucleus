@@ -211,7 +211,13 @@ def run_struct_full(
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
         snapshot = snapshot_equation(struct_node, isr)
         summary = (
-            build_meta_summary(meta_info, _answer_text(isr), isr.quality, HaltReason.QUALITY_THRESHOLD.value)
+            build_meta_summary(
+                meta_info,
+                _answer_text(isr),
+                isr.quality,
+                HaltReason.QUALITY_THRESHOLD.value,
+                calc_result,
+            )
             if meta_info
             else None
         )
@@ -229,8 +235,8 @@ def run_struct_full(
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
             language_profile=meta_info.language_profile if meta_info else None,
-                code_ast=meta_info.code_ast if meta_info else None,
-                math_ast=meta_info.math_ast if meta_info else None,
+            code_ast=meta_info.code_ast if meta_info else None,
+            math_ast=meta_info.math_ast if meta_info else None,
         )
     steps = 0
     seen_signatures = set()
@@ -331,7 +337,7 @@ def run_struct_full(
         last_snapshot = None
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     meta_summary = (
-        build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value) if meta_info else None
+        build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value, calc_result) if meta_info else None
     )
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
@@ -463,7 +469,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     trace.halt(HaltReason.PLAN_EXECUTED, isr, finalized=True)
     snapshot = snapshot_equation(meta.struct_node, isr)
     answer_text = _answer_text(isr)
-    meta_summary = build_meta_summary(meta, answer_text, isr.quality, HaltReason.PLAN_EXECUTED.value)
+    meta_summary = build_meta_summary(meta, answer_text, isr.quality, HaltReason.PLAN_EXECUTED.value, calc_result)
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
     if limit and len(session.meta_history) > limit:

@@ -1,0 +1,4 @@
+# file: /workspace/src/liu/nodes.py
+# hypothesis_version: 6.148.2
+
+['?', 'FieldsTuple', 'NIL', 'Node', 'NodeKind', 'boolean', 'entity', 'list_node', 'number', 'operation', 'relation', 'struct', 'text', 'var']
