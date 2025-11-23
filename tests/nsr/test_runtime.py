@@ -157,6 +157,31 @@ def test_run_text_full_includes_meta_summary():
     assert meta_dict["quality"] >= 0.0
 
 
+def test_meta_summary_carries_reasoning_digest():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.meta_summary is not None
+    tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
+    assert "meta_reasoning" in tags
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["reasoning_step_count"] >= 1
+    assert summary_dict["reasoning_trace_digest"]
+    assert summary_dict["reasoning_ops"][0]
+    stats = summary_dict["reasoning_operator_stats"]
+    assert any(entry["label"] == "NORMALIZE" for entry in stats)
+
+
+def test_run_outcome_exposes_meta_reasoning_node():
+    session = SessionCtx()
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.meta_reasoning is not None
+    fields = dict(outcome.meta_reasoning.fields)
+    assert fields["tag"].label == "meta_reasoning"
+    operations = fields["operations"]
+    assert operations.kind.name == "LIST"
+    assert len(operations.args) >= 1
+
+
 def test_run_text_with_explanation_returns_triple():
     session = SessionCtx()
     answer, trace, explanation = run_text_with_explanation("O carro tem roda", session)
