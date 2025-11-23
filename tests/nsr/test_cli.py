@@ -248,6 +248,23 @@ def soma(x, y):
         )
 
 
+def test_cli_include_code_summary(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-code-summary"])
+    assert exit_code == 0
+    payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
+    summary_raw = payload.get("code_summary")
+    assert summary_raw is not None
+    summary = json.loads(summary_raw)
+    fields = summary["fields"]
+    assert fields["language"]["label"] == "python"
+    assert fields["function_count"]["value"] >= 1
+    assert fields["digest"]["label"]
+
+
 def test_cli_includes_lc_meta(capsys, monkeypatch):
     for target in (
         "maybe_route_math",
