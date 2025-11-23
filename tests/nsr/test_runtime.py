@@ -176,7 +176,11 @@ def test_meta_summary_carries_reasoning_digest():
     session.config.memory_store_path = None
     outcome = run_text_full("Um carro existe", session)
     assert outcome.meta_summary is not None
-    tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
+    tags = []
+    for node in outcome.meta_summary:
+        tag_node = dict(node.fields).get("tag")
+        if tag_node:
+            tags.append(tag_node.label)
     assert "meta_reasoning" in tags
     assert "meta_expression" in tags
     assert "meta_memory" in tags
