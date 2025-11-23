@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import math
 from collections import deque
+import re
+import unicodedata
 from typing import Callable, Dict, Iterable, Tuple
 
 from liu import (
@@ -59,7 +61,7 @@ def _update(
     )
 
 
-def _op_normalize(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
+def _op_normalize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     normalized_relations: list[Node] = []
     seen = set()
     removed = 0
@@ -71,15 +73,25 @@ def _op_normalize(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
             continue
         seen.add(fingerprint_value)
         normalized_relations.append(canonical)
+    aggressive_removed = 0
+    if getattr(session.config, "normalize_aggressive", False) and normalized_relations:
+        normalized_relations, aggressive_removed = _apply_aggressive_relation_filter(normalized_relations)
     normalized_relations.sort(key=lambda node: (node.label or "", fingerprint(node)))
-    summary = struct(
-        tag=entity("normalize_summary"),
-        total=number(len(isr.relations)),
-        deduped=number(len(normalized_relations)),
-        removed=number(removed),
-    )
+    summary_fields = {
+        "tag": entity("normalize_summary"),
+        "total": number(len(isr.relations)),
+        "deduped": number(len(normalized_relations)),
+        "removed": number(removed),
+        "strategy": entity("aggressive" if getattr(session.config, "normalize_aggressive", False) else "standard"),
+    }
+    if aggressive_removed:
+        summary_fields["aggressive_removed"] = number(aggressive_removed)
+    summary = struct(**summary_fields)
     context = isr.context + (summary,)
-    quality = min(1.0, max(isr.quality, 0.35 if removed else 0.3))
+    improvement = 0.35 if removed else 0.3
+    if aggressive_removed:
+        improvement = max(improvement, 0.38)
+    quality = min(1.0, max(isr.quality, improvement))
     return _update(isr, relations=tuple(normalized_relations), context=context, quality=quality)
 
 
@@ -518,6 +530,57 @@ def _build_trace_summary(reasoning: Node | None) -> Node | None:
     elif reasoning is not None:
         summary_fields["reasoning_digest"] = text(fingerprint(reasoning))
     return struct(**summary_fields)
+
+
+def _apply_aggressive_relation_filter(relations: list[Node]) -> tuple[list[Node], int]:
+    chosen: Dict[tuple[str, tuple[str, ...]], Node] = {}
+    removed = 0
+    for rel in relations:
+        if rel.kind is not NodeKind.REL:
+            continue
+        key = _aggressive_relation_key(rel)
+        current = chosen.get(key)
+        if current is None:
+            chosen[key] = rel
+            continue
+        current_rank = _relation_rank(current)
+        candidate_rank = _relation_rank(rel)
+        if candidate_rank < current_rank or (candidate_rank == current_rank and fingerprint(rel) < fingerprint(current)):
+            chosen[key] = rel
+        removed += 1
+    return list(chosen.values()), removed
+
+
+def _aggressive_relation_key(rel: Node) -> tuple[str, tuple[str, ...]]:
+    label = (rel.label or "").lower()
+    arg_keys = []
+    for idx, arg in enumerate(rel.args):
+        if arg.kind is NodeKind.ENTITY:
+            arg_keys.append(f"E@{idx}:{_normalized_text_token(arg.label or '')}")
+        elif arg.kind is NodeKind.NUMBER:
+            arg_keys.append(f"N@{idx}:{arg.value or 0}")
+        elif arg.kind is NodeKind.BOOL:
+            arg_keys.append(f"B@{idx}:{('true' if (arg.label or '').lower() == 'true' else 'false')}")
+        elif arg.kind is NodeKind.TEXT:
+            arg_keys.append(f"T@{idx}")
+        else:
+            arg_keys.append(f"{arg.kind.value}@{idx}:{fingerprint(arg)}")
+    return (label, tuple(arg_keys))
+
+
+def _relation_rank(rel: Node) -> tuple[int, int, int]:
+    text_cost = 0
+    for arg in rel.args:
+        if arg.kind in (NodeKind.TEXT, NodeKind.ENTITY):
+            text_cost += len(_normalized_text_token(arg.label or ""))
+    return (text_cost, len(rel.args), len(fingerprint(rel)))
+
+
+def _normalized_text_token(value: str) -> str:
+    normalized = unicodedata.normalize("NFD", value or "")
+    stripped = "".join(ch for ch in normalized if not unicodedata.combining(ch))
+    collapsed = re.sub(r"\s+", " ", stripped).strip().lower()
+    return collapsed
 
 
 def _logic_statement_from_args(args: Tuple[Node, ...]) -> str | None:

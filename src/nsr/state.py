@@ -30,6 +30,7 @@ class Config:
     induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
     induction_episode_limit: int = 128
     induction_min_support: int = 3
+    normalize_aggressive: bool = False
 
 
 @dataclass(slots=True)

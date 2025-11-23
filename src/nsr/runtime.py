@@ -375,7 +375,10 @@ def run_struct_full(
         op = isr.ops_queue.popleft()
         op_label = op.label or "NOOP"
         isr = apply_operator(isr, op, session)
-        trace.add(op_label, isr.quality, len(isr.relations), len(isr.context))
+        label_for_trace = op_label
+        if op_label.upper() == "NORMALIZE":
+            label_for_trace = _format_normalize_trace_label(op_label, isr.context)
+        trace.add(label_for_trace, isr.quality, len(isr.relations), len(isr.context))
         snapshot_step, stats_step, invariant_status = _audit_state(
             struct_node, isr, trace, last_stats, op_label
         )
@@ -688,6 +691,29 @@ def _apply_memory_link_if_needed(isr: ISR, session: SessionCtx, trace: Trace) ->
     return isr
 
 
+def _format_normalize_trace_label(base_label: str, context: Tuple[Node, ...]) -> str:
+    summary = _latest_tagged_struct(context, "normalize_summary")
+    if summary is None:
+        return base_label
+    fields = dict(summary.fields)
+    total = _node_numeric(fields.get("total"))
+    deduped = _node_numeric(fields.get("deduped"))
+    removed = _node_numeric(fields.get("removed"))
+    aggressive = _node_numeric(fields.get("aggressive_removed"))
+    parts = []
+    if total is not None:
+        parts.append(f"tot={total}")
+    if deduped is not None:
+        parts.append(f"dedup={deduped}")
+    if removed is not None:
+        parts.append(f"rem={removed}")
+    if aggressive:
+        parts.append(f"agg={aggressive}")
+    if not parts:
+        return base_label
+    return f"{base_label}[{','.join(parts)}]"
+
+
 def _memory_entry_payload(
     meta_info: MetaTransformResult | None,
     answer_text: str,
@@ -729,15 +755,29 @@ def _node_field_label(node: Node | None, field: str) -> str:
     return ""
 
 
-def _latest_logic_proof(context: Tuple[Node, ...]) -> Node | None:
+def _node_numeric(node: Node | None) -> int | None:
+    if node is None or node.value is None:
+        return None
+    try:
+        return int(node.value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
+    tag_lower = tag_name.lower()
     for node in reversed(context):
         if node.kind is not NodeKind.STRUCT:
             continue
         fields = dict(node.fields)
-        tag = fields.get("tag")
-        if tag and (tag.label or "").lower() == "logic_proof":
+        tag_field = fields.get("tag")
+        if tag_field and (tag_field.label or "").lower() == tag_lower:
             return node
     return None
+
+
+def _latest_logic_proof(context: Tuple[Node, ...]) -> Node | None:
+    return _latest_tagged_struct(context, "logic_proof")
 
 
 def _ensure_memory_loaded(session: SessionCtx) -> None:

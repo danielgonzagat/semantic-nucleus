@@ -284,6 +284,28 @@ def test_normalize_operator_deduplicates_relations():
     assert summary_fields["total"].value == 3
     assert summary_fields["deduped"].value == 1
     assert summary_fields["removed"].value == 2
+    assert summary_fields["strategy"].label == "standard"
+    assert "aggressive_removed" not in summary_fields
+
+
+def test_normalize_operator_aggressive_prefers_short_relations():
+    session = SessionCtx()
+    session.config.normalize_aggressive = True
+    rel_long = relation("DESCRIBE", entity("carro"), text("Carro com quatro rodas e motor potente"))
+    rel_short = relation("DESCRIBE", entity("carro"), text("carro"))
+    struct_node = struct(relations=list_node([rel_long, rel_short]))
+    isr = initial_isr(struct_node, session)
+    normalized = apply_operator(isr, operation("NORMALIZE"), session)
+    assert len(normalized.relations) == 1
+    remaining = normalized.relations[0]
+    text_args = [arg.label for arg in remaining.args if arg.kind is NodeKind.TEXT]
+    assert text_args and text_args[0].lower() == "carro"
+    summary_node = next(
+        node for node in normalized.context if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "normalize_summary"
+    )
+    summary_fields = dict(summary_node.fields)
+    assert summary_fields["strategy"].label == "aggressive"
+    assert summary_fields["aggressive_removed"].value >= 1
 
 
 def test_run_outcome_exposes_meta_reasoning_node():
@@ -321,6 +343,22 @@ def test_trace_summary_operator_adds_context():
     assert summary_fields["total_steps"].value >= 1
     assert summary_fields["unique_ops"].value >= 1
     assert summary_fields["reasoning_digest"].label
+
+
+def test_meta_reasoning_includes_normalize_metrics():
+    session = SessionCtx()
+    session.config.normalize_aggressive = True
+    session.config.memory_store_path = None
+    session.config.episodes_path = None
+    session.meta_buffer = tuple()
+    outcome = run_text_full("Um carro existe", session)
+    reasoning = outcome.meta_reasoning
+    assert reasoning is not None
+    operations = dict(reasoning.fields)["operations"].args
+    assert any(
+        "NORMALIZE[" in (dict(step.fields)["label"].label or "")
+        for step in operations
+    )
 
 
 def test_meta_memory_is_seeded_into_next_turn_context():
