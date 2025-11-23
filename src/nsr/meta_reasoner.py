@@ -31,6 +31,8 @@ def build_meta_reasoning(steps: Iterable[str], *, max_steps: int = 64) -> Node |
     operations = []
     stats = {}
     digest_hasher = blake2b(digest_size=16)
+    prev_quality: float | None = None
+    prev_relations: int | None = None
     for entry in parsed_steps:
         digest_hasher.update(f"{entry.index}:{entry.label}".encode("utf-8"))
         if entry.quality is not None:
@@ -39,6 +41,21 @@ def build_meta_reasoning(steps: Iterable[str], *, max_steps: int = 64) -> Node |
             digest_hasher.update(f"r={entry.relations}".encode("utf-8"))
         if entry.context is not None:
             digest_hasher.update(f"c={entry.context}".encode("utf-8"))
+        delta_quality: float | None = None
+        delta_relations: int | None = None
+        if entry.quality is not None:
+            delta_quality = (
+                round(entry.quality - (prev_quality or 0.0), 6)
+                if prev_quality is not None
+                else 0.0
+            )
+            prev_quality = entry.quality
+        if entry.relations is not None:
+            if prev_relations is not None:
+                delta_relations = entry.relations - prev_relations
+            else:
+                delta_relations = 0
+            prev_relations = entry.relations
         fields: dict[str, Node] = {
             "tag": entity("reasoning_step"),
             "index": number(entry.index),
@@ -46,8 +63,12 @@ def build_meta_reasoning(steps: Iterable[str], *, max_steps: int = 64) -> Node |
         }
         if entry.quality is not None:
             fields["quality"] = number(entry.quality)
+        if delta_quality is not None:
+            fields["delta_quality"] = number(delta_quality)
         if entry.relations is not None:
             fields["relations"] = number(entry.relations)
+        if delta_relations is not None:
+            fields["delta_relations"] = number(delta_relations)
         if entry.context is not None:
             fields["context"] = number(entry.context)
         operations.append(liu_struct(**fields))

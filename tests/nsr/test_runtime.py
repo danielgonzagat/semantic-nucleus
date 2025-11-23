@@ -275,6 +275,9 @@ def test_run_outcome_exposes_meta_reasoning_node():
     operations = fields["operations"]
     assert operations.kind.name == "LIST"
     assert len(operations.args) >= 1
+    first_step_fields = dict(operations.args[0].fields)
+    assert "delta_quality" in first_step_fields
+    assert "delta_relations" in first_step_fields
     assert outcome.meta_expression is not None
     expr_fields = dict(outcome.meta_expression.fields)
     assert expr_fields["tag"].label == "meta_expression"
