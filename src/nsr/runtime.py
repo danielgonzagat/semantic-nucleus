@@ -28,6 +28,7 @@ from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
+from .meta_memory_store import append_memory, load_recent_memory
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -148,6 +149,7 @@ def run_text_with_explanation(
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
     _ensure_logic_engine(session)
+    _ensure_memory_loaded(session)
     transformer = MetaTransformer(session)
     meta = transformer.transform(text)
     if session.meta_buffer:
@@ -287,6 +289,7 @@ def run_struct_full(
         session.meta_buffer = (
             tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
         )
+        _persist_meta_memory(session, meta_memory)
         return RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -443,6 +446,7 @@ def run_struct_full(
     session.meta_buffer = (
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
+    _persist_meta_memory(session, meta_memory)
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
@@ -616,6 +620,31 @@ def _node_field_label(node: Node | None, field: str) -> str:
     return ""
 
 
+def _ensure_memory_loaded(session: SessionCtx) -> None:
+    if session.memory_loaded:
+        return
+    session.memory_loaded = True
+    path = getattr(session.config, "memory_store_path", None)
+    if not path:
+        return
+    limit = getattr(session.config, "memory_persist_limit", 0) or session.config.meta_history_limit
+    nodes = load_recent_memory(path, limit)
+    if nodes:
+        session.meta_buffer = tuple((*nodes, *session.meta_buffer))
+
+
+def _persist_meta_memory(session: SessionCtx, memory_node: Node | None) -> None:
+    if memory_node is None:
+        return
+    path = getattr(session.config, "memory_store_path", None)
+    if not path:
+        return
+    try:
+        append_memory(path, memory_node)
+    except OSError:
+        return
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -666,6 +695,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     session.meta_buffer = (
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
+    _persist_meta_memory(session, meta_memory)
     return RunOutcome(
         answer=answer_text,
         trace=trace,

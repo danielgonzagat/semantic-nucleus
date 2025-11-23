@@ -23,6 +23,8 @@ class Config:
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
     calc_mode: str = "hybrid"
+    memory_store_path: str | None = ".nsr_memory/memory.jsonl"
+    memory_persist_limit: int = 256
 
 
 @dataclass(slots=True)
@@ -98,6 +100,7 @@ class SessionCtx:
     logic_serialized: str | None = None
     meta_history: List[Tuple[Node, ...]] = field(default_factory=list)
     meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
+    memory_loaded: bool = False
 
 
 @dataclass(slots=True)

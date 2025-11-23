@@ -128,6 +128,7 @@ def test_run_struct_converges_with_summary(monkeypatch):
 
 def test_run_text_full_matches_legacy_output():
     session = SessionCtx()
+    session.config.memory_store_path = None
     outcome = run_text_full("Um carro existe", session)
     session.meta_buffer = tuple()
     legacy_answer, legacy_trace = run_text("Um carro existe", session)

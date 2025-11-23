@@ -1,4 +1,6 @@
-from nsr import SessionCtx, run_text_full
+from liu import NodeKind
+
+from nsr import SessionCtx, run_text, run_text_full
 from nsr.meta_memory import build_meta_memory
 
 
@@ -26,3 +28,20 @@ def test_meta_memory_aggregates_history_and_current_entry():
     assert first_entry_fields["route"].label
     assert first_entry_fields["answer_preview"].label
     assert first_entry_fields["reasoning_digest"].label is not None
+
+
+def test_meta_memory_persistence_roundtrip(tmp_path):
+    store = tmp_path / "memory.jsonl"
+    session = SessionCtx()
+    session.config.memory_store_path = str(store)
+    run_text("Um carro existe", session)
+    assert store.exists()
+    new_session = SessionCtx()
+    new_session.config.memory_store_path = str(store)
+    outcome = run_text_full("O carro tem roda", new_session)
+    ops = [
+        node
+        for node in outcome.isr.context
+        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
+    ]
+    assert ops, "meta memory from disk should trigger MEMORY_RECALL"
