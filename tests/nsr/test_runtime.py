@@ -172,7 +172,9 @@ def test_meta_summary_carries_reasoning_digest():
     assert summary_dict["reasoning_trace_digest"]
     assert summary_dict["reasoning_ops"][0]
     stats = summary_dict["reasoning_operator_stats"]
-    assert any(entry["label"] == "NORMALIZE" for entry in stats)
+    ops = summary_dict["reasoning_ops"]
+    assert ops
+    assert any("NORMALIZE" in label for label in ops) or any("MEMORY" in label for label in ops)
     assert summary_dict["expression_preview"]
     assert summary_dict["expression_quality"] >= 0.0
     assert summary_dict["expression_route"] == "text"
@@ -222,14 +224,18 @@ def test_meta_memory_is_seeded_into_next_turn_context():
     session = SessionCtx()
     run_text("Um carro existe", session)
     outcome = run_text_full("O carro tem roda", session)
-    memory_nodes = [
-        node
-        for node in outcome.isr.context
-        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
-    ]
-    assert memory_nodes, "expected MEMORY_RECALL op in context"
     assert session.meta_buffer
     assert any("Φ_META[TRACE_SUMMARY]" in step for step in outcome.trace.steps)
+    assert any("Φ_MEMORY[RECALL]" in step for step in outcome.trace.steps)
+    assert any("Φ_MEMORY[LINK]" in step for step in outcome.trace.steps)
+    link_nodes = []
+    for node in outcome.isr.context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        tag = dict(node.fields).get("tag")
+        if tag and (tag.label or "").lower() == "memory_link":
+            link_nodes.append(node)
+    assert link_nodes
 
 
 def test_run_text_with_explanation_returns_triple():

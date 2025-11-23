@@ -37,7 +37,7 @@ O pacote `meta_summary` também passa a carregar o `meta_calculation` e o `meta_
 
 O estágio **Meta-Pensar** agora deixa rastros explícitos: `meta_reasoner` sintetiza cada passo Φ do `trace`, gera estatísticas por operador e produz um digest auditável associado à execução. Em seguida, o novo módulo **Meta-Expressar** coleta a resposta LIU final, referencia o digest de raciocínio e materializa um nó `meta_expression` com preview determinístico, idioma, rota e fingerprint do answer. Ambos os blocos são anexados ao `meta_summary`, permitindo reconstruir — de entrada até a expressão final — toda a cadeia Meta-LER → Meta-Pensar → Meta-Expressar com reversibilidade comprovável.
 
-Para tornar o raciocínio ativo, um operador Φ adicional (`TRACE_SUMMARY`) consome o `meta_reasoner`, produz um nó `trace_summary` no contexto LIU (contagem de passos, operadores dominantes, digest) e alimenta os estágios seguintes com estatísticas simbólicas prontas para reuso determinístico em memória, reescrita e síntese.
+Para tornar o raciocínio ativo, os operadores Φ `TRACE_SUMMARY`, `MEMORY_RECALL` e `MEMORY_LINK` consomem o `meta_reasoner` e os nós `meta_memory`, injetam `trace_summary` e `memory_link` diretamente no contexto LIU (estatísticas de Φ, digestos anteriores e vínculos explícitos) e alimentam os estágios seguintes com estatísticas simbólicas prontas para reuso determinístico em memória, reescrita e síntese.
 
 O histórico curto também é materializado: `meta_memory` agrega os últimos meta-resultados (rota, digestos de raciocínio/expressão e prévias) e é anexado no `meta_summary`, garantindo que cada execução carregue um mapa determinístico das iterações anteriores — base para memória auditável e evolução multi-turno.
 

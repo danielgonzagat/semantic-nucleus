@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, operation, fingerprint
+from liu import Node, NodeKind, operation, fingerprint
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -240,6 +240,8 @@ def run_struct_full(
     isr, code_label = _apply_code_rewrite_if_needed(isr, session, meta_info)
     if code_label:
         trace.add(code_label, isr.quality, len(isr.relations), len(isr.context))
+    isr = _apply_memory_recall_if_needed(isr, session, trace)
+    isr = _apply_memory_link_if_needed(isr, session, trace)
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
@@ -589,6 +591,45 @@ def _apply_trace_summary_if_needed(
     updated = apply_operator(isr, operation("TRACE_SUMMARY", reasoning_node), session)
     trace.add("Φ_META[TRACE_SUMMARY]", updated.quality, len(updated.relations), len(updated.context))
     return updated
+
+
+def _apply_memory_recall_if_needed(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
+    recall_ops = [
+        node
+        for node in isr.context
+        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
+    ]
+    if not recall_ops:
+        return isr
+    isr.context = tuple(
+        node
+        for node in isr.context
+        if not (node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL")
+    )
+    for op in recall_ops:
+        payload = op.args[0] if op.args else None
+        recall_node = operation("MEMORY_RECALL", payload) if payload is not None else operation("MEMORY_RECALL")
+        isr = apply_operator(isr, recall_node, session)
+        trace.add("Φ_MEMORY[RECALL]", isr.quality, len(isr.relations), len(isr.context))
+    return isr
+
+
+def _apply_memory_link_if_needed(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
+    entries = []
+    for node in isr.context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag or (tag.label or "").lower() != "memory_entry":
+            continue
+        entries.append(node)
+    if not entries:
+        return isr
+    for entry in entries:
+        isr = apply_operator(isr, operation("MEMORY_LINK", entry), session)
+        trace.add("Φ_MEMORY[LINK]", isr.quality, len(isr.relations), len(isr.context))
+    return isr
 
 
 def _memory_entry_payload(

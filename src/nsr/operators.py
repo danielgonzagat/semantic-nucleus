@@ -239,6 +239,40 @@ def _op_memory_recall(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     return _update(isr, context=tuple(new_context), quality=quality)
 
 
+def _op_memory_link(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    if not args:
+        return isr
+    entry = args[0]
+    if entry.kind is not NodeKind.STRUCT:
+        return isr
+    fields = dict(entry.fields)
+    tag_node = fields.get("tag")
+    if not tag_node or (tag_node.label or "").lower() != "memory_entry":
+        return isr
+    route_node = fields.get("route") or entity("unknown")
+    preview_node = fields.get("answer_preview") or text("")
+    reasoning_node = fields.get("reasoning_digest") or text("")
+    expression_node = fields.get("expression_digest") or text("")
+    link = struct(
+        tag=entity("memory_link"),
+        route=route_node,
+        answer_preview=preview_node,
+        reasoning_digest=reasoning_node,
+        expression_digest=expression_node,
+    )
+    new_context = isr.context + (link,)
+    reason_text = _node_text(reasoning_node)
+    expr_text = _node_text(expression_node) or _node_text(preview_node)
+    link_rel = relation(
+        "memory/LINKS",
+        entity(reason_text or "memory"),
+        entity(expr_text or "memory"),
+    )
+    new_relations = isr.relations + (link_rel,)
+    quality = min(1.0, max(isr.quality, 0.64))
+    return _update(isr, relations=new_relations, context=new_context, quality=quality)
+
+
 def _is_code_ast(node: Node) -> bool:
     fields = dict(node.fields)
     tag = fields.get("tag")
@@ -367,10 +401,21 @@ _HANDLERS: Dict[str, Handler] = {
     "CODE/EVAL_PURE": _op_code_eval_pure,
     "TRACE_SUMMARY": _op_trace_summary,
     "MEMORY_RECALL": _op_memory_recall,
+    "MEMORY_LINK": _op_memory_link,
 }
 
 
 __all__ = ["apply_operator"]
+
+
+def _node_text(node: Node | None) -> str:
+    if node is None:
+        return ""
+    if node.label:
+        return node.label
+    if node.value is not None:
+        return str(node.value)
+    return ""
 
 
 def _build_trace_summary(reasoning: Node | None) -> Node | None:

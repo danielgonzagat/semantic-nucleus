@@ -39,9 +39,4 @@ def test_meta_memory_persistence_roundtrip(tmp_path):
     new_session = SessionCtx()
     new_session.config.memory_store_path = str(store)
     outcome = run_text_full("O carro tem roda", new_session)
-    ops = [
-        node
-        for node in outcome.isr.context
-        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
-    ]
-    assert ops, "meta memory from disk should trigger MEMORY_RECALL"
+    assert any("Φ_MEMORY[RECALL]" in step for step in outcome.trace.steps)
