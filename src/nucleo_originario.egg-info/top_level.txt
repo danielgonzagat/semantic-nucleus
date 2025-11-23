@@ -3,6 +3,7 @@ frontend_logic
 frontend_python
 frontend_rust
 liu
+metanucleus
 nsr
 nsr_evo
 ontology

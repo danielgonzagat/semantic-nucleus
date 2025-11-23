@@ -1,0 +1,145 @@
+{
+  "de": {
+    "greeting": [
+      "hallo",
+      "guten morgen",
+      "guten tag",
+      "guten abend"
+    ],
+    "question": [
+      "warum",
+      "wie",
+      "wo",
+      "wann",
+      "wieviel",
+      "wieviele",
+      "welcher",
+      "welche",
+      "welches"
+    ],
+    "statement": [
+      "heute",
+      "morgen",
+      "gestern"
+    ]
+  },
+  "en": {
+    "greeting": [
+      "hi",
+      "hello",
+      "hey",
+      "good morning",
+      "good afternoon",
+      "good evening"
+    ],
+    "question": [
+      "why",
+      "how",
+      "where",
+      "which",
+      "who",
+      "when",
+      "how much",
+      "how many"
+    ],
+    "statement": [
+      "today",
+      "yesterday",
+      "tomorrow"
+    ]
+  },
+  "es": {
+    "greeting": [
+      "hola",
+      "buenos días",
+      "buenas tardes",
+      "buenas noches"
+    ],
+    "question": [
+      "por qué",
+      "cómo",
+      "dónde",
+      "cuándo",
+      "cuánto",
+      "cuántos",
+      "cuál",
+      "cuáles",
+      "quién"
+    ],
+    "statement": [
+      "hoy",
+      "mañana",
+      "ayer"
+    ]
+  },
+  "fr": {
+    "greeting": [
+      "salut",
+      "bonjour",
+      "bonsoir"
+    ],
+    "question": [
+      "pourquoi",
+      "comment",
+      "où",
+      "quand",
+      "combien",
+      "lequel",
+      "laquelle",
+      "qui"
+    ],
+    "statement": [
+      "aujourd'hui",
+      "demain",
+      "hier"
+    ]
+  },
+  "it": {
+    "greeting": [
+      "ciao",
+      "buongiorno",
+      "buon pomeriggio",
+      "buonasera"
+    ],
+    "question": [
+      "perché",
+      "come",
+      "dove",
+      "quando",
+      "quanto",
+      "quanti",
+      "quale"
+    ],
+    "statement": [
+      "oggi",
+      "domani",
+      "ieri"
+    ]
+  },
+  "pt": {
+    "greeting": [
+      "oi",
+      "olá",
+      "bom dia",
+      "boa tarde",
+      "boa noite",
+      "e aí"
+    ],
+    "question": [
+      "por que",
+      "porque?",
+      "como",
+      "onde",
+      "quanto",
+      "quais",
+      "qual",
+      "quem",
+      "quando"
+    ],
+    "statement": [
+      "hoje",
+      "amanhã",
+      "ontem"
+    ]
+  }
+}

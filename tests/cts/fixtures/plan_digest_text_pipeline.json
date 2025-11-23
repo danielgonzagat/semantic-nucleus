@@ -1,0 +1,16 @@
+{
+  "route": "text",
+  "description": "text_phi_pipeline",
+  "instructions": [
+    ["PUSH_CONST", 0],
+    ["STORE_ANSWER", 0],
+    ["HALT", 0]
+  ],
+  "constants": [
+    {
+      "tag": "answer",
+      "text": "42"
+    }
+  ],
+  "digest": "3d59dbf47485739b25427709207994ae"
+}

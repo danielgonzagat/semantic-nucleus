@@ -1,0 +1,27 @@
+{
+  "defaults": {
+    "disable_after_failures": 5,
+    "min_weight": 0.1,
+    "weight_decay_per_fail": 0.15
+  },
+  "rules": [
+    {
+      "id": "factor_common_and",
+      "pattern": "(A & B) | (A & C) -> A & (B | C)",
+      "description": "Fatora A em (A & B) | (A & C) para A & (B | C).",
+      "weight": 1.0,
+      "enabled": true,
+      "fail_count": 0,
+      "success_count": 0
+    },
+    {
+      "id": "simplify_double_negation",
+      "pattern": "¬(¬P) -> P",
+      "description": "Remove dupla negação.",
+      "weight": 1.0,
+      "enabled": true,
+      "fail_count": 0,
+      "success_count": 0
+    }
+  ]
+}

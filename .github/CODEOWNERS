@@ -1,14 +1,6 @@
-*                       @nucleo-originario/core-team
+*                       @danielgonzagat
 
-# Núcleo NSR / Meta-LER / LC-Ω
-/src/nsr/               @nucleo-originario/nsr-core
-/tests/nsr/             @nucleo-originario/nsr-core
-
-# ΣVM / bytecode / snapshots
-/src/svm/               @nucleo-originario/svm-core
-/tests/cts/             @nucleo-originario/qa
-
-# Documentação pública e governança
-/docs/                  @nucleo-originario/docs
-/README.md              @nucleo-originario/docs
-/docs/cts_policy.md     @nucleo-originario/qa
+/src/                   @danielgonzagat
+/tests/                 @danielgonzagat
+/docs/                  @danielgonzagat
+/.github/workflows/     @danielgonzagat

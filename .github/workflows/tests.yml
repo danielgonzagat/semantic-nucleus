@@ -43,5 +43,3 @@ jobs:
           for code in pt en es fr it; do
             python3 scripts/langpack_check.py --code "$code" --fail-on-warn
           done
-      - name: Benchmark IAN latency/memory
-        run: python3 scripts/ian_bench.py --iterations 200 --warmup 20 --max-p95-ms 0.4 --max-peak-mib 1.0

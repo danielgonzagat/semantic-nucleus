@@ -1,0 +1,58 @@
+name: Metanucleus Auto-Evolution
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-evolve:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: |
+          pip install -e .
+          pip install pytest
+
+      - name: Run tests (feed mismatch logs)
+        run: |
+          python -m pytest || true
+
+      - name: Run auto-evolution
+        id: autoevolve
+        run: |
+          metanucleus-auto-evolve all --apply || true
+          if ! git diff --quiet; then
+            BRANCH="auto-evolve/${GITHUB_RUN_ID}"
+            git config user.name  "metanucleus-bot"
+            git config user.email "metanucleus-bot@users.noreply.github.com"
+            git checkout -b "$BRANCH"
+            git commit -am "meta-evolution: ajustes automáticos"
+            echo "branch_name=$BRANCH" >> "$GITHUB_OUTPUT"
+          else
+            echo "branch_name=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create Pull Request
+        if: steps.autoevolve.outputs.branch_name != ''
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: ${{ steps.autoevolve.outputs.branch_name }}
+          base: main
+          title: "meta-evolution: ajustes automáticos"
+          body: |
+            Este PR foi aberto automaticamente pelo Metanúcleo.
+            Revise/ajuste conforme necessário antes do merge.

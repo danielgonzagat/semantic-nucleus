@@ -1,0 +1,160 @@
+#!/usr/bin/env python3
+"""
+CLI determinístico para evoluir meta_calculus_rules.json a partir dos logs.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from datetime import datetime
+from pathlib import Path
+from typing import Optional
+
+from metanucleus.evolution.meta_calculus_patch_generator import MetaCalculusPatchGenerator
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+
+def run(cmd, check=True, input_text=None):
+    proc = subprocess.run(
+        cmd,
+        cwd=str(PROJECT_ROOT),
+        text=True,
+        input=input_text,
+        capture_output=True,
+    )
+    if check and proc.returncode != 0:
+        print(f"[auto-calculus] comando falhou: {' '.join(cmd)}", file=sys.stderr)
+        if proc.stdout:
+            print(proc.stdout, file=sys.stderr)
+        if proc.stderr:
+            print(proc.stderr, file=sys.stderr)
+        sys.exit(proc.returncode)
+    return proc
+
+
+def run_pytest(args: list[str]) -> None:
+    cmd = ["pytest"] + args
+    print("[auto-calculus] executando", " ".join(cmd))
+    proc = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
+    if proc.returncode != 0:
+        print("[auto-calculus] pytest retornou falhas (logs serão aproveitados).", file=sys.stderr)
+
+
+def parse_args(argv: list[str]):
+    parser = argparse.ArgumentParser("metanucleus-auto-calculus")
+    parser.add_argument("--no-tests", action="store_true")
+    parser.add_argument("--pytest-args", nargs=argparse.REMAINDER)
+    parser.add_argument("--apply", action="store_true")
+    parser.add_argument("--push", action="store_true")
+    parser.add_argument("--open-pr", action="store_true")
+    parser.add_argument("--base-branch", default="main")
+    parser.add_argument("--remote", default="origin")
+    parser.add_argument("--pr-title", default="Auto-evolution: update meta_calculus_rules")
+    parser.add_argument("--pr-body", default=None)
+    return parser.parse_args(argv)
+
+
+def ensure_git():
+    proc = run(["git", "rev-parse", "--is-inside-work-tree"], check=False)
+    if proc.returncode != 0:
+        print("[auto-calculus] diretório não é repositório git.", file=sys.stderr)
+        sys.exit(1)
+
+
+def create_branch(base_branch: str) -> str:
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    branch = f"auto-calculus/{timestamp}"
+    run(["git", "checkout", base_branch])
+    run(["git", "checkout", "-b", branch])
+    return branch
+
+
+def git_apply(diff: str):
+    run(["git", "apply", "-"], input_text=diff)
+
+
+def git_commit(message: str) -> Optional[str]:
+    status = run(["git", "status", "--porcelain"], check=False)
+    if not status.stdout.strip():
+        return None
+    run(["git", "add", "-A"])
+    run(["git", "commit", "-m", message])
+    rev = run(["git", "rev-parse", "HEAD"])
+    return rev.stdout.strip()
+
+
+def git_push(branch: str, remote: str):
+    run(["git", "push", "-u", remote, branch])
+
+
+def open_pr(branch: str, base_branch: str, title: str, body: Optional[str]):
+    token = os.environ.get("GITHUB_TOKEN")
+    repo = os.environ.get("GITHUB_REPOSITORY")
+    if not token or not repo:
+        print("[auto-calculus] informações de PR ausentes; pulei criação.", file=sys.stderr)
+        return
+    import urllib.request
+
+    payload = json.dumps(
+        {"title": title, "head": branch, "base": base_branch, "body": body or ""}
+    ).encode("utf-8")
+    req = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/pulls",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(req) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    url = data.get("html_url")
+    if url:
+        print(f"[auto-calculus] PR criado: {url}")
+
+
+def main() -> None:
+    args = parse_args(sys.argv[1:])
+    pytest_args = args.pytest_args or []
+    if not args.no_tests:
+        run_pytest(pytest_args)
+
+    generator = MetaCalculusPatchGenerator(project_root=PROJECT_ROOT)
+    candidates = generator.generate_patches()
+    if not candidates:
+        print("[auto-calculus] nenhum patch sugerido.")
+        return
+
+    diff = candidates[0].diff
+    print("=" * 80)
+    print(candidates[0].title)
+    print("-" * 80)
+    print(candidates[0].description)
+    print("-" * 80)
+    print(diff)
+
+    if not args.apply:
+        print("[auto-calculus] execução em modo dry-run.")
+        return
+
+    ensure_git()
+    branch = create_branch(args.base_branch)
+    git_apply(diff)
+    commit = git_commit("Auto-evolution: update meta_calculus_rules")
+    if commit:
+        print(f"[auto-calculus] commit {commit}")
+        if args.push or args.open_pr:
+            git_push(branch, args.remote)
+        if args.open_pr:
+            open_pr(branch, args.base_branch, args.pr_title, args.pr_body)
+
+
+if __name__ == "__main__":
+    main()
