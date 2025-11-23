@@ -245,6 +245,27 @@ def test_meta_memory_includes_equation_trend():
     assert fields["equation_quality"].label
 
 
+def test_normalize_operator_deduplicates_relations():
+    session = SessionCtx()
+    dup = relation("IS_A", entity("carro"), entity("coisa"))
+    struct_node = struct(relations=list_node([dup, dup, dup]))
+    isr = initial_isr(struct_node, session)
+    normalized = apply_operator(isr, operation("NORMALIZE"), session)
+    assert len(normalized.relations) == 1
+    summary_nodes = [
+        node
+        for node in normalized.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    normalize_summary = next(
+        node for node in summary_nodes if dict(node.fields).get("tag").label == "normalize_summary"
+    )
+    summary_fields = dict(normalize_summary.fields)
+    assert summary_fields["total"].value == 3
+    assert summary_fields["deduped"].value == 1
+    assert summary_fields["removed"].value == 2
+
+
 def test_run_outcome_exposes_meta_reasoning_node():
     session = SessionCtx()
     outcome = run_text_full("O carro tem roda", session)

@@ -60,8 +60,27 @@ def _update(
 
 
 def _op_normalize(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
-    normalized = tuple(normalize(rel) for rel in isr.relations)
-    return _update(isr, relations=normalized, quality=min(1.0, max(isr.quality, 0.3)))
+    normalized_relations: list[Node] = []
+    seen = set()
+    removed = 0
+    for rel in isr.relations:
+        canonical = normalize(rel)
+        fingerprint_value = fingerprint(canonical)
+        if fingerprint_value in seen:
+            removed += 1
+            continue
+        seen.add(fingerprint_value)
+        normalized_relations.append(canonical)
+    normalized_relations.sort(key=lambda node: (node.label or "", fingerprint(node)))
+    summary = struct(
+        tag=entity("normalize_summary"),
+        total=number(len(isr.relations)),
+        deduped=number(len(normalized_relations)),
+        removed=number(removed),
+    )
+    context = isr.context + (summary,)
+    quality = min(1.0, max(isr.quality, 0.35 if removed else 0.3))
+    return _update(isr, relations=tuple(normalized_relations), context=context, quality=quality)
 
 
 def _op_answer(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
