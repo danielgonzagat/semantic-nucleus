@@ -147,7 +147,7 @@ python -m pytest tests/cts # CTS rápido
 coverage run -m pytest && coverage report
 ```
 
-CI (GitHub Actions) executa pre-commit + pytest para Python 3.11/3.12 (`.github/workflows/tests.yml`). Adicione novos testes sempre que tocar operadores Φ, ΣVM ou frontends.
+CI (GitHub Actions) executa pre-commit + `coverage run -m pytest` para Python 3.11/3.12, publica o `coverage.xml` como artefato e roda TruffleHog para varredura de segredos (`.github/workflows/tests.yml`). Adicione novos testes sempre que tocar operadores Φ, ΣVM ou frontends.
 
 ## Determinismo e segurança
 
