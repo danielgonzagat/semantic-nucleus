@@ -219,6 +219,26 @@ def _op_trace_summary(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     return _update(isr, context=context, quality=quality)
 
 
+def _op_memory_recall(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    if not args:
+        return isr
+    memory_node = args[0]
+    entries_field = dict(memory_node.fields).get("entries")
+    if entries_field is None or entries_field.kind is not NodeKind.LIST:
+        context = isr.context + (memory_node,)
+        return _update(isr, context=context, quality=isr.quality)
+    new_context = list(isr.context)
+    seen = {fingerprint(node) for node in new_context}
+    for entry in entries_field.args:
+        entry_fp = fingerprint(entry)
+        if entry_fp not in seen:
+            new_context.append(entry)
+            seen.add(entry_fp)
+    new_context.append(memory_node)
+    quality = min(1.0, max(isr.quality, 0.62))
+    return _update(isr, context=tuple(new_context), quality=quality)
+
+
 def _is_code_ast(node: Node) -> bool:
     fields = dict(node.fields)
     tag = fields.get("tag")
@@ -346,6 +366,7 @@ _HANDLERS: Dict[str, Handler] = {
     "STABILIZE": _op_stabilize,
     "CODE/EVAL_PURE": _op_code_eval_pure,
     "TRACE_SUMMARY": _op_trace_summary,
+    "MEMORY_RECALL": _op_memory_recall,
 }
 
 

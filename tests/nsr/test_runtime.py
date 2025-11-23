@@ -221,13 +221,14 @@ def test_meta_memory_is_seeded_into_next_turn_context():
     session = SessionCtx()
     run_text("Um carro existe", session)
     outcome = run_text_full("O carro tem roda", session)
-    tags = [
-        dict(node.fields).get("tag").label
+    memory_nodes = [
+        node
         for node in outcome.isr.context
-        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
     ]
-    assert "meta_memory" in tags
+    assert memory_nodes, "expected MEMORY_RECALL op in context"
     assert session.meta_buffer
+    assert any("Φ_META[TRACE_SUMMARY]" in step for step in outcome.trace.steps)
 
 
 def test_run_text_with_explanation_returns_triple():

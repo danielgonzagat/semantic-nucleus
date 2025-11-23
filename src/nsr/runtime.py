@@ -151,7 +151,12 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     transformer = MetaTransformer(session)
     meta = transformer.transform(text)
     if session.meta_buffer:
-        extra_context = session.meta_buffer
+        extra_context = tuple(
+            operation("MEMORY_RECALL", buffer_node)
+            if buffer_node is not None
+            else operation("MEMORY_RECALL")
+            for buffer_node in session.meta_buffer
+        )
         if meta.preseed_context:
             meta_context = tuple((*meta.preseed_context, *extra_context))
         else:
@@ -279,7 +284,9 @@ def run_struct_full(
             if meta_info
             else None
         )
-        session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
+        session.meta_buffer = (
+            tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+        )
         return RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -433,7 +440,9 @@ def run_struct_full(
         if meta_info
         else None
     )
-    session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
+    session.meta_buffer = (
+        tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+    )
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
@@ -654,7 +663,9 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     limit = getattr(session.config, "meta_history_limit", 0)
     if limit and len(session.meta_history) > limit:
         del session.meta_history[:-limit]
-    session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
+    session.meta_buffer = (
+        tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+    )
     return RunOutcome(
         answer=answer_text,
         trace=trace,
