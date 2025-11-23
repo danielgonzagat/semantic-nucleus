@@ -209,6 +209,16 @@ def _op_rewrite_code(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
     return _update(isr, relations=tuple(new_relations), context=tuple(new_context), quality=quality)
 
 
+def _op_trace_summary(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    reasoning_node = args[0] if args else None
+    summary = _build_trace_summary(reasoning_node)
+    if summary is None:
+        return isr
+    context = isr.context + (summary,)
+    quality = min(1.0, max(isr.quality, 0.6))
+    return _update(isr, context=context, quality=quality)
+
+
 def _is_code_ast(node: Node) -> bool:
     fields = dict(node.fields)
     tag = fields.get("tag")
@@ -335,7 +345,64 @@ _HANDLERS: Dict[str, Handler] = {
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,
     "CODE/EVAL_PURE": _op_code_eval_pure,
+    "TRACE_SUMMARY": _op_trace_summary,
 }
 
 
 __all__ = ["apply_operator"]
+
+
+def _build_trace_summary(reasoning: Node | None) -> Node | None:
+    if reasoning is None or reasoning.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(reasoning.fields)
+    operations = fields.get("operations")
+    stats_node = fields.get("operator_stats")
+    digest_node = fields.get("digest")
+    total_steps = 0
+    unique_ops: Dict[str, int] = {}
+    first_label = ""
+    last_label = ""
+    if operations is not None and operations.kind is NodeKind.LIST:
+        total_steps = len(operations.args)
+        for idx, entry in enumerate(operations.args):
+            entry_fields = dict(entry.fields)
+            label = (entry_fields.get("label").label if entry_fields.get("label") else "").upper()
+            if not label:
+                continue
+            if idx == 0:
+                first_label = label
+            last_label = label
+            unique_ops[label] = unique_ops.get(label, 0) + 1
+    elif stats_node is not None and stats_node.kind is NodeKind.LIST:
+        for entry in stats_node.args:
+            entry_fields = dict(entry.fields)
+            label = (entry_fields.get("label").label or "").upper()
+            count = entry_fields.get("count").value if entry_fields.get("count") else 0
+            if not label:
+                continue
+            unique_ops[label] = int(count or 0)
+            total_steps += int(count or 0)
+    dominant_op = ""
+    max_count = -1
+    for label, count in unique_ops.items():
+        if count > max_count:
+            dominant_op = label
+            max_count = count
+    summary_fields: Dict[str, Node] = {
+        "tag": entity("trace_summary"),
+        "total_steps": number(total_steps),
+        "unique_ops": number(len(unique_ops)),
+    }
+    if first_label:
+        summary_fields["first_op"] = entity(first_label)
+    if last_label:
+        summary_fields["last_op"] = entity(last_label)
+    if dominant_op:
+        summary_fields["dominant_op"] = entity(dominant_op)
+    digest_label = digest_node.label if digest_node and digest_node.label else ""
+    if digest_label:
+        summary_fields["reasoning_digest"] = text(digest_label)
+    elif reasoning is not None:
+        summary_fields["reasoning_digest"] = text(fingerprint(reasoning))
+    return struct(**summary_fields)

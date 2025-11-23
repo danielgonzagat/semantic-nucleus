@@ -41,7 +41,7 @@ def test_run_text_simple():
     assert "Carro" in answer or "carro" in answer.lower()
     assert trace.steps[0].startswith("1:")
     assert trace.digest != "0" * 32
-    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[")
+    assert trace.steps[-2].startswith(f"{len(trace.steps)-1}:HALT[")
     assert isinstance(trace.halt_reason, HaltReason)
     if trace.halt_reason is HaltReason.QUALITY_THRESHOLD:
         assert trace.finalized is False
@@ -121,7 +121,7 @@ def test_run_struct_converges_with_summary(monkeypatch):
     assert answer.startswith("Resumo")
     assert any("SUMMARIZE*" in step for step in trace.steps)
     assert any("STABILIZE*" in step for step in trace.steps)
-    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[SIGNATURE_REPEAT]")
+    assert trace.steps[-2].startswith(f"{len(trace.steps)-1}:HALT[SIGNATURE_REPEAT]")
     assert trace.halt_reason is HaltReason.SIGNATURE_REPEAT
     assert trace.finalized is True
 
@@ -190,6 +190,24 @@ def test_run_outcome_exposes_meta_reasoning_node():
     expr_fields = dict(outcome.meta_expression.fields)
     assert expr_fields["tag"].label == "meta_expression"
     assert expr_fields["preview"].label
+
+
+def test_trace_summary_operator_adds_context():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "trace_summary" in tags
+    summary_node = next(
+        node for node in outcome.isr.context if dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "trace_summary"
+    )
+    summary_fields = dict(summary_node.fields)
+    assert summary_fields["total_steps"].value >= 1
+    assert summary_fields["unique_ops"].value >= 1
+    assert summary_fields["reasoning_digest"].label
 
 
 def test_run_text_with_explanation_returns_triple():

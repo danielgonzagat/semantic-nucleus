@@ -226,6 +226,7 @@ def run_struct_full(
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
         snapshot = snapshot_equation(struct_node, isr)
         reasoning_node = build_meta_reasoning(trace.steps)
+        isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         language = _resolve_language(meta_info, session)
         meta_expression = build_meta_expression(
             isr.answer,
@@ -374,6 +375,7 @@ def run_struct_full(
         last_snapshot = None
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     language = _resolve_language(meta_info, session)
     meta_expression = build_meta_expression(
         isr.answer,
@@ -526,6 +528,19 @@ def _resolve_language(meta_info: MetaTransformResult | None, session: SessionCtx
     return session.language_hint
 
 
+def _apply_trace_summary_if_needed(
+    isr: ISR,
+    session: SessionCtx,
+    reasoning_node: Node | None,
+    trace: Trace,
+) -> ISR:
+    if reasoning_node is None:
+        return isr
+    updated = apply_operator(isr, operation("TRACE_SUMMARY", reasoning_node), session)
+    trace.add("Φ_META[TRACE_SUMMARY]", updated.quality, len(updated.relations), len(updated.context))
+    return updated
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -547,6 +562,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     snapshot = snapshot_equation(meta.struct_node, isr)
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     language = _resolve_language(meta, session)
     meta_expression = build_meta_expression(
         isr.answer,
