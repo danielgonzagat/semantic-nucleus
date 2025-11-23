@@ -35,6 +35,17 @@ def _extract_ian_reply(outcome):
     return None
 
 
+def _fake_meta_memory():
+    entry = struct(
+        tag=entity("memory_entry"),
+        route=entity("text"),
+        answer_preview=text("memória"),
+        reasoning_digest=text("abc"),
+        expression_digest=text("xyz"),
+    )
+    return struct(tag=entity("meta_memory"), size=number(1), entries=list_node([entry]), digest=text("deadbeef"))
+
+
 def test_run_text_simple():
     session = SessionCtx()
     answer, trace = run_text("O carro anda rapido", session)
@@ -161,6 +172,8 @@ def test_run_text_full_includes_meta_summary():
 
 def test_meta_summary_carries_reasoning_digest():
     session = SessionCtx()
+    session.meta_buffer = (_fake_meta_memory(),)
+    session.config.memory_store_path = None
     outcome = run_text_full("Um carro existe", session)
     assert outcome.meta_summary is not None
     tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
@@ -180,6 +193,7 @@ def test_meta_summary_carries_reasoning_digest():
     assert summary_dict["expression_route"] == "text"
     assert summary_dict["expression_answer_digest"]
     assert summary_dict["expression_reasoning_digest"]
+    assert summary_dict["expression_memory_context"]
     assert summary_dict["memory_size"] >= 1
     assert summary_dict["memory_entries"]
     assert summary_dict["memory_entries"][-1]["route"] == "text"

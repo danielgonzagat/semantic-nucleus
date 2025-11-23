@@ -634,6 +634,21 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         reasoning_digest = expression_fields.get("reasoning_digest")
         if reasoning_digest is not None:
             result["expression_reasoning_digest"] = _label(reasoning_digest)
+        memory_context_node = expression_fields.get("memory_context")
+        if memory_context_node is not None and memory_context_node.kind.name == "LIST":
+            refs: list[dict[str, object]] = []
+            for entry in memory_context_node.args:
+                entry_fields = _fields(entry)
+                refs.append(
+                    {
+                        "route": _label(entry_fields.get("route")),
+                        "preview": _label(entry_fields.get("preview")),
+                        "reasoning_digest": _label(entry_fields.get("reasoning")),
+                        "expression_digest": _label(entry_fields.get("expression")),
+                    }
+                )
+            if refs:
+                result["expression_memory_context"] = refs
     memory_node = nodes.get("meta_memory")
     if memory_node is not None:
         memory_fields = _fields(memory_node)
@@ -814,6 +829,16 @@ def _maybe_state_followup(
         if term is None:
             return MetaCalculation(operator="STATE_FOLLOWUP", operands=tuple())
         return MetaCalculation(operator="STATE_FOLLOWUP", operands=(term,))
-    if calculus.operator in {"STATE_QUERY", "STATE_ASSERT", "STATE_FOLLOWUP"}:
-        return MetaCalculation(operator="STATE_FOLLOWUP", operands=calculus.operands)
+    follow_map = {
+        "STATE_QUERY": "STATE_FOLLOWUP",
+        "STATE_ASSERT": "STATE_FOLLOWUP",
+        "STATE_FOLLOWUP": "STATE_FOLLOWUP",
+        "FACT_QUERY": "FACT_FOLLOWUP",
+        "FACT_FOLLOWUP": "FACT_FOLLOWUP",
+        "COMMAND_ROUTE": "COMMAND_FOLLOWUP",
+        "COMMAND_FOLLOWUP": "COMMAND_FOLLOWUP",
+    }
+    target = follow_map.get(calculus.operator)
+    if target:
+        return MetaCalculation(operator=target, operands=calculus.operands)
     return calculus

@@ -263,6 +263,7 @@ def run_struct_full(
         reasoning_node = build_meta_reasoning(trace.steps)
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         language = _resolve_language(meta_info, session)
+        memory_refs = tuple(node for node in session.meta_buffer if node is not None)
         meta_expression = build_meta_expression(
             isr.answer,
             reasoning=reasoning_node,
@@ -270,6 +271,7 @@ def run_struct_full(
             halt_reason=HaltReason.QUALITY_THRESHOLD.value,
             route=meta_info.route if meta_info else None,
             language=language,
+            memory_refs=memory_refs,
         )
         answer_text = _answer_text(isr)
         memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
@@ -421,6 +423,7 @@ def run_struct_full(
     reasoning_node = build_meta_reasoning(trace.steps)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     language = _resolve_language(meta_info, session)
+    memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
         isr.answer,
         reasoning=reasoning_node,
@@ -428,6 +431,7 @@ def run_struct_full(
         halt_reason=halt_reason.value,
         route=meta_info.route if meta_info else None,
         language=language,
+        memory_refs=memory_refs,
     )
     memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
@@ -709,6 +713,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     reasoning_node = build_meta_reasoning(trace.steps)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     language = _resolve_language(meta, session)
+    memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
         isr.answer,
         reasoning=reasoning_node,
@@ -716,6 +721,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         halt_reason=HaltReason.PLAN_EXECUTED.value,
         route=meta.route,
         language=language,
+        memory_refs=memory_refs,
     )
     memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
