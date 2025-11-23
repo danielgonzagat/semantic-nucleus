@@ -6,8 +6,24 @@ from metanucleus.testing.semantic_asserts import assert_semantic_label
 
 
 def _run_pipeline_and_get_struct(kernel: MetaKernel, phrase: str):
-    answer_text, answer_struct, debug_info = kernel._run_symbolic_pipeline(user_text=phrase)  # type: ignore[attr-defined]
+    answer_text, answer_struct, debug_info, meta_summary, calc_exec = kernel._run_symbolic_pipeline(  # type: ignore[attr-defined]
+        user_text=phrase
+    )
+    if meta_summary and "meta_summary" not in debug_info:
+        debug_info["meta_summary"] = meta_summary
+    if calc_exec and "calc_exec" not in debug_info:
+        debug_info["calc_exec"] = calc_exec
     return answer_struct, debug_info
+
+
+def test_meta_kernel_pipeline_exposes_meta_summary() -> None:
+    kernel = MetaKernel()
+    answer_struct, debug_info = _run_pipeline_and_get_struct(kernel, "Um carro existe.")
+    assert answer_struct is not None
+    assert "meta_summary" in debug_info
+    assert debug_info["meta_summary"]["route"] == "text"
+    assert debug_info["trace_digest"]
+    assert kernel.state.meta_history, "Meta history should mirror NSR summaries."
 
 
 def _check_semantic_frame(kernel: MetaKernel, phrase: str, lang: str, expected_repr: str, issue: str) -> None:

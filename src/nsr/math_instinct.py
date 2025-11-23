@@ -13,7 +13,7 @@ import math
 from .ian import CHAR_TO_CODE, _normalize
 
 RAW_EXPR_RE = re.compile(r"^[\s0-9A-Za-z+\-*/().]+$")
-MATH_CHARS = set("0123456789+-*/().^%")
+MATH_CHARS = set("0123456789+-*/()^%")
 ALLOWED_BIN_OPS = (ast.Add, ast.Sub, ast.Mult, ast.Div, ast.Pow)
 ALLOWED_UNARY_OPS = (ast.UAdd, ast.USub)
 ALLOWED_CALLS = {"ABS": abs, "SQRT": math.sqrt}
@@ -120,8 +120,9 @@ def _shared_upper(value: str) -> str:
 
 
 def _looks_like_math(text: str) -> bool:
-    if any(ch in MATH_CHARS for ch in text):
-        return True
+    for ch in text:
+        if ch.isdigit() or ch in MATH_CHARS:
+            return True
     upper = _shared_upper(text)
     return any(func in upper for func in ALLOWED_CALLS.keys())
 

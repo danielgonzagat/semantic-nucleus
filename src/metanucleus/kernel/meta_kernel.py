@@ -4,8 +4,13 @@ MetaKernel central do Metanúcleo — orquestra runtime e autoevolução.
 
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
+
+from liu import to_json
+from nsr import SessionCtx, run_text_full, meta_summary_to_dict
 
 from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.core.state import MetaState
@@ -18,6 +23,7 @@ from metanucleus.evolution.types import EvolutionPatch
 
 if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
+    from nsr.meta_calculator import MetaCalculationResult
 
 
 # ---------------------------------------------------------------------------
@@ -44,6 +50,8 @@ class MetaKernelTurnResult:
     answer_struct: Any | None = None
     suggested_patches: List[EvolutionPatch] = field(default_factory=list)
     debug_info: Dict[str, Any] = field(default_factory=dict)
+    meta_summary: Dict[str, Any] | None = None
+    calc_exec: Dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +63,7 @@ class MetaKernelTurnResult:
 class MetaKernel:
     state: MetaState = field(default_factory=MetaState)
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)
+    nsr_session: SessionCtx = field(default_factory=SessionCtx)
 
     @classmethod
     def bootstrap(cls) -> MetaKernel:
@@ -77,7 +86,9 @@ class MetaKernel:
         if evolution_domains is None:
             evolution_domains = ["intent", "calculus"]
 
-        answer_text, answer_struct, debug = self._run_symbolic_pipeline(user_text=user_text)
+        answer_text, answer_struct, debug, meta_summary, calc_exec = self._run_symbolic_pipeline(
+            user_text=user_text
+        )
         if session_id:
             debug["session_id"] = session_id
 
@@ -90,14 +101,64 @@ class MetaKernel:
             answer_struct=answer_struct,
             suggested_patches=patches,
             debug_info=debug,
+            meta_summary=meta_summary,
+            calc_exec=calc_exec,
         )
 
-    def _run_symbolic_pipeline(self, user_text: str) -> tuple[str, Any | None, Dict[str, Any]]:
-        answer = f"[ECO] {user_text}"
+    def _run_symbolic_pipeline(
+        self, user_text: str
+    ) -> tuple[str, Any | None, Dict[str, Any], Dict[str, Any] | None, Dict[str, Any] | None]:
+        """
+        Conecta diretamente ao NSR e devolve resposta, STRUCT e pacote meta.
+        """
+
+        outcome = run_text_full(user_text, session=self.nsr_session)
+        answer_struct = outcome.isr.answer if outcome.isr else None
+        answer_text = outcome.answer
+        meta_dict: Dict[str, Any] | None = None
+        if outcome.meta_summary is not None:
+            meta_dict = meta_summary_to_dict(outcome.meta_summary)
+            self._record_meta_history(meta_dict)
+        calc_exec: Dict[str, Any] | None = None
         debug_info: Dict[str, Any] = {
-            "note": "MetaKernel._run_symbolic_pipeline ainda é um placeholder determinístico."
+            "trace_digest": outcome.trace.digest,
+            "trace_steps": len(outcome.trace.steps),
+            "halt_reason": outcome.halt_reason.value,
+            "quality": outcome.quality,
+            "finalized": outcome.finalized,
+            "route": meta_dict.get("route") if meta_dict else None,
+            "language": meta_dict.get("language") if meta_dict else None,
         }
-        return answer, None, debug_info
+        if meta_dict:
+            debug_info["meta_summary"] = meta_dict
+            debug_info["meta_digest"] = meta_dict.get("meta_digest")
+            debug_info["phi_plan_chain"] = meta_dict.get("phi_plan_chain")
+            debug_info["phi_plan_digest"] = meta_dict.get("phi_plan_digest")
+            debug_info["calc_exec_snapshot_digest"] = meta_dict.get("calc_exec_snapshot_digest")
+            debug_info["calc_exec_consistent"] = meta_dict.get("calc_exec_consistent")
+            debug_info["calc_exec_error"] = meta_dict.get("calc_exec_error")
+        if outcome.lc_meta is not None:
+            debug_info["lc_meta"] = to_json(outcome.lc_meta)
+        if outcome.language_profile is not None:
+            debug_info["language_profile"] = to_json(outcome.language_profile)
+        if outcome.code_summary is not None and meta_dict:
+            debug_info["code_summary"] = meta_dict.get("code_summary_function_details")
+            debug_info["code_summary_digest"] = meta_dict.get("code_summary_digest")
+        if outcome.calc_plan is not None:
+            debug_info["calc_plan_route"] = outcome.calc_plan.route.value
+            debug_info["calc_plan_description"] = outcome.calc_plan.description
+        if outcome.calc_result is not None:
+            debug_info.setdefault("calc_exec_consistent", outcome.calc_result.consistent)
+            debug_info.setdefault("calc_exec_error", outcome.calc_result.error)
+            calc_exec = _calc_result_to_dict(outcome.calc_result)
+        return answer_text, answer_struct, debug_info, meta_dict, calc_exec
+
+    def _record_meta_history(self, entry: Dict[str, Any]) -> None:
+        record = dict(entry)
+        self.state.meta_history.append(record)
+        limit = getattr(self.nsr_session.config, "meta_history_limit", 64) or 64
+        if len(self.state.meta_history) > limit:
+            del self.state.meta_history[:-limit]
 
     # ---------------- Autoevolução ---------------- #
 
@@ -212,3 +273,19 @@ def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
 
 
 __all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult"]
+
+
+def _calc_result_to_dict(calc_result: "MetaCalculationResult") -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "plan_route": calc_result.plan.route.value,
+        "plan_description": calc_result.plan.description,
+        "consistent": calc_result.consistent,
+        "error": calc_result.error or "",
+    }
+    if calc_result.answer is not None:
+        payload["answer"] = to_json(calc_result.answer)
+    if calc_result.snapshot is not None:
+        payload["snapshot"] = calc_result.snapshot
+    if calc_result.code_summary is not None:
+        payload["code_summary"] = json.loads(to_json(calc_result.code_summary))
+    return payload

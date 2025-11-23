@@ -1,6 +1,7 @@
 import pytest
 
 from metanucleus import MetaRuntime, MetaState
+from metanucleus.runtime import MetanucleusRuntime
 
 
 @pytest.fixture()
@@ -107,3 +108,14 @@ def test_testcore_alt_suite(runtime):
     output = runtime.handle_request("/testcore math")
     assert "[TESTCORE:math]" in output
     assert "math_simple_add" in output
+
+
+def test_metanucleus_session_exposes_meta_payload():
+    runtime = MetanucleusRuntime()
+    session = runtime.new_session()
+    result = session.ask_full("Um carro existe.")
+    assert result.meta_summary is not None
+    assert result.meta_summary["route"] == "text"
+    assert result.calc_exec is not None
+    assert result.calc_exec["plan_route"] == "text"
+    assert "trace_digest" in result.debug_info

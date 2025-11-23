@@ -41,3 +41,9 @@ def test_math_instinct_functions():
     result = instinct.evaluate("sqrt(9)")
     assert result is not None
     assert result.text == "3"
+
+
+def test_math_instinct_ignores_non_math_sentences_with_punctuation():
+    instinct = MathInstinct()
+    assert instinct.evaluate("Um carro existe.") is None
+    assert maybe_route_math("Um carro existe.") is None
