@@ -150,6 +150,7 @@ def soma(x, y):
     assert summary_nodes, "expected code_ast_summary in preseed context"
     summary_fields = dict(summary_nodes[0].fields)
     assert summary_fields["function_count"].value >= 1
+    assert summary_fields["digest"].label
     assert result.code_summary is not None
     assert dict(result.code_summary.fields)["tag"].label == "code_ast_summary"
 

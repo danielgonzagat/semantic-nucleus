@@ -421,9 +421,11 @@ def soma(x, y):
     assert outcome.code_summary is not None
     summary_fields = dict(outcome.code_summary.fields)
     assert summary_fields["function_count"].value >= 1
+    assert summary_fields["digest"].label
     assert outcome.meta_summary is not None
     meta_dict = meta_summary_to_dict(outcome.meta_summary)
     assert meta_dict["code_summary_function_count"] >= 1
+    assert meta_dict["code_summary_digest"]
 
 
 def test_text_route_with_detected_code_runs_rewrite(monkeypatch):

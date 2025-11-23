@@ -9,7 +9,7 @@ from collections import Counter
 from dataclasses import dataclass, field
 from typing import Iterable
 
-from liu import Node, entity, struct as liu_struct, list_node, text as liu_text, number, boolean
+from liu import Node, entity, struct as liu_struct, list_node, text as liu_text, number, boolean, fingerprint
 
 MAX_AST_NODES = 512
 MAX_LITERAL_PREVIEW = 80
@@ -189,11 +189,13 @@ def compute_code_ast_stats(node: Node) -> CodeAstStats:
 
 def build_code_ast_summary(node: Node, stats: CodeAstStats | None = None) -> Node:
     stats = stats or compute_code_ast_stats(node)
+    digest = fingerprint(node)
     return liu_struct(
         tag=entity("code_ast_summary"),
         language=entity(stats.language),
         node_count=number(stats.node_count),
         function_count=number(stats.function_count),
+        digest=entity(digest),
     )
 
 
