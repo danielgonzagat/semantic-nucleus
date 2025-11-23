@@ -23,7 +23,13 @@ def test_meta_reasoning_serializes_steps_and_stats():
     assert abs(first_entry["quality"].value - 0.30) < 1e-6
     stats_node = fields["operator_stats"]
     assert stats_node.kind.name == "LIST"
-    stats = {dict(entry.fields)["label"].label: dict(entry.fields)["count"].value for entry in stats_node.args}
+    stats = {}
+    for entry in stats_node.args:
+        entry_fields = dict(entry.fields)
+        label_node = entry_fields.get("label")
+        count_node = entry_fields.get("count")
+        if label_node and count_node:
+            stats[label_node.label] = count_node.value
     assert stats["NORMALIZE"] == 1
     assert stats["INFER"] == 1
     assert stats["HALT"] == 1
