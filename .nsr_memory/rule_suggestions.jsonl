@@ -1,1 +1,3 @@
 {"if_rel":"memory/LINKS","then_rel":"memory/LINKS","support":3,"timestamp":1763927193.036718,"source":"memory_induction"}
+{"if_rel":"HAS","then_rel":"memory/LINKS","support":3,"timestamp":1763927552.12266,"source":"memory_induction"}
+{"if_rel":"memory/LINKS","then_rel":"HAS","support":3,"timestamp":1763927552.1226928,"source":"memory_induction"}

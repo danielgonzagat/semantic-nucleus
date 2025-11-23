@@ -45,6 +45,8 @@ def build_meta_memory(
         digest.update((fields.get("answer_preview").label or "").encode("utf-8"))
         digest.update((fields.get("reasoning_digest").label or "").encode("utf-8"))
         digest.update((fields.get("expression_digest").label or "").encode("utf-8"))
+        digest.update((fields.get("equation_digest").label or "").encode("utf-8"))
+        digest.update((fields.get("equation_trend").label or "").encode("utf-8"))
     return liu_struct(
         tag=entity("meta_memory"),
         size=number(len(entries)),
@@ -62,7 +64,11 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
     expression_digest = str(
         payload.get("expression_answer_digest") or payload.get("answer_digest") or ""
     )
-    if not preview and not expression_digest and not reasoning_digest:
+    equation_digest = str(payload.get("equation_digest") or "")
+    equation_trend = str(payload.get("equation_trend") or "")
+    equation_quality = str(payload.get("equation_quality") or "")
+    equation_delta_quality = str(payload.get("equation_delta_quality") or "")
+    if not preview and not expression_digest and not reasoning_digest and not equation_digest:
         return None
     fields = {
         "tag": entity("memory_entry"),
@@ -72,6 +78,14 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
         "reasoning_digest": liu_text(reasoning_digest),
         "expression_digest": liu_text(expression_digest),
     }
+    if equation_digest:
+        fields["equation_digest"] = liu_text(equation_digest)
+    if equation_trend:
+        fields["equation_trend"] = liu_text(equation_trend)
+    if equation_quality:
+        fields["equation_quality"] = liu_text(equation_quality)
+    if equation_delta_quality:
+        fields["equation_delta_quality"] = liu_text(equation_delta_quality)
     return liu_struct(**fields)
 
 

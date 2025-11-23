@@ -277,14 +277,16 @@ def run_struct_full(
             memory_refs=memory_refs,
         )
         answer_text = _answer_text(isr)
-        memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
-        meta_memory = build_meta_memory(session.meta_history, memory_entry)
         equation_node = (
             build_meta_equation_node(snapshot, session.last_equation_stats)
             if meta_info
             else None
         )
         equation_stats = snapshot.stats()
+        memory_entry = _memory_entry_payload(
+            meta_info, answer_text, meta_expression, reasoning_node, equation_node
+        )
+        meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
             build_meta_summary(
                 meta_info,
@@ -445,14 +447,16 @@ def run_struct_full(
         language=language,
         memory_refs=memory_refs,
     )
-    memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
-    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     equation_node = (
         build_meta_equation_node(snapshot, session.last_equation_stats)
         if meta_info
         else None
     )
     equation_stats = snapshot.stats()
+    memory_entry = _memory_entry_payload(
+        meta_info, answer_text, meta_expression, reasoning_node, equation_node
+    )
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = (
         build_meta_summary(
             meta_info,
@@ -662,15 +666,22 @@ def _memory_entry_payload(
     answer_text: str,
     meta_expression: Node | None,
     reasoning_node: Node | None,
+    meta_equation: Node | None,
 ) -> dict[str, object]:
     route = meta_info.route.value if meta_info else ""
-    return {
+    payload = {
         "route": route,
         "answer": answer_text,
         "expression_preview": _node_field_label(meta_expression, "preview"),
         "expression_answer_digest": _node_field_label(meta_expression, "answer_digest"),
         "reasoning_trace_digest": _node_field_label(reasoning_node, "digest"),
     }
+    if meta_equation is not None:
+        payload["equation_digest"] = _node_field_label(meta_equation, "digest")
+        payload["equation_quality"] = _node_field_label(meta_equation, "quality")
+        payload["equation_trend"] = _node_field_label(meta_equation, "trend")
+        payload["equation_delta_quality"] = _node_field_label(meta_equation, "delta_quality")
+    return payload
 
 
 def _node_field_label(node: Node | None, field: str) -> str:
@@ -777,7 +788,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         language=language,
         memory_refs=memory_refs,
     )
-    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
+    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node, equation_node)
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
     equation_node = build_meta_equation_node(snapshot, session.last_equation_stats)
     equation_stats = snapshot.stats()

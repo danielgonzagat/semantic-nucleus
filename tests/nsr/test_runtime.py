@@ -231,6 +231,20 @@ def test_meta_summary_includes_equation_delta():
     assert any(entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas)
 
 
+def test_meta_memory_includes_equation_trend():
+    session = SessionCtx()
+    run_text_full("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    meta_memory = outcome.meta_memory
+    assert meta_memory is not None
+    entries = dict(meta_memory.fields)["entries"]
+    latest = entries.args[-1]
+    fields = dict(latest.fields)
+    assert fields["equation_digest"].label
+    assert fields["equation_trend"].label in {"initial", "expanding", "stable", "regressing"}
+    assert fields["equation_quality"].label
+
+
 def test_run_outcome_exposes_meta_reasoning_node():
     session = SessionCtx()
     outcome = run_text_full("O carro tem roda", session)
