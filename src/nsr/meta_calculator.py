@@ -11,6 +11,7 @@ import json
 from liu import Node, to_json
 
 from svm.vm import SigmaVM
+from svm.verifier import verify_program, VerificationError
 
 from .state import SessionCtx
 from .meta_transformer import MetaCalculationPlan
@@ -38,6 +39,17 @@ def execute_meta_plan(
     Carrega o plano em uma ΣVM limpa e executa o bytecode planejado.
     """
 
+    try:
+        verify_program(plan.program)
+    except VerificationError as exc:
+        return MetaCalculationResult(
+            plan=plan,
+            answer=None,
+            snapshot=None,
+            error=f"program_verification_failed:{exc}",
+            consistent=False,
+            code_summary=code_summary,
+        )
     vm = SigmaVM(session=session)
     try:
         vm.load(plan.program, initial_struct=struct_node, session=session)

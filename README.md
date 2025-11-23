@@ -96,6 +96,7 @@ flowchart LR
   - `phi_plan_digest`: `blake2b` (digest_size=16) calculado sobre `route`, `description`, `(opcode, operand)` e fingerprints das constantes LIU.
 - O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
 - Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
+- Antes da execução física, `svm.verifier.verify_program` valida cada plano (operandos, registradores, destinos de salto e `HALT` explícito); se a verificação falha, `execute_meta_plan` retorna um erro determinístico e não toca o hardware.
 
 ## ♻️ Auto-evolução & PRs automáticos
 
