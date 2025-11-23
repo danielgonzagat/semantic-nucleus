@@ -289,15 +289,15 @@ def run_struct_full(
         meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
             build_meta_summary(
-                meta_info,
-                answer_text,
-                isr.quality,
-                HaltReason.QUALITY_THRESHOLD.value,
-                calc_result,
-                meta_reasoning=reasoning_node,
-                meta_expression=meta_expression,
-                meta_memory=meta_memory,
-                meta_equation=equation_node,
+        meta_info,
+        answer_text,
+        isr.quality,
+        HaltReason.QUALITY_THRESHOLD.value,
+        calc_result,
+        meta_reasoning=reasoning_node,
+        meta_expression=meta_expression,
+        meta_memory=meta_memory,
+        meta_equation=equation_node,
             )
             if meta_info
             else None
