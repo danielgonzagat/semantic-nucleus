@@ -191,6 +191,18 @@ def test_cli_includes_equation_trend_block(capsys):
     assert isinstance(eq.get("sections"), list)
 
 
+def test_cli_includes_logic_proof_block(capsys):
+    exit_code = nsr_cli.main(["QUERY carro e veiculo", "--format", "json", "--include-proof", "--include-meta"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    proof = data.get("proof_detail")
+    assert proof is not None
+    assert proof["truth"] in {"true", "false", "unknown"}
+    assert "digest" in proof
+    assert "proof" in proof
+
+
 def test_cli_accepts_expect_meta_digest(capsys):
     exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
     assert exit_code == 0

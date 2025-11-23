@@ -245,6 +245,26 @@ def test_meta_memory_includes_equation_trend():
     assert fields["equation_quality"].label
 
 
+def test_logic_query_generates_proof_summary():
+    session = SessionCtx()
+    run_text_full("FACT carro is veiculo", session)
+    outcome = run_text_full("QUERY carro is veiculo", session)
+    proof_nodes = [
+        node
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "logic_proof"
+    ]
+    assert proof_nodes
+    proof_fields = dict(proof_nodes[-1].fields)
+    assert proof_fields["truth"].label in {"true", "false", "unknown"}
+    facts_node = proof_fields["facts"]
+    assert facts_node.kind.name == "LIST"
+    assert facts_node.args
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict.get("logic_proof_truth") == "true"
+    assert summary_dict.get("logic_proof_query")
+
+
 def test_normalize_operator_deduplicates_relations():
     session = SessionCtx()
     dup = relation("IS_A", entity("carro"), entity("coisa"))

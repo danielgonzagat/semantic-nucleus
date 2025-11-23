@@ -45,8 +45,12 @@ def build_meta_memory(
         digest.update((fields.get("answer_preview").label or "").encode("utf-8"))
         digest.update((fields.get("reasoning_digest").label or "").encode("utf-8"))
         digest.update((fields.get("expression_digest").label or "").encode("utf-8"))
-        digest.update((fields.get("equation_digest").label or "").encode("utf-8"))
-        digest.update((fields.get("equation_trend").label or "").encode("utf-8"))
+        equation_digest_node = fields.get("equation_digest")
+        equation_trend_node = fields.get("equation_trend")
+        digest.update(((equation_digest_node.label if equation_digest_node else "")).encode("utf-8"))
+        digest.update(((equation_trend_node.label if equation_trend_node else "")).encode("utf-8"))
+        proof_digest_node = fields.get("logic_proof_digest")
+        digest.update(((proof_digest_node.label if proof_digest_node else "")).encode("utf-8"))
     return liu_struct(
         tag=entity("meta_memory"),
         size=number(len(entries)),
@@ -68,6 +72,9 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
     equation_trend = str(payload.get("equation_trend") or "")
     equation_quality = str(payload.get("equation_quality") or "")
     equation_delta_quality = str(payload.get("equation_delta_quality") or "")
+    proof_truth = str(payload.get("logic_proof_truth") or "")
+    proof_query = str(payload.get("logic_proof_query") or "")
+    proof_digest = str(payload.get("logic_proof_digest") or "")
     if not preview and not expression_digest and not reasoning_digest and not equation_digest:
         return None
     fields = {
@@ -86,6 +93,12 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
         fields["equation_quality"] = liu_text(equation_quality)
     if equation_delta_quality:
         fields["equation_delta_quality"] = liu_text(equation_delta_quality)
+    if proof_truth:
+        fields["logic_proof_truth"] = liu_text(proof_truth)
+    if proof_query:
+        fields["logic_proof_query"] = liu_text(proof_query)
+    if proof_digest:
+        fields["logic_proof_digest"] = liu_text(proof_digest)
     return liu_struct(**fields)
 
 

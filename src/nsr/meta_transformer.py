@@ -440,6 +440,7 @@ def build_meta_summary(
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
+    meta_proof: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -472,6 +473,8 @@ def build_meta_summary(
         nodes.append(meta_memory)
     if meta_equation is not None:
         nodes.append(meta_equation)
+    if meta_proof is not None:
+        nodes.append(_meta_proof_node(meta_proof))
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -711,6 +714,15 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                     }
                 )
             result["equation_section_deltas"] = delta_sections
+    proof_node = nodes.get("meta_proof")
+    if proof_node is not None:
+        proof_fields = _fields(proof_node)
+        result["logic_proof_truth"] = _label(proof_fields.get("truth"))
+        result["logic_proof_query"] = _label(proof_fields.get("query"))
+        result["logic_proof_digest"] = _label(proof_fields.get("proof_digest"))
+        proof_payload = proof_fields.get("proof")
+        if proof_payload is not None:
+            result["logic_proof"] = to_json(proof_payload)
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)
@@ -806,6 +818,19 @@ def _meta_digest_node(nodes: list[Node]) -> Node:
     for node in nodes:
         hasher.update(fingerprint(node).encode("utf-8"))
     return liu_struct(tag=entity("meta_digest"), hex=liu_text(hasher.hexdigest()))
+
+
+def _meta_proof_node(proof: Node) -> Node:
+    fields = _fields(proof)
+    truth_node = fields.get("truth") or entity("unknown")
+    query_node = fields.get("query") or liu_text("")
+    return liu_struct(
+        tag=entity("meta_proof"),
+        truth=truth_node,
+        query=query_node,
+        proof=proof,
+        proof_digest=liu_text(fingerprint(proof)),
+    )
 
 
 def _meta_calc_exec_node(calc_result: "MetaCalculationResult") -> Node | None:

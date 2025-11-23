@@ -292,6 +292,32 @@ def _op_memory_link(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     return _update(isr, relations=new_relations, context=new_context, quality=quality)
 
 
+def _op_prove(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    engine = session.logic_engine
+    if engine is None:
+        return isr
+    target = _logic_statement_from_args(args) or _logic_statement_from_context(isr.context)
+    new_facts = engine.infer()
+    facts_nodes = [
+        struct(statement=text(statement), truth=entity("true" if truth else "false"))
+        for statement, truth in sorted(engine.facts.items())
+    ]
+    derived_nodes = [text(item) for item in engine.derived_order]
+    truth_value = engine.facts.get(target) if target else None
+    summary_fields: dict[str, Node] = {
+        "tag": entity("logic_proof"),
+        "facts": list_node(facts_nodes),
+        "derived": list_node(derived_nodes),
+        "query": text(target or ""),
+        "truth": entity(_logic_truth_label(truth_value)),
+    }
+    if new_facts:
+        summary_fields["new_facts"] = list_node(text(item) for item in sorted(new_facts))
+    summary = struct(**summary_fields)
+    quality = max(isr.quality, 0.94 if truth_value else 0.9 if truth_value is None else isr.quality)
+    return _update(isr, context=isr.context + (summary,), quality=quality)
+
+
 def _is_code_ast(node: Node) -> bool:
     fields = dict(node.fields)
     tag = fields.get("tag")
@@ -421,6 +447,7 @@ _HANDLERS: Dict[str, Handler] = {
     "TRACE_SUMMARY": _op_trace_summary,
     "MEMORY_RECALL": _op_memory_recall,
     "MEMORY_LINK": _op_memory_link,
+    "PROVE": _op_prove,
 }
 
 
@@ -491,3 +518,37 @@ def _build_trace_summary(reasoning: Node | None) -> Node | None:
     elif reasoning is not None:
         summary_fields["reasoning_digest"] = text(fingerprint(reasoning))
     return struct(**summary_fields)
+
+
+def _logic_statement_from_args(args: Tuple[Node, ...]) -> str | None:
+    if not args:
+        return None
+    node = args[0]
+    if node.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(node.fields)
+    statement_node = fields.get("statement")
+    if statement_node and statement_node.label:
+        return statement_node.label
+    return None
+
+
+def _logic_statement_from_context(context: Tuple[Node, ...]) -> str | None:
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag and (tag.label or "").lower() == "logic_input":
+            statement_node = fields.get("statement")
+            if statement_node and statement_node.label:
+                return statement_node.label
+    return None
+
+
+def _logic_truth_label(value: bool | None) -> str:
+    if value is True:
+        return "true"
+    if value is False:
+        return "false"
+    return "unknown"

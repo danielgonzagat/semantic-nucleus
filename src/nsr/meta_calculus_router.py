@@ -27,12 +27,18 @@ _TEXT_PIPELINES: dict[str, Tuple[Opcode, ...]] = {
         Opcode.PHI_EXPLAIN,
         Opcode.PHI_SUMMARIZE,
     ),
-    "FACT_QUERY": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
+    "FACT_QUERY": (
+        Opcode.PHI_NORMALIZE,
+        Opcode.PHI_INFER,
+        Opcode.PHI_PROVE,
+        Opcode.PHI_SUMMARIZE,
+    ),
     "FACT_FOLLOWUP": (
         Opcode.PHI_MEMORY_RECALL,
         Opcode.PHI_MEMORY_LINK,
         Opcode.PHI_NORMALIZE,
         Opcode.PHI_INFER,
+        Opcode.PHI_PROVE,
         Opcode.PHI_SUMMARIZE,
     ),
     "COMMAND_ROUTE": (Opcode.PHI_NORMALIZE, Opcode.PHI_INFER, Opcode.PHI_SUMMARIZE),
@@ -56,6 +62,7 @@ _OPCODE_TO_PHI_LABEL = {
     Opcode.PHI_ANSWER: "ANSWER",
     Opcode.PHI_EXPLAIN: "EXPLAIN",
     Opcode.PHI_SUMMARIZE: "SUMMARIZE",
+    Opcode.PHI_PROVE: "PROVE",
 }
 
 
@@ -81,7 +88,7 @@ def text_operation_pipeline(
         label = _OPCODE_TO_PHI_LABEL.get(opcode)
         if not label:
             continue
-        if label in {"ANSWER", "EXPLAIN"} and struct_node is not None:
+        if label in {"ANSWER", "EXPLAIN", "PROVE"} and struct_node is not None:
             operations.append(operation(label, struct_node))
         else:
             operations.append(operation(label))

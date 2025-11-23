@@ -86,6 +86,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inclui resumo determinístico da meta-equação (digests, trend e deltas estruturais).",
     )
     parser.add_argument(
+        "--include-proof",
+        action="store_true",
+        help="Inclui o bloco meta_proof (Φ_PROVE) com verdade/query/digest determinísticos quando disponível.",
+    )
+    parser.add_argument(
         "--calc-mode",
         choices=("hybrid", "plan_only", "skip"),
         default=None,
@@ -224,6 +229,11 @@ def main(argv: list[str] | None = None) -> int:
         if equation_meta is None:
             raise SystemExit("--include-equation-trend requer meta_summary (use --include-meta).")
         payload["equation_trend_detail"] = equation_meta
+    if args.include_proof:
+        proof_meta = _extract_logic_proof_data(outcome)
+        if proof_meta is None:
+            raise SystemExit("--include-proof requer meta_summary e uma consulta lógica (use --include-meta).")
+        payload["proof_detail"] = proof_meta
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
@@ -366,3 +376,23 @@ def _extract_equation_trend_data(outcome) -> dict[str, object] | None:
     if delta_sections:
         eq_data["section_deltas"] = delta_sections
     return eq_data
+
+
+def _extract_logic_proof_data(outcome) -> dict[str, object] | None:
+    if not outcome.meta_summary:
+        return None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    proof_payload = summary_dict.get("logic_proof")
+    truth = summary_dict.get("logic_proof_truth")
+    query = summary_dict.get("logic_proof_query")
+    digest = summary_dict.get("logic_proof_digest")
+    if not (proof_payload or truth or query or digest):
+        return None
+    proof_data: dict[str, object] = {
+        "truth": truth or "unknown",
+        "query": query or "",
+        "digest": digest or "",
+    }
+    if proof_payload:
+        proof_data["proof"] = proof_payload
+    return proof_data
