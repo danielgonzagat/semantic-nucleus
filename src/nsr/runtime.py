@@ -199,6 +199,9 @@ def run_struct_full(
         trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
     if plan_label:
         trace.add(plan_label, isr.quality, len(isr.relations), len(isr.context))
+    isr, code_label = _apply_code_rewrite_if_needed(isr, session, meta_info)
+    if code_label:
+        trace.add(code_label, isr.quality, len(isr.relations), len(isr.context))
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
@@ -447,6 +450,17 @@ def _prime_ops_from_meta_calc(
     operator = (meta_info.meta_calculation.operator or "text").upper()
     chain = "→".join(filter(None, (op.label or "" for op in pipeline_ops)))
     return f"Φ_PLAN[{operator}:{chain}]"
+
+
+def _apply_code_rewrite_if_needed(
+    isr: ISR,
+    session: SessionCtx,
+    meta_info: MetaTransformResult | None,
+) -> tuple[ISR, str | None]:
+    if meta_info is None or meta_info.code_ast is None:
+        return isr, None
+    updated = apply_operator(isr, operation("REWRITE_CODE"), session)
+    return updated, "Φ_CODE[REWRITE_CODE]"
 
 
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:

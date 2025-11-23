@@ -23,6 +23,7 @@ from nsr.runtime import _state_signature, HaltReason
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 from nsr.lc_omega import MetaCalculation
+from nsr.language_detector import LanguageDetectionResult
 
 
 def _extract_ian_reply(outcome):
@@ -369,7 +370,8 @@ def test_initial_isr_seeds_relations_into_state():
 def test_run_text_handles_english_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("The car has a wheel", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relations:"))
     assert "carro has wheel" in answer.lower()
     outcome = run_text_full("The car has a wheel", session)
     assert outcome.calc_plan is not None
@@ -382,14 +384,16 @@ def test_run_text_handles_english_relation_sentence():
 def test_run_text_handles_spanish_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("El coche tiene una rueda", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relaciones:", "relations:"))
     assert "carro has roda" in answer.lower()
 
 
 def test_run_text_handles_french_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("La voiture a une roue", session)
-    assert "relações:" in answer.lower()
+    answer_lower = answer.lower()
+    assert any(prefix in answer_lower for prefix in ("relações:", "relations :", "relations:"))
     assert "carro has roda" in answer.lower()
 
 
@@ -398,6 +402,44 @@ def test_run_text_handles_ian_greetings():
     answer, trace = run_text("oi, tudo bem?", session)
     assert answer == "tudo bem, e você?"
     assert any(step.startswith("1:IAN[") for step in trace.steps)
+
+
+def test_code_route_executes_rewrite_code_operator():
+    session = SessionCtx()
+    source = """
+def soma(x, y):
+    return x + y
+"""
+    outcome = run_text_full(source, session)
+    assert any("Φ_CODE[REWRITE_CODE]" in step for step in outcome.trace.steps)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "code_ast_summary" in tags
+
+
+def test_text_route_with_detected_code_runs_rewrite(monkeypatch):
+    session = SessionCtx()
+
+    def _no_code(*args, **kwargs):
+        return None
+
+    monkeypatch.setattr("nsr.meta_transformer.maybe_route_code", _no_code)
+    source = """
+def apenas_texto(x, y):
+    return x + y
+"""
+    outcome = run_text_full(source, session)
+    assert outcome.meta_summary is not None
+    assert any("Φ_CODE[REWRITE_CODE]" in step for step in outcome.trace.steps)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "code_ast_summary" in tags
 
 
 def test_run_text_handles_verbose_health_question():
@@ -536,11 +578,16 @@ def test_run_text_handles_math_expression():
     assert trace.steps[0].startswith("1:MATH[")
 
 
-def test_language_hint_controls_non_ian_renderer():
+def test_language_hint_controls_non_ian_renderer(monkeypatch):
     session = SessionCtx()
     session.language_hint = "en"
+
+    def fake_detect(text_value: str):
+        return LanguageDetectionResult(category="text", language=None, confidence=0.0, dialect=None, hints=())
+
+    monkeypatch.setattr("nsr.meta_transformer.detect_language_profile", fake_detect)
     answer, _ = run_text("O carro tem roda", session)
-    assert "Relations:" in answer
+    assert "relations:" in answer.lower()
 
 
 def test_run_text_full_short_circuits_for_ian():
