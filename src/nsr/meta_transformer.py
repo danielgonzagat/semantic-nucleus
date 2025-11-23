@@ -681,6 +681,7 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         result["equation_input_digest"] = _label(equation_fields.get("input_digest"))
         result["equation_answer_digest"] = _label(equation_fields.get("answer_digest"))
         result["equation_quality"] = _value(equation_fields.get("quality"))
+        result["equation_trend"] = _label(equation_fields.get("trend"))
         sections_node = equation_fields.get("sections")
         if sections_node is not None and sections_node.kind.name == "LIST":
             eq_sections: list[dict[str, object]] = []

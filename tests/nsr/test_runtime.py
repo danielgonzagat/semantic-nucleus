@@ -215,6 +215,7 @@ def test_meta_summary_includes_equation_snapshot():
     sections = summary_dict["equation_sections"]
     assert sections
     assert any(section["name"] == "relations" for section in sections)
+    assert summary_dict["equation_trend"] == "initial"
 
 
 def test_meta_summary_includes_equation_delta():
@@ -224,6 +225,7 @@ def test_meta_summary_includes_equation_delta():
     assert outcome.meta_summary is not None
     summary_dict = meta_summary_to_dict(outcome.meta_summary)
     assert "equation_delta_quality" in summary_dict
+    assert summary_dict["equation_trend"] in {"expanding", "regressing", "stable"}
     deltas = summary_dict["equation_section_deltas"]
     assert deltas
     assert any(entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas)
