@@ -5,12 +5,15 @@ MetaKernel central do Metanúcleo — orquestra runtime e autoevolução.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any, Dict, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
 
 from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.core.state import MetaState
-from metanucleus.evolution.intent_patch_generator import IntentLexiconPatchGenerator
+from metanucleus.evolution.intent_auto_patch import suggest_intent_patches
 from metanucleus.evolution.meta_calculus_patch_generator import MetaCalculusPatchGenerator
+from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
+from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
+from metanucleus.evolution.types import EvolutionPatch
 
 if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
@@ -32,15 +35,6 @@ class AutoEvolutionConfig:
 @dataclass(slots=True)
 class MetaKernelConfig:
     auto_evolution: AutoEvolutionConfig = field(default_factory=AutoEvolutionConfig)
-
-
-@dataclass(slots=True)
-class EvolutionPatch:
-    type: str
-    diff: str
-    title: str
-    description: str
-    meta: Dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(slots=True)
@@ -106,34 +100,44 @@ class MetaKernel:
 
     # ---------------- Autoevolução ---------------- #
 
-    def run_auto_evolution_cycle(self, domains: Optional[List[str]] = None) -> List[EvolutionPatch]:
-        if domains is None:
-            domains = ["intent", "calculus"]
-
+    def run_auto_evolution_cycle(
+        self,
+        domains: Optional[Iterable[str]] = None,
+        *,
+        max_patches: Optional[int] = None,
+        apply_changes: bool = False,
+        source: str = "cli",
+    ) -> List[EvolutionPatch]:
+        """
+        Executa uma rodada de autoevolução agregando patches por domínio.
+        """
+        normalized = _normalize_domains(domains)
         patches: List[EvolutionPatch] = []
-        if "intent" in domains and self.config.auto_evolution.enable_intent:
+
+        if "intent" in normalized and self.config.auto_evolution.enable_intent:
             patches.extend(self._suggest_intent_patches())
-        if "calculus" in domains and self.config.auto_evolution.enable_calculus:
+        if "rules" in normalized:
+            patches.extend(self._suggest_rule_patches())
+        if "semantics" in normalized or "language" in normalized:
+            patches.extend(self._suggest_semantic_patches())
+        if "calculus" in normalized and self.config.auto_evolution.enable_calculus:
             patches.extend(self._suggest_calculus_patches())
+
+        if max_patches is not None and len(patches) > max_patches:
+            patches = patches[:max_patches]
+
+        for patch in patches:
+            patch.meta.setdefault("source", source)
+
+        if apply_changes:
+            for patch in patches:
+                patch.apply()
+
         return patches
 
     def _suggest_intent_patches(self) -> List[EvolutionPatch]:
-        generator = IntentLexiconPatchGenerator()
-        candidates = generator.generate_patches(
-            max_candidates=self.config.auto_evolution.max_new_intent_rules
-        )
-        patches: List[EvolutionPatch] = []
-        for cand in candidates:
-            patches.append(
-                EvolutionPatch(
-                    type="intent",
-                    diff=cand.diff,
-                    title=cand.title,
-                    description=cand.description,
-                    meta={"source": "MetaKernel._suggest_intent_patches"},
-                )
-            )
-        return patches
+        limit = self.config.auto_evolution.max_new_intent_rules
+        return suggest_intent_patches(max_candidates=limit)
 
     def _suggest_calculus_patches(self) -> List[EvolutionPatch]:
         generator = MetaCalculusPatchGenerator()
@@ -144,14 +148,63 @@ class MetaKernel:
         for cand in candidates:
             patches.append(
                 EvolutionPatch(
-                    type="calculus",
-                    diff=cand.diff,
+                    domain="calculus",
                     title=cand.title,
                     description=cand.description,
+                    diff=cand.diff,
                     meta={"source": "MetaKernel._suggest_calculus_patches"},
                 )
             )
         return patches
 
+    def _suggest_rule_patches(self, max_rules: Optional[int] = None) -> List[EvolutionPatch]:
+        generator = RulePatchGenerator()
+        candidates = generator.generate_patches(max_rules=max_rules or 20)
+        patches: List[EvolutionPatch] = []
+        for cand in candidates:
+            patches.append(
+                EvolutionPatch(
+                    domain="rules",
+                    title=cand.title,
+                    description=cand.description,
+                    diff=cand.diff,
+                    meta={"source": "MetaKernel._suggest_rule_patches"},
+                )
+            )
+        return patches
 
-__all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "EvolutionPatch", "MetaKernelTurnResult"]
+    def _suggest_semantic_patches(self, max_groups: Optional[int] = None) -> List[EvolutionPatch]:
+        generator = SemanticPatchGenerator()
+        candidates = generator.generate_patches(max_groups=max_groups or 20)
+        patches: List[EvolutionPatch] = []
+        for cand in candidates:
+            patches.append(
+                EvolutionPatch(
+                    domain="semantics",
+                    title=cand.title,
+                    description=cand.description,
+                    diff=cand.diff,
+                    meta={"source": "MetaKernel._suggest_semantic_patches"},
+                )
+            )
+        return patches
+
+
+def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
+    allowed = ["intent", "rules", "semantics", "language", "calculus", "all"]
+    if domains is None:
+        return ["intent", "calculus"]
+    normalized: List[str] = []
+    for domain in domains:
+        if domain is None:
+            continue
+        clean = domain.strip().lower()
+        if clean not in allowed:
+            raise ValueError(f"Domínio desconhecido: {domain}")
+        if clean == "all":
+            return ["intent", "rules", "semantics", "calculus"]
+        normalized.append("semantics" if clean == "language" else clean)
+    return normalized or ["intent", "calculus"]
+
+
+__all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult"]

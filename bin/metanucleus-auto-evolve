@@ -1,114 +1,14 @@
 #!/usr/bin/env python3
 """
-Orquestra a autoevolução determinística (intent, regras, semântica, meta-cálculo).
+Atalho legado para o CLI oficial `metanucleus-auto-evolve`.
 """
 
 from __future__ import annotations
 
-import argparse
-import subprocess
 import sys
-from pathlib import Path
-from typing import Iterable, List
 
-from metanucleus.evolution.intent_patch_generator import IntentLexiconPatchGenerator
-from metanucleus.evolution.meta_calculus_patch_generator import MetaCalculusPatchGenerator
-from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
-from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
-
-
-PROJECT_ROOT = Path(__file__).resolve().parents[1]
-
-
-def run_pytest(args: List[str]) -> None:
-    cmd = ["pytest"] + args
-    print("[auto-evolve] executando", " ".join(cmd))
-    proc = subprocess.run(cmd, cwd=str(PROJECT_ROOT))
-    if proc.returncode != 0:
-        print("[auto-evolve] pytest retornou falhas (logs serão aproveitados).", file=sys.stderr)
-
-
-def git_apply(diff: str) -> None:
-    proc = subprocess.run(
-        ["git", "apply", "-"],
-        cwd=str(PROJECT_ROOT),
-        input=diff,
-        text=True,
-        capture_output=True,
-    )
-    if proc.returncode != 0:
-        print("[auto-evolve] git apply falhou:", file=sys.stderr)
-        print(proc.stdout, file=sys.stderr)
-        print(proc.stderr, file=sys.stderr)
-        sys.exit(proc.returncode)
-
-
-def collect_patches(domains: Iterable[str]) -> List[tuple[str, str, str]]:
-    generators = {
-        "intent": IntentLexiconPatchGenerator(project_root=PROJECT_ROOT),
-        "calculus": MetaCalculusPatchGenerator(project_root=PROJECT_ROOT),
-        "rules": RulePatchGenerator(project_root=PROJECT_ROOT),
-        "semantics": SemanticPatchGenerator(project_root=PROJECT_ROOT),
-    }
-    patches: List[tuple[str, str, str]] = []
-    for domain in domains:
-        generator = generators[domain]
-        try:
-            candidates = generator.generate_patches()
-        except TypeError:
-            candidates = generator.generate_patches()  # type: ignore[func-returns-value]
-        for candidate in candidates:
-            patches.append((domain, candidate.title, candidate.diff))
-    return patches
-
-
-def parse_args(argv: List[str]) -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Metanucleus auto-evolution orchestrator.")
-    parser.add_argument(
-        "domains",
-        nargs="*",
-        help="Domínios para evoluir (intent, rules, semantics, calculus). Use 'all' para todos.",
-    )
-    parser.add_argument("--apply", action="store_true", help="Aplica os patches com git apply.")
-    parser.add_argument("--skip-tests", action="store_true", help="Não roda pytest antes.")
-    parser.add_argument("--pytest-args", nargs=argparse.REMAINDER, help="Args extras para pytest.")
-    return parser.parse_args(argv)
-
-
-def main(argv: List[str] | None = None) -> None:
-    args = parse_args(argv or sys.argv[1:])
-    selected = args.domains or ["all"]
-    if "all" in selected:
-        domains = ["intent", "rules", "semantics", "calculus"]
-    else:
-        domains = selected
-
-    invalid = set(domains) - {"intent", "rules", "semantics", "calculus"}
-    if invalid:
-        print(f"[auto-evolve] domínios inválidos: {', '.join(sorted(invalid))}", file=sys.stderr)
-        sys.exit(1)
-
-    if not args.skip_tests:
-        run_pytest(args.pytest_args or [])
-
-    patches = collect_patches(domains)
-    if not patches:
-        print("[auto-evolve] nenhum patch sugerido.")
-        return
-
-    for domain, title, diff in patches:
-        print("=" * 80)
-        print(f"[{domain}] {title}")
-        print("-" * 80)
-        print(diff)
-
-    if args.apply:
-        for _, _, diff in patches:
-            git_apply(diff)
-        print("[auto-evolve] patches aplicados ao working tree.")
-    else:
-        print("[auto-evolve] modo dry-run (use --apply para aplicar os diffs).")
+from metanucleus.cli.auto_evolve import main
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main(sys.argv[1:]))

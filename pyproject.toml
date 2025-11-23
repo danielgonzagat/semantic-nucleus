@@ -42,6 +42,9 @@ dev = [
 
 [project.scripts]
 metanucleus = "metanucleus.cli:main"
+metanucleus-auto-evolve = "metanucleus.cli.auto_evolve:main"
+metanucleus-chat = "metanucleus.cli.chat:main"
+metanucleus-daemon = "metanucleus.daemon.auto_pr_daemon:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

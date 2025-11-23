@@ -97,71 +97,39 @@ flowchart LR
 - O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
 - Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
 
-## 🔁 Autoevolução supervisionada do Metanúcleo
+## ♻️ Auto-evolução & PRs automáticos
 
-O Metanúcleo aprende corrigindo o próprio código com diffs auditáveis, não com pesos ocultos.
+O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches determinísticos e pede revisão humana. O ciclo completo é o seguinte:
 
-1. **Runtime roda normalmente**  
-   Cada turno passa pelo pipeline LxU → PSE → LIU → Φ → ΣVM.
-
-2. **Testes exercitam semântica, regras e meta-cálculo**  
-   - `tests/test_runtime_semantic_integration.py`  
-   - `tests/test_integration_metanucleus_auto_evolution.py`  
-   - `tests/test_evolution_semantics_smoke.py`  
-   - `tests/test_evolution_rules_smoke.py`
-   Esses testes usam helpers (`assert_semantic_label`, `assert_meta_normal_form`, `assert_meta_equivalent`) que **não quebram o build** quando algo diverge; eles registram o erro para evolução posterior.
-
-3. **Erros viram mismatches estruturados**  
-   - `logs/intent_mismatches.jsonl`  
-   - `logs/semantic_mismatches.jsonl`  
-   - `logs/rule_mismatches.jsonl`  
-   - `.meta/meta_calculus_mismatches.jsonl`
-   Cada linha descreve `expected`, `actual`, contexto, severidade e origem.
-
-4. **Geradores de patch determinísticos**  
-   - `IntentLexiconPatchGenerator` → `intent_lexicon.json`  
-   - `SemanticPatchGenerator` → `semantic_suggestions.md`  
-   - `RulePatchGenerator` → `rule_suggestions.md`  
-   - `MetaCalculusPatchGenerator` → `meta_calculus_rules.json`
-   Eles vasculham os JSONL e produzem diffs em formato unified diff.
-
-5. **MetaKernel orquestra ciclos internos**
-
-   ```python
-   from metanucleus.core.meta_kernel import MetaKernel
-
-   kernel = MetaKernel()
-   patches = kernel.run_auto_evolution_cycle(domains=["intent", "calculus"])
-   ```
-
-   Cada `EvolutionPatch` traz tipo, diff, título e descrição para revisão humana.
-
-6. **CLI unificado**
+1. **Rode os testes** (`python -m pytest`). Eles exercitam semântica, regras e meta-cálculo e, em vez de quebrar a suíte, escrevem mismatches em `logs/*.jsonl` e `.meta/*.jsonl`.
+2. **Geradores de patch** (`IntentLexiconPatchGenerator`, `RulePatchGenerator`, `SemanticPatchGenerator`, `MetaCalculusPatchGenerator`) leem esses JSONL e produzem diffs para `intent_lexicon.json`, `rule_suggestions.md`, `semantic_suggestions.md` e `meta_calculus_rules.json`.
+3. **MetaKernel** consolida tudo via `run_auto_evolution_cycle(domains=[...], apply_changes=...)`, devolvendo `EvolutionPatch` (domínio, título, descrição, diff).
+4. **CLI** `metanucleus-auto-evolve` roda esse ciclo fora do código principal:
 
    ```bash
-   # 1) roda pytest (gera mismatches)
-   # 2) produz diffs para intent/rules/semantics/calculus
-   # 3) aplica via git apply quando --apply
-   bin/metanucleus-auto-evolve all --apply
+   # dry-run (só exibe)
+   metanucleus-auto-evolve all --dry-run
+
+   # aplica os patches no working tree
+   metanucleus-auto-evolve rules semantics --apply -v
    ```
 
-   CLIs específicos continuam disponíveis:
+5. **GitHub Actions** (`.github/workflows/metanucleus-auto-evolution.yml`) executa em todo push para `main`: instala dependências, roda `python -m pytest || true`, chama `metanucleus-auto-evolve all --apply` e, se houver diffs, cria uma branch `auto-evolve/<run_id>` + PR usando `peter-evans/create-pull-request`.
+6. **Daemon 24/7 opcional** (`metanucleus-daemon`) roda o mesmo processo continuamente em qualquer servidor: dá `git pull`, executa testes, chama `MetaKernel.run_auto_evolution_cycle(..., apply_changes=True)`, revalida os testes, cria branch/commit/push e abre PR direto via GitHub API. Configure:
 
    ```bash
-   bin/metanucleus-auto-intent --apply
-   bin/metanucleus-auto-calculus --apply
+   export GITHUB_TOKEN=ghp_xxx
+   export GITHUB_REPOSITORY=owner/repo
+   export METANUCLEUS_DAEMON_INTERVAL=600  # segundos
+   metanucleus-daemon
    ```
 
-7. **PR automático em cada push**  
-   `.github/workflows/metanucleus-auto-evolution.yml` roda no push para `main`, executa o CLI, cria a branch `auto-evolve/<run_id>` quando há mudanças e abre o PR via `peter-evans/create-pull-request`. Você apenas revisa e aprova.
+7. **Revisão humana final**: cada PR contém diffs normais (semântica, intent, regras, meta-cálculo). Você só precisa revisar/mergear ou fechar.
 
-8. **Revisão humana final**  
-   Nada entra sem inspeção. Os diffs são comuns (`intent_lexicon.json`, `meta_calculus_rules.json`, `rule_suggestions.md`, `semantic_suggestions.md`) e sempre se referem a mismatches logados.
-
-Fluxo completo:
+Resumo do fluxo:
 
 ```
-pytest → JSONL de mismatches → geradores de patch → bin/metanucleus-auto-evolve → git apply/commit → PR automático → aprovação humana
+pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
 ## Camadas principais
@@ -216,9 +184,17 @@ pytest → JSONL de mismatches → geradores de patch → bin/metanucleus-auto-e
 
 ## 💬 Como conversar com o Metanúcleo
 
-O `MetaKernel` expõe um loop determinístico completo (LxU → PSE → LIU → Φ → ΣVM) e preserva contexto por `session_id`.
+O Metanúcleo mantém um ciclo determinístico (LxU → PSE → LIU → Φ → ΣVM) e guarda memória curta por `session_id`. Você escolhe entre um REPL de terminal ou a API Python.
 
-### Python (REPL)
+### 1. REPL (linha de comando)
+
+```bash
+metanucleus-chat
+```
+
+O comando acima inicia um console multi-turno (PT/EN) com comandos especiais (`/state`, `/debug`, `/sair`). Por trás, ele instancia um `MetaKernel`, cria uma sessão e chama `handle_turn()` a cada entrada. O estado interno pode ser inspecionado a qualquer momento com `/debug`.
+
+### 2. API Python embutida
 
 ```python
 from metanucleus.core.meta_kernel import MetaKernel
@@ -226,39 +202,30 @@ from metanucleus.core.meta_kernel import MetaKernel
 kernel = MetaKernel()
 session_id = "console-demo"
 
-print("Metanúcleo iniciado. Digite 'sair' para encerrar.\n")
 while True:
     user = input("Você: ").strip()
+    if user in {"sair", "exit", "quit"}:
+        break
     if not user:
         continue
-    if user.lower() in {"sair", "exit", "quit"}:
-        print("Metanúcleo: até mais 👋")
-        break
 
     result = kernel.handle_turn(
         user_text=user,
         session_id=session_id,
         enable_auto_evolution=False,
     )
-    print(f"Metanúcleo: {result.answer_text}\n")
+    print("Metanúcleo:", result.answer_text)
 ```
 
-### CLI
+### 3. Exemplos de prompts úteis
 
-Crie um wrapper fino (ex.: `bin/metanucleus-chat`) ou rode `python -m metanucleus.cli.chat`, reutilizando a estrutura acima. Usar o mesmo `session_id` garante memória de curto prazo.
+- **Saudação:** “oi, metanúcleo” → o núcleo responde com um cumprimento e já registra a intenção.
+- **Pergunta estrutural:** “explica esta frase como estrutura lógica?” → o Metanúcleo descreve entidades, ações e modificadores.
+- **Autoevolução:** “evolua a si mesmo usando os logs de mismatch” → o núcleo dispara o ciclo interno e relata o que faria (patches ficam para revisão humana).
 
-### Exemplos
+### 4. Conversa + autoevolução
 
-```
-Você: oi, metanúcleo
-Metanúcleo: oi :) o que você quer entender, criar ou melhorar hoje?
-
-Você: o carro está andando rápido.
-Metanúcleo: entendi: "carro" como entidade, "andar" como ação, "rápido" como modificador.
-
-Você: evolua a si mesmo usando os logs
-Metanúcleo: ok. vou analisar os mismatches mais recentes e propor patches auditáveis.
-```
+Toda conversa gera contexto LIU/ISR. Se alguma sentença for mal interpretada, os helpers de teste/REPL registram `SemanticMismatch` ou `IntentMismatch` em `logs/*.jsonl`. Esses logs são consumidos pelos geradores de patch (`IntentLexiconPatchGenerator`, `SemanticPatchGenerator`, etc.). Quando você roda `metanucleus-auto-evolve` (ou o daemon 24/7), os patches propostos refletem exatamente os erros que surgiram durante o chat.
 
 - ### Processo de Release & CTS
   - Releases seguem tags semânticas `vX.Y.Z`. Antes de taggear, execute `python -m pytest` e `python -m pytest tests/cts` localmente, atualize o `CHANGELOG.md` e valide a compatibilidade descrita em [`docs/cts_policy.md`](docs/cts_policy.md).
