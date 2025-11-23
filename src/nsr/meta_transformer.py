@@ -35,7 +35,7 @@ from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
-from .lc_omega import MetaCalculation
+from .lc_omega import MetaCalculation, LCTerm
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
 from svm.bytecode import Instruction
@@ -237,9 +237,18 @@ class MetaTransformer:
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
         lc_meta_node, lc_parsed = maybe_build_lc_meta_struct(language, text_value)
+        effective_calculus = lc_parsed.calculus if lc_parsed else None
+        if lc_parsed:
+            effective_calculus = _maybe_state_followup(
+                effective_calculus, lc_parsed.term, bool(self.session.meta_buffer)
+            )
+        if lc_meta_node is not None and effective_calculus is not None:
+            lc_meta_node = _set_struct_field(
+                lc_meta_node, "calculus", meta_calculation_to_node(effective_calculus)
+            )
         if lc_meta_node is not None:
             struct_node = _set_struct_field(struct_node, "lc_meta", lc_meta_node, overwrite=False)
-        text_plan = _text_phi_plan(calculus=lc_parsed.calculus if lc_parsed else None)
+        text_plan = _text_phi_plan(calculus=effective_calculus)
         meta_context = self._with_meta_context(
             None,
             MetaRoute.TEXT,
@@ -274,7 +283,7 @@ class MetaTransformer:
             language_hint=language,
             calc_plan=text_plan,
             lc_meta=lc_meta_node,
-            meta_calculation=lc_parsed.calculus if lc_parsed else None,
+            meta_calculation=effective_calculus,
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
             code_ast=fallback_code_ast,
@@ -427,6 +436,9 @@ def build_meta_summary(
     quality: float,
     halt_reason: str,
     calc_result: "MetaCalculationResult | None" = None,
+    meta_reasoning: Node | None = None,
+    meta_expression: Node | None = None,
+    meta_memory: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -451,6 +463,12 @@ def build_meta_summary(
         exec_node = _meta_calc_exec_node(calc_result)
         if exec_node is not None:
             nodes.append(exec_node)
+    if meta_reasoning is not None:
+        nodes.append(meta_reasoning)
+    if meta_expression is not None:
+        nodes.append(meta_expression)
+    if meta_memory is not None:
+        nodes.append(meta_memory)
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -555,6 +573,105 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         value_node = math_fields.get("value")
         if value_node is not None:
             result["math_ast_value"] = _value(value_node)
+    reasoning_node = nodes.get("meta_reasoning")
+    if reasoning_node is not None:
+        reasoning_fields = _fields(reasoning_node)
+        step_count_node = reasoning_fields.get("step_count")
+        if step_count_node is not None:
+            result["reasoning_step_count"] = int(_value(step_count_node))
+        digest_value = reasoning_fields.get("digest")
+        if digest_value is not None:
+            result["reasoning_trace_digest"] = _label(digest_value)
+        operations_node = reasoning_fields.get("operations")
+        if operations_node is not None and operations_node.kind.name == "LIST":
+            ops_labels: list[str] = []
+            op_details: list[dict[str, object]] = []
+            for entry in operations_node.args:
+                entry_fields = _fields(entry)
+                label = _label(entry_fields.get("label"))
+                if label:
+                    ops_labels.append(label)
+                detail: dict[str, object] = {
+                index_node = entry_fields.get("index")
+                if index_node is None:
+                    continue  # Skip malformed entries
+                detail: dict[str, object] = {
+                    "index": int(_value(index_node)),
+                    "label": label,
+                }
+                quality_node = entry_fields.get("quality")
+                if quality_node is not None:
+                    detail["quality"] = _value(quality_node)
+                relations_node = entry_fields.get("relations")
+                if relations_node is not None:
+                    detail["relations"] = int(_value(relations_node))
+                context_node = entry_fields.get("context")
+                if context_node is not None:
+                    detail["context"] = int(_value(context_node))
+                op_details.append(detail)
+            if ops_labels:
+                result["reasoning_ops"] = ops_labels
+            if op_details:
+                result["reasoning_steps"] = op_details
+        stats_node = reasoning_fields.get("operator_stats")
+        if stats_node is not None and stats_node.kind.name == "LIST":
+            stats_list: list[dict[str, object]] = []
+            for entry in stats_node.args:
+                entry_fields = _fields(entry)
+                stats_list.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                    }
+                )
+            if stats_list:
+                result["reasoning_operator_stats"] = stats_list
+    expression_node = nodes.get("meta_expression")
+    if expression_node is not None:
+        expression_fields = _fields(expression_node)
+        result["expression_preview"] = _label(expression_fields.get("preview"))
+        result["expression_quality"] = _value(expression_fields.get("quality"))
+        result["expression_halt"] = _label(expression_fields.get("halt"))
+        result["expression_route"] = _label(expression_fields.get("route"))
+        result["expression_language"] = _label(expression_fields.get("language"))
+        result["expression_answer_digest"] = _label(expression_fields.get("answer_digest"))
+        reasoning_digest = expression_fields.get("reasoning_digest")
+        if reasoning_digest is not None:
+            result["expression_reasoning_digest"] = _label(reasoning_digest)
+        memory_context_node = expression_fields.get("memory_context")
+        if memory_context_node is not None and memory_context_node.kind.name == "LIST":
+            refs: list[dict[str, object]] = []
+            for entry in memory_context_node.args:
+                entry_fields = _fields(entry)
+                refs.append(
+                    {
+                        "route": _label(entry_fields.get("route")),
+                        "preview": _label(entry_fields.get("preview")),
+                        "reasoning_digest": _label(entry_fields.get("reasoning")),
+                        "expression_digest": _label(entry_fields.get("expression")),
+                    }
+                )
+            if refs:
+                result["expression_memory_context"] = refs
+    memory_node = nodes.get("meta_memory")
+    if memory_node is not None:
+        memory_fields = _fields(memory_node)
+        result["memory_size"] = int(_value(memory_fields.get("size")))
+        result["memory_digest"] = _label(memory_fields.get("digest"))
+        entries_node = memory_fields.get("entries")
+        if entries_node is not None and entries_node.kind.name == "LIST":
+            memory_entries: list[dict[str, object]] = []
+            for entry in entries_node.args:
+                entry_fields = _fields(entry)
+                memory_entries.append(
+                    {
+                        "route": _label(entry_fields.get("route")),
+                        "answer_preview": _label(entry_fields.get("answer_preview")),
+                        "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
+                        "expression_digest": _label(entry_fields.get("expression_digest")),
+                    }
+                )
+            result["memory_entries"] = memory_entries
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)
@@ -705,3 +822,27 @@ def _json_to_node(payload: dict[str, Any]) -> Node | None:
         return from_json(json.dumps(payload))
     except Exception:
         return None
+
+
+def _maybe_state_followup(
+    calculus: MetaCalculation | None, term: LCTerm | None, has_memory: bool
+) -> MetaCalculation | None:
+    if not has_memory:
+        return calculus
+    if calculus is None:
+        if term is None:
+            return MetaCalculation(operator="STATE_FOLLOWUP", operands=tuple())
+        return MetaCalculation(operator="STATE_FOLLOWUP", operands=(term,))
+    follow_map = {
+        "STATE_QUERY": "STATE_FOLLOWUP",
+        "STATE_ASSERT": "STATE_FOLLOWUP",
+        "STATE_FOLLOWUP": "STATE_FOLLOWUP",
+        "FACT_QUERY": "FACT_FOLLOWUP",
+        "FACT_FOLLOWUP": "FACT_FOLLOWUP",
+        "COMMAND_ROUTE": "COMMAND_FOLLOWUP",
+        "COMMAND_FOLLOWUP": "COMMAND_FOLLOWUP",
+    }
+    target = follow_map.get(calculus.operator)
+    if target:
+        return MetaCalculation(operator=target, operands=calculus.operands)
+    return calculus

@@ -263,6 +263,9 @@ PATTERN_CALCULUS_BUILDERS: Dict[str, Callable[[LCTerm], MetaCalculation]] = {
     "CONFIRM": _emit_calc("EMIT_CONFIRM"),
     "QUESTION_FACT": _fact_query,
     "COMMAND": _command_calc,
+    "STATE_QUERY": _state_query,
+    "STATE_ASSERT": _state_assert,
+    "STATE_FOLLOWUP": _state_query,
 }
 
 

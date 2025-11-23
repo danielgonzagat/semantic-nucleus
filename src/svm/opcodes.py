@@ -46,6 +46,8 @@ class Opcode(IntEnum):
     PHI_ANSWER = 0x62
     PHI_EXPLAIN = 0x63
     PHI_SUMMARIZE = 0x64
+    PHI_MEMORY_RECALL = 0x65
+    PHI_MEMORY_LINK = 0x66
 
     # Controle de fluxo / auditoria
     JMP = 0x70

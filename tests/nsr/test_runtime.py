@@ -35,13 +35,24 @@ def _extract_ian_reply(outcome):
     return None
 
 
+def _fake_meta_memory():
+    entry = struct(
+        tag=entity("memory_entry"),
+        route=entity("text"),
+        answer_preview=text("memória"),
+        reasoning_digest=text("abc"),
+        expression_digest=text("xyz"),
+    )
+    return struct(tag=entity("meta_memory"), size=number(1), entries=list_node([entry]), digest=text("deadbeef"))
+
+
 def test_run_text_simple():
     session = SessionCtx()
     answer, trace = run_text("O carro anda rapido", session)
     assert "Carro" in answer or "carro" in answer.lower()
     assert trace.steps[0].startswith("1:")
     assert trace.digest != "0" * 32
-    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[")
+    assert trace.steps[-2].startswith(f"{len(trace.steps)-1}:HALT[")
     assert isinstance(trace.halt_reason, HaltReason)
     if trace.halt_reason is HaltReason.QUALITY_THRESHOLD:
         assert trace.finalized is False
@@ -121,14 +132,16 @@ def test_run_struct_converges_with_summary(monkeypatch):
     assert answer.startswith("Resumo")
     assert any("SUMMARIZE*" in step for step in trace.steps)
     assert any("STABILIZE*" in step for step in trace.steps)
-    assert trace.steps[-1].startswith(f"{len(trace.steps)}:HALT[SIGNATURE_REPEAT]")
+    assert trace.steps[-2].startswith(f"{len(trace.steps)-1}:HALT[SIGNATURE_REPEAT]")
     assert trace.halt_reason is HaltReason.SIGNATURE_REPEAT
     assert trace.finalized is True
 
 
 def test_run_text_full_matches_legacy_output():
     session = SessionCtx()
+    session.config.memory_store_path = None
     outcome = run_text_full("Um carro existe", session)
+    session.meta_buffer = tuple()
     legacy_answer, legacy_trace = run_text("Um carro existe", session)
     assert outcome.answer == legacy_answer
     assert outcome.trace.steps == legacy_trace.steps
@@ -155,6 +168,92 @@ def test_run_text_full_includes_meta_summary():
     assert meta_dict["input_size"] >= 1
     assert meta_dict["answer"]
     assert meta_dict["quality"] >= 0.0
+
+
+def test_meta_summary_carries_reasoning_digest():
+    session = SessionCtx()
+    session.meta_buffer = (_fake_meta_memory(),)
+    session.config.memory_store_path = None
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.meta_summary is not None
+    tags = []
+    for node in outcome.meta_summary:
+        tag_node = dict(node.fields).get("tag")
+        if tag_node:
+            tags.append(tag_node.label)
+    assert "meta_reasoning" in tags
+    assert "meta_expression" in tags
+    assert "meta_memory" in tags
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["reasoning_step_count"] >= 1
+    assert summary_dict["reasoning_trace_digest"]
+    assert summary_dict["reasoning_ops"][0]
+    stats = summary_dict["reasoning_operator_stats"]
+    ops = summary_dict["reasoning_ops"]
+    assert ops
+    assert any("NORMALIZE" in label for label in ops) or any("MEMORY" in label for label in ops)
+    assert summary_dict["expression_preview"]
+    assert summary_dict["expression_quality"] >= 0.0
+    assert summary_dict["expression_route"] == "text"
+    assert summary_dict["expression_answer_digest"]
+    assert summary_dict["expression_reasoning_digest"]
+    assert summary_dict["expression_memory_context"]
+    assert summary_dict["memory_size"] >= 1
+    assert summary_dict["memory_entries"]
+    assert summary_dict["memory_entries"][-1]["route"] == "text"
+    assert outcome.meta_memory is not None
+
+
+def test_run_outcome_exposes_meta_reasoning_node():
+    session = SessionCtx()
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.meta_reasoning is not None
+    fields = dict(outcome.meta_reasoning.fields)
+    assert fields["tag"].label == "meta_reasoning"
+    operations = fields["operations"]
+    assert operations.kind.name == "LIST"
+    assert len(operations.args) >= 1
+    assert outcome.meta_expression is not None
+    expr_fields = dict(outcome.meta_expression.fields)
+    assert expr_fields["tag"].label == "meta_expression"
+    assert expr_fields["preview"].label
+    assert outcome.meta_memory is not None
+
+
+def test_trace_summary_operator_adds_context():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "trace_summary" in tags
+    summary_node = next(
+        node for node in outcome.isr.context if dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "trace_summary"
+    )
+    summary_fields = dict(summary_node.fields)
+    assert summary_fields["total_steps"].value >= 1
+    assert summary_fields["unique_ops"].value >= 1
+    assert summary_fields["reasoning_digest"].label
+
+
+def test_meta_memory_is_seeded_into_next_turn_context():
+    session = SessionCtx()
+    run_text("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    assert session.meta_buffer
+    assert any("Φ_META[TRACE_SUMMARY]" in step for step in outcome.trace.steps)
+    assert any("Φ_MEMORY[RECALL]" in step for step in outcome.trace.steps)
+    assert any("Φ_MEMORY[LINK]" in step for step in outcome.trace.steps)
+    link_nodes = []
+    for node in outcome.isr.context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        tag = dict(node.fields).get("tag")
+        if tag and (tag.label or "").lower() == "memory_link":
+            link_nodes.append(node)
+    assert link_nodes
 
 
 def test_run_text_with_explanation_returns_triple():
@@ -188,6 +287,7 @@ def test_meta_history_respects_limit():
 
 def test_text_route_trace_logs_phi_plan(monkeypatch):
     session = SessionCtx()
+    session.config.memory_store_path = None
     for target in (
         "maybe_route_math",
         "maybe_route_logic",

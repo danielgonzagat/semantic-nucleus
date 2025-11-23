@@ -2,7 +2,9 @@ import pytest
 
 from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
+from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode
+from liu import struct, entity, number, list_node, text
 
 
 def test_meta_transformer_routes_math():
@@ -206,6 +208,89 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
     assert dict(calc_payload.fields)["operator"].label == "STATE_QUERY"
+
+
+def _fake_meta_memory():
+    entry = struct(
+        tag=entity("memory_entry"),
+        route=entity("text"),
+        answer_preview=text("passo anterior"),
+        reasoning_digest=text("abc"),
+        expression_digest=text("xyz"),
+    )
+    return struct(tag=entity("meta_memory"), size=number(1), entries=list_node([entry]), digest=text("deadbeef"))
+
+
+def test_meta_transformer_marks_state_followup_when_memory_present(monkeypatch):
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+    session = SessionCtx()
+    session.meta_buffer = (_fake_meta_memory(),)
+    transformer = MetaTransformer(session)
+    result = transformer.transform("como você está?")
+    assert result.meta_calculation is not None
+    assert result.meta_calculation.operator == "STATE_FOLLOWUP"
+    assert result.calc_plan.description == "text_phi_state_followup"
+    opcodes = [inst.opcode for inst in result.calc_plan.program.instructions]
+    assert opcodes[:2] == [Opcode.PHI_MEMORY_RECALL, Opcode.PHI_MEMORY_LINK]
+
+
+def test_meta_transformer_marks_fact_followup_with_memory(monkeypatch):
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+
+    class FakeParse:
+        def __init__(self):
+            self.calculus = MetaCalculation(operator="FACT_QUERY", operands=(LCTerm(kind="SEQ"),))
+            self.term = LCTerm(kind="SEQ")
+
+    monkeypatch.setattr(
+        "nsr.meta_transformer.maybe_build_lc_meta_struct", lambda *args, **kwargs: (None, FakeParse())
+    )
+    session = SessionCtx()
+    session.meta_buffer = (_fake_meta_memory(),)
+    transformer = MetaTransformer(session)
+    result = transformer.transform("dummy fact query")
+    assert result.meta_calculation is not None
+    assert result.meta_calculation.operator == "FACT_FOLLOWUP"
+    assert result.calc_plan.description == "text_phi_fact_followup"
+    assert result.calc_plan.program.instructions[0].opcode is Opcode.PHI_MEMORY_RECALL
+
+
+def test_meta_transformer_marks_command_followup_with_memory(monkeypatch):
+    for target in (
+        "maybe_route_math",
+        "maybe_route_logic",
+        "maybe_route_code",
+        "maybe_route_text",
+    ):
+        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+
+    class FakeParse:
+        def __init__(self):
+            self.calculus = MetaCalculation(operator="COMMAND_ROUTE", operands=(LCTerm(kind="SEQ"),))
+            self.term = LCTerm(kind="SEQ")
+
+    monkeypatch.setattr(
+        "nsr.meta_transformer.maybe_build_lc_meta_struct", lambda *args, **kwargs: (None, FakeParse())
+    )
+    session = SessionCtx()
+    session.meta_buffer = (_fake_meta_memory(),)
+    transformer = MetaTransformer(session)
+    result = transformer.transform("dummy command")
+    assert result.meta_calculation is not None
+    assert result.meta_calculation.operator == "COMMAND_FOLLOWUP"
+    assert result.calc_plan.description == "text_phi_command_followup"
 
 
 def test_text_route_appends_lc_meta_calc_to_context(monkeypatch):

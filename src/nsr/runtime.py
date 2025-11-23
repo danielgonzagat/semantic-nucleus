@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, operation, fingerprint
+from liu import Node, NodeKind, operation, fingerprint
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -25,6 +25,11 @@ from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, MetaRoute, build_meta_summary
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
+from .meta_reasoner import build_meta_reasoning
+from .meta_expressor import build_meta_expression
+from .meta_memory import build_meta_memory
+from .meta_memory_store import append_memory, load_recent_memory
+from .meta_memory_induction import record_episode, run_memory_induction
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -104,6 +109,9 @@ class RunOutcome:
     equation_digest: str
     explanation: str
     meta_summary: Tuple[Node, ...] | None = None
+    meta_reasoning: Node | None = None
+    meta_expression: Node | None = None
+    meta_memory: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
@@ -142,15 +150,45 @@ def run_text_with_explanation(
 def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     session = session or SessionCtx()
     _ensure_logic_engine(session)
+    _ensure_memory_loaded(session)
     transformer = MetaTransformer(session)
     meta = transformer.transform(text)
+    if session.meta_buffer:
+        extra_context = tuple(
+            operation("MEMORY_RECALL", buffer_node)
+            if buffer_node is not None
+            else operation("MEMORY_RECALL")
+            for buffer_node in session.meta_buffer
+        )
+        if meta.preseed_context:
+            meta_context = tuple((*meta.preseed_context, *extra_context))
+        else:
+            meta_context = extra_context
+        meta = MetaTransformResult(
+            struct_node=meta.struct_node,
+            route=meta.route,
+            input_text=meta.input_text,
+            trace_label=meta.trace_label,
+            preseed_answer=meta.preseed_answer,
+            preseed_context=meta_context,
+            preseed_quality=meta.preseed_quality,
+            language_hint=meta.language_hint,
+            calc_plan=meta.calc_plan,
+            lc_meta=meta.lc_meta,
+            meta_calculation=meta.meta_calculation,
+            phi_plan_ops=meta.phi_plan_ops,
+            language_profile=meta.language_profile,
+            code_ast=meta.code_ast,
+            code_summary=meta.code_summary,
+            math_ast=meta.math_ast,
+        )
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     if calc_mode == "plan_only":
         plan_outcome = _run_plan_only(meta, session)
         if plan_outcome is not None:
-            return plan_outcome
+            return _finalize_outcome(session, text, plan_outcome)
     struct0 = meta.struct_node
-    return run_struct_full(
+    outcome = run_struct_full(
         struct0,
         session,
         preseed_answer=meta.preseed_answer,
@@ -159,6 +197,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         trace_hint=meta.trace_label,
         meta_info=meta,
     )
+    return _finalize_outcome(session, text, outcome)
 
 
 def run_struct(
@@ -203,6 +242,8 @@ def run_struct_full(
     isr, code_label = _apply_code_rewrite_if_needed(isr, session, meta_info)
     if code_label:
         trace.add(code_label, isr.quality, len(isr.relations), len(isr.context))
+    isr = _apply_memory_recall_if_needed(isr, session, trace)
+    isr = _apply_memory_link_if_needed(isr, session, trace)
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
@@ -221,19 +262,42 @@ def run_struct_full(
         calc_result = _validate_calc_result(calc_result, isr, trace)
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
         snapshot = snapshot_equation(struct_node, isr)
+        reasoning_node = build_meta_reasoning(trace.steps)
+        isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+        language = _resolve_language(meta_info, session)
+        memory_refs = tuple(node for node in session.meta_buffer if node is not None)
+        meta_expression = build_meta_expression(
+            isr.answer,
+            reasoning=reasoning_node,
+            quality=isr.quality,
+            halt_reason=HaltReason.QUALITY_THRESHOLD.value,
+            route=meta_info.route if meta_info else None,
+            language=language,
+            memory_refs=memory_refs,
+        )
+        answer_text = _answer_text(isr)
+        memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+        meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
             build_meta_summary(
                 meta_info,
-                _answer_text(isr),
+                answer_text,
                 isr.quality,
                 HaltReason.QUALITY_THRESHOLD.value,
                 calc_result,
+                meta_reasoning=reasoning_node,
+                meta_expression=meta_expression,
+                meta_memory=meta_memory,
             )
             if meta_info
             else None
         )
-        return RunOutcome(
-            answer=_answer_text(isr),
+        session.meta_buffer = (
+            tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+        )
+        _persist_meta_memory(session, meta_memory)
+        outcome = RunOutcome(
+            answer=answer_text,
             trace=trace,
             isr=isr,
             halt_reason=HaltReason.QUALITY_THRESHOLD,
@@ -242,6 +306,9 @@ def run_struct_full(
             equation_digest=snapshot.digest(),
             explanation=render_explanation(isr, struct_node),
             meta_summary=summary,
+            meta_reasoning=reasoning_node if meta_info else None,
+            meta_expression=meta_expression,
+            meta_memory=meta_memory,
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
@@ -250,6 +317,7 @@ def run_struct_full(
             code_summary=meta_info.code_summary if meta_info else None,
             math_ast=meta_info.math_ast if meta_info else None,
         )
+        return outcome
     steps = 0
     seen_signatures = set()
     idle_loops = 0
@@ -355,15 +423,45 @@ def run_struct_full(
     if context_updated:
         last_snapshot = None
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
-    meta_summary = (
-        build_meta_summary(meta_info, answer_text, isr.quality, halt_reason.value, calc_result) if meta_info else None
+    reasoning_node = build_meta_reasoning(trace.steps)
+    isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+    language = _resolve_language(meta_info, session)
+    memory_refs = tuple(node for node in session.meta_buffer if node is not None)
+    meta_expression = build_meta_expression(
+        isr.answer,
+        reasoning=reasoning_node,
+        quality=isr.quality,
+        halt_reason=halt_reason.value,
+        route=meta_info.route if meta_info else None,
+        language=language,
+        memory_refs=memory_refs,
     )
+    memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
+    meta_summary = (
+        build_meta_summary(
+            meta_info,
+            answer_text,
+            isr.quality,
+            halt_reason.value,
+            calc_result,
+            meta_reasoning=reasoning_node,
+            meta_expression=meta_expression,
+            meta_memory=meta_memory,
+        )
+        if meta_info
+        else None
+    )
+    session.meta_buffer = (
+        tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+    )
+    _persist_meta_memory(session, meta_memory)
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
         if limit and len(session.meta_history) > limit:
             del session.meta_history[:-limit]
-    return RunOutcome(
+    outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
         isr=isr,
@@ -373,6 +471,9 @@ def run_struct_full(
         equation_digest=snapshot.digest(),
         explanation=render_explanation(isr, struct_node),
         meta_summary=meta_summary,
+        meta_reasoning=reasoning_node if meta_info else None,
+        meta_expression=meta_expression,
+        meta_memory=meta_memory,
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,
@@ -381,6 +482,7 @@ def run_struct_full(
         code_summary=meta_info.code_summary if meta_info else None,
         math_ast=meta_info.math_ast if meta_info else None,
     )
+    return outcome
 
 
 def _state_signature(isr: ISR) -> str:
@@ -480,6 +582,151 @@ def _apply_code_rewrite_if_needed(
     return updated, "Φ_CODE[REWRITE_CODE]"
 
 
+def _resolve_language(meta_info: MetaTransformResult | None, session: SessionCtx) -> str | None:
+    if meta_info and meta_info.language_hint:
+        return meta_info.language_hint
+    return session.language_hint
+
+
+def _apply_trace_summary_if_needed(
+    isr: ISR,
+    session: SessionCtx,
+    reasoning_node: Node | None,
+    trace: Trace,
+) -> ISR:
+    if reasoning_node is None:
+        return isr
+    updated = apply_operator(isr, operation("TRACE_SUMMARY", reasoning_node), session)
+    trace.add("Φ_META[TRACE_SUMMARY]", updated.quality, len(updated.relations), len(updated.context))
+    return updated
+
+
+def _apply_memory_recall_if_needed(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
+    recall_ops = [
+        node
+        for node in isr.context
+        if node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL"
+    ]
+    if not recall_ops:
+        return isr
+    isr.context = tuple(
+        node
+        for node in isr.context
+        if not (node.kind is NodeKind.OP and (node.label or "").upper() == "MEMORY_RECALL")
+    )
+    for op in recall_ops:
+        payload = op.args[0] if op.args else None
+        recall_node = operation("MEMORY_RECALL", payload) if payload is not None else operation("MEMORY_RECALL")
+        isr = apply_operator(isr, recall_node, session)
+        trace.add("Φ_MEMORY[RECALL]", isr.quality, len(isr.relations), len(isr.context))
+    return isr
+
+
+def _apply_memory_link_if_needed(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
+    entries = []
+    for node in isr.context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag or (tag.label or "").lower() != "memory_entry":
+            continue
+        entries.append(node)
+    if not entries:
+        return isr
+    for entry in entries:
+        isr = apply_operator(isr, operation("MEMORY_LINK", entry), session)
+        trace.add("Φ_MEMORY[LINK]", isr.quality, len(isr.relations), len(isr.context))
+    return isr
+
+
+def _memory_entry_payload(
+    meta_info: MetaTransformResult | None,
+    answer_text: str,
+    meta_expression: Node | None,
+    reasoning_node: Node | None,
+) -> dict[str, object]:
+    route = meta_info.route.value if meta_info else ""
+    return {
+        "route": route,
+        "answer": answer_text,
+        "expression_preview": _node_field_label(meta_expression, "preview"),
+        "expression_answer_digest": _node_field_label(meta_expression, "answer_digest"),
+        "reasoning_trace_digest": _node_field_label(reasoning_node, "digest"),
+    }
+
+
+def _node_field_label(node: Node | None, field: str) -> str:
+    if node is None:
+        return ""
+    value = dict(node.fields).get(field)
+    if value is None:
+        return ""
+    if value.label:
+        return value.label
+    if value.value is not None:
+        return str(value.value)
+    return ""
+
+
+def _ensure_memory_loaded(session: SessionCtx) -> None:
+    if session.memory_loaded:
+        return
+    session.memory_loaded = True
+    path = getattr(session.config, "memory_store_path", None)
+    if not path:
+        return
+    limit = getattr(session.config, "memory_persist_limit", 0) or session.config.meta_history_limit
+    nodes = load_recent_memory(path, limit)
+    if nodes:
+        session.meta_buffer = tuple((*nodes, *session.meta_buffer))
+
+
+def _persist_meta_memory(session: SessionCtx, memory_node: Node | None) -> None:
+    if memory_node is None:
+        return
+    path = getattr(session.config, "memory_store_path", None)
+    if not path:
+        return
+    try:
+        append_memory(path, memory_node)
+    except OSError:
+        return
+
+
+def _record_episode(session: SessionCtx, text: str, outcome: RunOutcome) -> None:
+    path = getattr(session.config, "episodes_path", None)
+    if path:
+        try:
+            record_episode(path, text, outcome)
+        except OSError:
+            pass
+    _maybe_run_memory_induction(session)
+
+
+def _maybe_run_memory_induction(session: SessionCtx) -> None:
+    episodes_path = getattr(session.config, "episodes_path", None)
+    suggestions_path = getattr(session.config, "induction_rules_path", None)
+    limit = getattr(session.config, "induction_episode_limit", 0)
+    support = getattr(session.config, "induction_min_support", 0)
+    if not episodes_path or not suggestions_path or limit <= 0:
+        return
+    try:
+        run_memory_induction(
+            episodes_path,
+            suggestions_path,
+            episode_limit=limit,
+            min_support=max(1, support),
+        )
+    except OSError:
+        return
+
+
+def _finalize_outcome(session: SessionCtx, text: str, outcome: RunOutcome) -> RunOutcome:
+    _record_episode(session, text, outcome)
+    return outcome
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -500,12 +747,40 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     trace.halt(HaltReason.PLAN_EXECUTED, isr, finalized=True)
     snapshot = snapshot_equation(meta.struct_node, isr)
     answer_text = _answer_text(isr)
-    meta_summary = build_meta_summary(meta, answer_text, isr.quality, HaltReason.PLAN_EXECUTED.value, calc_result)
+    reasoning_node = build_meta_reasoning(trace.steps)
+    isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+    language = _resolve_language(meta, session)
+    memory_refs = tuple(node for node in session.meta_buffer if node is not None)
+    meta_expression = build_meta_expression(
+        isr.answer,
+        reasoning=reasoning_node,
+        quality=isr.quality,
+        halt_reason=HaltReason.PLAN_EXECUTED.value,
+        route=meta.route,
+        language=language,
+        memory_refs=memory_refs,
+    )
+    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
+    meta_summary = build_meta_summary(
+        meta,
+        answer_text,
+        isr.quality,
+        HaltReason.PLAN_EXECUTED.value,
+        calc_result,
+        meta_reasoning=reasoning_node,
+        meta_expression=meta_expression,
+        meta_memory=meta_memory,
+    )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
     if limit and len(session.meta_history) > limit:
         del session.meta_history[:-limit]
-    return RunOutcome(
+    session.meta_buffer = (
+        tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
+    )
+    _persist_meta_memory(session, meta_memory)
+    outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
         isr=isr,
@@ -515,6 +790,9 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         equation_digest=snapshot.digest(),
         explanation=render_explanation(isr, meta.struct_node),
         meta_summary=meta_summary,
+        meta_reasoning=reasoning_node,
+        meta_expression=meta_expression,
+        meta_memory=meta_memory,
         calc_plan=plan,
         calc_result=calc_result,
         lc_meta=meta.lc_meta,
@@ -523,6 +801,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         code_summary=meta.code_summary,
         math_ast=meta.math_ast,
     )
+    return outcome
 
 
 def _audit_state(

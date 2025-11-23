@@ -23,6 +23,12 @@ class Config:
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
     calc_mode: str = "hybrid"
+    memory_store_path: str | None = ".nsr_memory/memory.jsonl"
+    memory_persist_limit: int = 256
+    episodes_path: str | None = ".nsr_memory/episodes.jsonl"
+    induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
+    induction_episode_limit: int = 128
+    induction_min_support: int = 3
 
 
 @dataclass(slots=True)
@@ -97,6 +103,8 @@ class SessionCtx:
     logic_engine: "LogicEngine | None" = None
     logic_serialized: str | None = None
     meta_history: List[Tuple[Node, ...]] = field(default_factory=list)
+    meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
+    memory_loaded: bool = False
 
 
 @dataclass(slots=True)
