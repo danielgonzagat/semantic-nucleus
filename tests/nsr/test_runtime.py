@@ -217,6 +217,18 @@ def test_meta_summary_includes_equation_snapshot():
     assert any(section["name"] == "relations" for section in sections)
 
 
+def test_meta_summary_includes_equation_delta():
+    session = SessionCtx()
+    run_text_full("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.meta_summary is not None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert "equation_delta_quality" in summary_dict
+    deltas = summary_dict["equation_section_deltas"]
+    assert deltas
+    assert any(entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas)
+
+
 def test_run_outcome_exposes_meta_reasoning_node():
     session = SessionCtx()
     outcome = run_text_full("O carro tem roda", session)

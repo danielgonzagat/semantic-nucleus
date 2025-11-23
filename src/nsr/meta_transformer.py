@@ -24,7 +24,6 @@ from liu import (
 
 if TYPE_CHECKING:
     from .meta_calculator import MetaCalculationResult
-    from .equation import EquationSnapshot
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -38,7 +37,6 @@ from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation, LCTerm
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
-from .meta_equation import build_meta_equation_node
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -441,7 +439,7 @@ def build_meta_summary(
     meta_reasoning: Node | None = None,
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
-    equation_snapshot: "EquationSnapshot | None" = None,
+    meta_equation: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -472,8 +470,8 @@ def build_meta_summary(
         nodes.append(meta_expression)
     if meta_memory is not None:
         nodes.append(meta_memory)
-    if equation_snapshot is not None:
-        nodes.append(build_meta_equation_node(equation_snapshot))
+    if meta_equation is not None:
+        nodes.append(meta_equation)
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -678,24 +676,40 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             result["memory_entries"] = memory_entries
     equation_node = nodes.get("meta_equation")
     if equation_node is not None:
-          equation_fields = _fields(equation_node)
-          result["equation_digest"] = _label(equation_fields.get("digest"))
-          result["equation_input_digest"] = _label(equation_fields.get("input_digest"))
-          result["equation_answer_digest"] = _label(equation_fields.get("answer_digest"))
-          result["equation_quality"] = _value(equation_fields.get("quality"))
-          sections_node = equation_fields.get("sections")
-          if sections_node is not None and sections_node.kind.name == "LIST":
-              eq_sections: list[dict[str, object]] = []
-              for entry in sections_node.args:
-                  entry_fields = _fields(entry)
-                  eq_sections.append(
-                      {
-                          "name": _label(entry_fields.get("name")),
-                          "count": int(_value(entry_fields.get("count"))),
-                          "digest": _label(entry_fields.get("digest")),
-                      }
-                  )
-              result["equation_sections"] = eq_sections
+        equation_fields = _fields(equation_node)
+        result["equation_digest"] = _label(equation_fields.get("digest"))
+        result["equation_input_digest"] = _label(equation_fields.get("input_digest"))
+        result["equation_answer_digest"] = _label(equation_fields.get("answer_digest"))
+        result["equation_quality"] = _value(equation_fields.get("quality"))
+        sections_node = equation_fields.get("sections")
+        if sections_node is not None and sections_node.kind.name == "LIST":
+            eq_sections: list[dict[str, object]] = []
+            for entry in sections_node.args:
+                entry_fields = _fields(entry)
+                eq_sections.append(
+                    {
+                        "name": _label(entry_fields.get("name")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "digest": _label(entry_fields.get("digest")),
+                    }
+                )
+            result["equation_sections"] = eq_sections
+        delta_quality_node = equation_fields.get("delta_quality")
+        if delta_quality_node is not None:
+            result["equation_delta_quality"] = _value(delta_quality_node)
+        delta_sections_node = equation_fields.get("delta_sections")
+        if delta_sections_node is not None and delta_sections_node.kind.name == "LIST":
+            delta_sections: list[dict[str, object]] = []
+            for entry in delta_sections_node.args:
+                entry_fields = _fields(entry)
+                delta_sections.append(
+                    {
+                        "name": _label(entry_fields.get("name")),
+                        "delta_count": int(_value(entry_fields.get("delta_count"))),
+                        "digest_changed": (_label(entry_fields.get("digest_changed")).lower() == "true"),
+                    }
+                )
+            result["equation_section_deltas"] = delta_sections
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)

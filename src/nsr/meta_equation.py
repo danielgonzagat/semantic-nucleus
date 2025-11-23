@@ -6,39 +6,61 @@ from __future__ import annotations
 
 from liu import Node, entity, number, struct as liu_struct, list_node, text as liu_text
 
-from .equation import EquationSnapshot
+from .equation import EquationSnapshot, EquationSnapshotStats
+
+_SECTION_NAMES = ("ontology", "relations", "context", "goals", "ops_queue")
 
 
-def build_meta_equation_node(snapshot: EquationSnapshot) -> Node:
+def build_meta_equation_node(
+    snapshot: EquationSnapshot, previous: EquationSnapshotStats | None = None
+) -> Node:
     """
     Serializa `EquationSnapshot` em um nó `meta_equation` auditável.
+    Quando `previous` é informado, inclui deltas determinísticos.
     """
 
     stats = snapshot.stats()
-    section_specs = [
-        ("ontology", stats.ontology),
-        ("relations", stats.relations),
-        ("context", stats.context),
-        ("goals", stats.goals),
-        ("ops_queue", stats.ops_queue),
-    ]
     section_nodes = [
         liu_struct(
             tag=entity("equation_section"),
             name=entity(name),
-            count=number(section.count),
-            digest=liu_text(section.digest),
+            count=number(_section(stats, name).count),
+            digest=liu_text(_section(stats, name).digest),
         )
-        for name, section in section_specs
+        for name in _SECTION_NAMES
     ]
-    return liu_struct(
-        tag=entity("meta_equation"),
-        digest=liu_text(stats.equation_digest),
-        input_digest=liu_text(stats.input_digest),
-        answer_digest=liu_text(stats.answer_digest),
-        quality=number(round(float(stats.quality), 6)),
-        sections=list_node(section_nodes),
-    )
+    fields: dict[str, Node] = {
+        "tag": entity("meta_equation"),
+        "digest": liu_text(stats.equation_digest),
+        "input_digest": liu_text(stats.input_digest),
+        "answer_digest": liu_text(stats.answer_digest),
+        "quality": number(round(float(stats.quality), 6)),
+        "sections": list_node(section_nodes),
+    }
+    if previous is not None:
+        delta_sections = []
+        for name in _SECTION_NAMES:
+            current_section = _section(stats, name)
+            prev_section = _section(previous, name)
+            delta_sections.append(
+                liu_struct(
+                    tag=entity("equation_section_delta"),
+                    name=entity(name),
+                    delta_count=number(current_section.count - prev_section.count),
+                    digest_changed=entity(
+                        "true" if current_section.digest != prev_section.digest else "false"
+                    ),
+                )
+            )
+        fields["delta_quality"] = number(
+            round(float(stats.quality - previous.quality), 6)
+        )
+        fields["delta_sections"] = list_node(delta_sections)
+    return liu_struct(**fields)
+
+
+def _section(stats: EquationSnapshotStats, name: str):
+    return getattr(stats, name)
 
 
 __all__ = ["build_meta_equation_node"]

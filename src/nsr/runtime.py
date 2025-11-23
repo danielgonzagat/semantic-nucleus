@@ -28,6 +28,7 @@ from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
+from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
 
@@ -278,6 +279,12 @@ def run_struct_full(
         answer_text = _answer_text(isr)
         memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
         meta_memory = build_meta_memory(session.meta_history, memory_entry)
+        equation_node = (
+            build_meta_equation_node(snapshot, session.last_equation_stats)
+            if meta_info
+            else None
+        )
+        equation_stats = snapshot.stats()
         summary = (
             build_meta_summary(
                 meta_info,
@@ -288,7 +295,7 @@ def run_struct_full(
                 meta_reasoning=reasoning_node,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
-                equation_snapshot=snapshot,
+                meta_equation=equation_node,
             )
             if meta_info
             else None
@@ -297,6 +304,7 @@ def run_struct_full(
             tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
         )
         _persist_meta_memory(session, meta_memory)
+        session.last_equation_stats = equation_stats
         outcome = RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -439,6 +447,12 @@ def run_struct_full(
     )
     memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
+    equation_node = (
+        build_meta_equation_node(snapshot, session.last_equation_stats)
+        if meta_info
+        else None
+    )
+    equation_stats = snapshot.stats()
     meta_summary = (
         build_meta_summary(
             meta_info,
@@ -449,7 +463,7 @@ def run_struct_full(
             meta_reasoning=reasoning_node,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
-            equation_snapshot=snapshot,
+            meta_equation=equation_node,
         )
         if meta_info
         else None
@@ -458,6 +472,7 @@ def run_struct_full(
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
     _persist_meta_memory(session, meta_memory)
+    session.last_equation_stats = equation_stats
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
@@ -764,6 +779,8 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     )
     memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
+    equation_node = build_meta_equation_node(snapshot, session.last_equation_stats)
+    equation_stats = snapshot.stats()
     meta_summary = build_meta_summary(
         meta,
         answer_text,
@@ -773,7 +790,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_reasoning=reasoning_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
-        equation_snapshot=snapshot,
+        meta_equation=equation_node,
     )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
@@ -783,6 +800,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
     _persist_meta_memory(session, meta_memory)
+    session.last_equation_stats = equation_stats
     outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
