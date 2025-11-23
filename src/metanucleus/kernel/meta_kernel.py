@@ -113,7 +113,7 @@ class MetaKernel:
         """
 
         outcome = run_text_full(user_text, session=self.nsr_session)
-        answer_struct = outcome.isr.answer
+        answer_struct = outcome.isr.answer if outcome.isr else None
         answer_text = outcome.answer
         meta_dict: Dict[str, Any] | None = None
         if outcome.meta_summary is not None:
