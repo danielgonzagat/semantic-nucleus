@@ -248,6 +248,24 @@ def soma(x, y):
         )
 
 
+def test_cli_expect_code_functions(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "1"])
+    assert exit_code == 0
+
+
+def test_cli_expect_code_functions_fails_on_mismatch(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    with pytest.raises(SystemExit):
+        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "2"])
+
+
 def test_cli_include_code_summary(capsys):
     code = """
 def soma(x, y):

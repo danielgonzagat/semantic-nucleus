@@ -25,6 +25,7 @@ Todas as mudanças relevantes neste repositório serão documentadas aqui.
 - Operador Φ `REWRITE_CODE`: detecta `code_ast` no contexto, gera resumos determinísticos (`code_ast_summary`) e relações `code/FUNCTION_COUNT`, aumentando a qualidade e preparando o Meta-PENSAR para reescritas formais antes de `Φ_NORMALIZE`/`Φ_INFER`.
 - MetaTransformer passa a gerar e propagar `code_ast_summary` durante o Meta-LER sempre que existir um `code_ast` (rotas CODE e TEXT com código detectado), anexando o resumo ao contexto inicial, ao `meta_summary` e ao `RunOutcome`; o runtime executa automaticamente `REWRITE_CODE`, garantindo que as estatísticas de código (inclusive o digest BLAKE2b do AST) apareçam no trace (`Φ_CODE[REWRITE_CODE]`) mesmo em execuções `plan_only`.
 - CLI `python -m nsr.cli` recebe `--expect-code-digest HEX`, permitindo validar deterministamente o `code_summary_digest` produzido pelo Meta-LER (útil para auditoria de snippets e pipelines externos).
+- CLI agora aceita `--expect-code-functions N` (verifica contagem de funções do resumo) e `--include-code-summary` (injeta o `code_ast_summary` serializado no payload principal), possibilitando auditorias estruturais sem depender apenas do `meta_summary`.
 
 ## [0.1.0] - 2025-11-21
 

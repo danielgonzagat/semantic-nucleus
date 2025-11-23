@@ -94,6 +94,11 @@ def _build_parser() -> argparse.ArgumentParser:
         "--expect-code-digest",
         help="Verifica se o code_summary_digest coincide com o valor informado (requer --include-meta e código detectado).",
     )
+    parser.add_argument(
+        "--expect-code-functions",
+        type=int,
+        help="Verifica se o resumo de código detectou exatamente N funções.",
+    )
     return parser
 
 
@@ -132,16 +137,23 @@ def main(argv: list[str] | None = None) -> int:
             raise SystemExit("meta_digest indisponível para comparação.")
         if digest.lower() != args.expect_meta_digest.lower():
             raise SystemExit(f"meta_digest divergente: esperado {args.expect_meta_digest}, obtido {digest}.")
+    summary_data = _extract_code_summary_data(outcome)
     if args.expect_code_digest:
-        if not outcome.meta_summary:
-            raise SystemExit("expect-code-digest requer meta_summary (use --include-meta).")
-        summary_dict = meta_summary_to_dict(outcome.meta_summary)
-        digest = summary_dict.get("code_summary_digest", "")
-        if not digest:
+        if summary_data is None or not summary_data.get("digest"):
             raise SystemExit("code_summary_digest indisponível para comparação.")
-        if digest.lower() != args.expect_code_digest.lower():
+        if summary_data["digest"].lower() != args.expect_code_digest.lower():
             raise SystemExit(
-                f"code_summary_digest divergente: esperado {args.expect_code_digest}, obtido {digest}."
+                f"code_summary_digest divergente: esperado {args.expect_code_digest}, obtido {summary_data['digest']}."
+            )
+    if args.expect_code_functions is not None:
+        if summary_data is None:
+            raise SystemExit("expect-code-functions requer um resumo de código (rota CODE ou --include-code-summary).")
+        fn_count = summary_data.get("function_count")
+        if fn_count is None:
+            raise SystemExit("Resumo de código não contém contagem de funções.")
+        if fn_count != args.expect_code_functions:
+            raise SystemExit(
+                f"code_summary_function_count divergente: esperado {args.expect_code_functions}, obtido {fn_count}."
             )
     payload = {
         "answer": outcome.answer,
@@ -194,3 +206,50 @@ def main(argv: list[str] | None = None) -> int:
 
 if __name__ == "__main__":
     sys.exit(main())
+
+
+def _extract_code_summary_data(outcome) -> dict[str, object] | None:
+    digest = None
+    fn_count = None
+    node_count = None
+    language = None
+    if outcome.meta_summary:
+        summary_dict = meta_summary_to_dict(outcome.meta_summary)
+        digest = summary_dict.get("code_summary_digest") or None
+        fn = summary_dict.get("code_summary_function_count")
+        nc = summary_dict.get("code_summary_node_count")
+        lang = summary_dict.get("code_summary_language")
+        if fn is not None:
+            fn_count = int(fn)
+        if nc is not None:
+            node_count = int(nc)
+        if lang:
+            language = lang
+        if digest and fn_count is not None:
+            return {
+                "digest": digest,
+                "function_count": fn_count,
+                "node_count": node_count,
+                "language": language,
+            }
+    if outcome.code_summary is not None:
+        summary_json = to_json(outcome.code_summary)
+        fields = summary_json.get("fields") or {}
+        digest = fields.get("digest", {}).get("label")
+        fn_node = fields.get("function_count")
+        node_node = fields.get("node_count")
+        lang_node = fields.get("language")
+        if fn_node is not None:
+            fn_count = int(fn_node.get("value", 0))
+        if node_node is not None:
+            node_count = int(node_node.get("value", 0))
+        if lang_node is not None:
+            language = lang_node.get("label")
+        if digest:
+            return {
+                "digest": digest,
+                "function_count": fn_count,
+                "node_count": node_count,
+                "language": language,
+            }
+    return None
