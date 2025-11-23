@@ -165,9 +165,62 @@ def _summary_nodes(counter: Counter) -> list[Node]:
     return nodes
 
 
+@dataclass(frozen=True)
+class CodeAstStats:
+    language: str
+    node_count: int
+    function_count: int
+
+
+def compute_code_ast_stats(node: Node) -> CodeAstStats:
+    fields = dict(node.fields)
+    language_field = fields.get("language")
+    language = (language_field.label or "unknown").lower() if language_field else "unknown"
+    node_count = _node_to_int(fields.get("node_count"))
+    fn_count = 0
+    if language.startswith("python") and "root" in fields:
+        fn_count = _count_python_functions(fields["root"])
+    else:
+        functions_node = fields.get("functions")
+        if functions_node and functions_node.kind.name == "LIST":
+            fn_count = len(functions_node.args)
+    return CodeAstStats(language=language or "unknown", node_count=node_count, function_count=fn_count)
+
+
+def build_code_ast_summary(node: Node, stats: CodeAstStats | None = None) -> Node:
+    stats = stats or compute_code_ast_stats(node)
+    return liu_struct(
+        tag=entity("code_ast_summary"),
+        language=entity(stats.language),
+        node_count=number(stats.node_count),
+        function_count=number(stats.function_count),
+    )
+
+
+def _node_to_int(node: Node | None) -> int:
+    if node is None or node.kind.name != "NUMBER" or node.value is None:
+        return 0
+    return int(node.value)
+
+
+def _count_python_functions(root: Node) -> int:
+    if root.kind.name != "STRUCT":
+        return 0
+    fields = dict(root.fields)
+    count = 1 if (fields.get("type") and fields["type"].label == "FunctionDef") else 0
+    children = fields.get("children")
+    if children and children.kind.name == "LIST":
+        for child in children.args:
+            count += _count_python_functions(child)
+    return count
+
+
 __all__ = [
     "build_python_ast_meta",
     "build_rust_ast_meta",
     "build_js_ast_meta",
     "build_elixir_ast_meta",
+    "CodeAstStats",
+    "compute_code_ast_stats",
+    "build_code_ast_summary",
 ]

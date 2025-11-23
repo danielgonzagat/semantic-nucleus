@@ -6,7 +6,6 @@ from __future__ import annotations
 
 import math
 from collections import deque
-from dataclasses import dataclass
 from typing import Callable, Dict, Iterable, Tuple
 
 from liu import (
@@ -23,6 +22,7 @@ from liu import (
     fingerprint,
 )
 
+from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
 from .rules import apply_rules
 from .state import ISR, SessionCtx
@@ -197,18 +197,13 @@ def _op_rewrite_code(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
     new_context = list(isr.context)
     existing = {fingerprint(node) for node in new_context}
     for code_node in code_nodes:
-        stats = _summarize_code_ast(code_node)
-        summary = struct(
-            tag=entity("code_ast_summary"),
-            language=entity(stats.language),
-            node_count=number(stats.node_count),
-            function_count=number(stats.fn_count),
-        )
+        stats = compute_code_ast_stats(code_node)
+        summary = build_code_ast_summary(code_node, stats)
         if fingerprint(summary) not in existing:
             new_context.append(summary)
             existing.add(fingerprint(summary))
         lang_entity = entity(f"code/lang::{stats.language}")
-        rel = relation("code/FUNCTION_COUNT", lang_entity, number(stats.fn_count))
+        rel = relation("code/FUNCTION_COUNT", lang_entity, number(stats.function_count))
         new_relations.append(rel)
     quality = min(1.0, max(isr.quality, 0.55))
     return _update(isr, relations=tuple(new_relations), context=tuple(new_context), quality=quality)
@@ -218,39 +213,6 @@ def _is_code_ast(node: Node) -> bool:
     fields = dict(node.fields)
     tag = fields.get("tag")
     return bool(tag and (tag.label or "").lower() == "code_ast")
-
-
-def _summarize_code_ast(node: Node):
-    fields = dict(node.fields)
-    language = (fields.get("language").label or "unknown").lower()
-    node_counter = int(fields.get("node_count").value) if fields.get("node_count") else 0
-    fn_count = 0
-    if language == "python" and "root" in fields:
-        fn_count = _count_python_functions(fields["root"])
-    else:
-        functions_node = fields.get("functions")
-        if functions_node and functions_node.kind is NodeKind.LIST:
-            fn_count = len(functions_node.args)
-    return _CodeAstStats(language=language or "unknown", node_count=node_counter, fn_count=fn_count)
-
-
-def _count_python_functions(root: Node) -> int:
-    if root.kind is not NodeKind.STRUCT:
-        return 0
-    fields = dict(root.fields)
-    count = 1 if (fields.get("type") and fields["type"].label == "FunctionDef") else 0
-    children = fields.get("children")
-    if children and children.kind is NodeKind.LIST:
-        for child in children.args:
-            count += _count_python_functions(child)
-    return count
-
-
-@dataclass(frozen=True)
-class _CodeAstStats:
-    language: str
-    node_count: int
-    fn_count: int
 
 
 def _render_struct(node: Node) -> Node:

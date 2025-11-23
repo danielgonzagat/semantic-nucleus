@@ -146,6 +146,12 @@ def soma(x, y):
     assert any(dict(node.fields)["tag"].label == "language_profile" for node in result.preseed_context)
     assert any(dict(node.fields)["tag"].label == "code_ast" for node in result.preseed_context)
     assert result.code_ast is not None
+    summary_nodes = [node for node in result.preseed_context if dict(node.fields)["tag"].label == "code_ast_summary"]
+    assert summary_nodes, "expected code_ast_summary in preseed context"
+    summary_fields = dict(summary_nodes[0].fields)
+    assert summary_fields["function_count"].value >= 1
+    assert result.code_summary is not None
+    assert dict(result.code_summary.fields)["tag"].label == "code_ast_summary"
 
 
 def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
@@ -260,6 +266,8 @@ def soma(x, y):
     summary_dict = meta_summary_to_dict(summary_nodes)
     assert summary_dict["code_ast_language"] == "python"
     assert summary_dict["code_ast_node_count"] >= 1
+    assert summary_dict["code_summary_language"] == "python"
+    assert summary_dict["code_summary_function_count"] >= 1
 
 
 def test_meta_summary_includes_calc_exec_snapshot():

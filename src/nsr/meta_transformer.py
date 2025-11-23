@@ -33,7 +33,7 @@ from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
-from .code_ast import build_python_ast_meta
+from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
@@ -69,6 +69,7 @@ class MetaTransformResult:
     phi_plan_ops: Tuple[str, ...] | None = None
     language_profile: Node | None = None
     code_ast: Node | None = None
+    code_summary: Node | None = None
     math_ast: Node | None = None
 
 
@@ -178,6 +179,9 @@ class MetaTransformer:
                 text_value,
                 language_profile_node,
             )
+            summary_node = build_code_ast_summary(code_hook.ast_node) if code_hook.ast_node is not None else None
+            if summary_node is not None:
+                preseed_context = tuple((*preseed_context, summary_node))
             plan_node = _meta_plan_node(MetaRoute.CODE, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
@@ -193,6 +197,7 @@ class MetaTransformer:
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=code_hook.ast_node,
+                code_summary=summary_node,
                 math_ast=None,
             )
 
@@ -250,10 +255,13 @@ class MetaTransformer:
             if filtered:
                 phi_plan_ops = filtered
         fallback_code_ast = None
+        code_summary = None
         if should_build_code_ast:
             fallback_code_ast = build_python_ast_meta(text_value)
             if fallback_code_ast is not None:
                 meta_context = tuple((*meta_context, fallback_code_ast))
+                code_summary = build_code_ast_summary(fallback_code_ast)
+                meta_context = tuple((*meta_context, code_summary))
         plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops, text_plan)
         if plan_context is not None:
             meta_context = tuple((*meta_context, plan_context))
@@ -269,6 +277,7 @@ class MetaTransformer:
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
             code_ast=fallback_code_ast,
+            code_summary=code_summary,
             math_ast=None,
         )
 
@@ -433,6 +442,8 @@ def build_meta_summary(
         nodes.append(meta.language_profile)
     if meta.code_ast is not None:
         nodes.append(meta.code_ast)
+    if meta.code_summary is not None:
+        nodes.append(meta.code_summary)
     if meta.math_ast is not None:
         nodes.append(meta.math_ast)
     if calc_result is not None:
@@ -499,6 +510,16 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         truncated_node = ast_fields.get("truncated")
         if truncated_node is not None:
             result["code_ast_truncated"] = (_label(truncated_node).lower() == "true")
+    code_summary_node = nodes.get("code_ast_summary")
+    if code_summary_node is not None:
+        summary_fields = _fields(code_summary_node)
+        result["code_summary_language"] = _label(summary_fields.get("language"))
+        node_count = summary_fields.get("node_count")
+        if node_count is not None:
+            result["code_summary_node_count"] = int(_value(node_count))
+        fn_count = summary_fields.get("function_count")
+        if fn_count is not None:
+            result["code_summary_function_count"] = int(_value(fn_count))
     math_ast_node = nodes.get("math_ast")
     if math_ast_node is not None:
         math_fields = _fields(math_ast_node)

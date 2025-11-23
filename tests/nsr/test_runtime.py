@@ -418,6 +418,12 @@ def soma(x, y):
         if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
     ]
     assert "code_ast_summary" in tags
+    assert outcome.code_summary is not None
+    summary_fields = dict(outcome.code_summary.fields)
+    assert summary_fields["function_count"].value >= 1
+    assert outcome.meta_summary is not None
+    meta_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert meta_dict["code_summary_function_count"] >= 1
 
 
 def test_text_route_with_detected_code_runs_rewrite(monkeypatch):
