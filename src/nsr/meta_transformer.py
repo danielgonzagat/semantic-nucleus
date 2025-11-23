@@ -428,6 +428,7 @@ def build_meta_summary(
     halt_reason: str,
     calc_result: "MetaCalculationResult | None" = None,
     meta_reasoning: Node | None = None,
+    meta_expression: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -454,6 +455,8 @@ def build_meta_summary(
             nodes.append(exec_node)
     if meta_reasoning is not None:
         nodes.append(meta_reasoning)
+    if meta_expression is not None:
+        nodes.append(meta_expression)
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -607,6 +610,18 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                 )
             if stats_list:
                 result["reasoning_operator_stats"] = stats_list
+    expression_node = nodes.get("meta_expression")
+    if expression_node is not None:
+        expression_fields = _fields(expression_node)
+        result["expression_preview"] = _label(expression_fields.get("preview"))
+        result["expression_quality"] = _value(expression_fields.get("quality"))
+        result["expression_halt"] = _label(expression_fields.get("halt"))
+        result["expression_route"] = _label(expression_fields.get("route"))
+        result["expression_language"] = _label(expression_fields.get("language"))
+        result["expression_answer_digest"] = _label(expression_fields.get("answer_digest"))
+        reasoning_digest = expression_fields.get("reasoning_digest")
+        if reasoning_digest is not None:
+            result["expression_reasoning_digest"] = _label(reasoning_digest)
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)

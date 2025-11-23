@@ -163,12 +163,18 @@ def test_meta_summary_carries_reasoning_digest():
     assert outcome.meta_summary is not None
     tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
     assert "meta_reasoning" in tags
+    assert "meta_expression" in tags
     summary_dict = meta_summary_to_dict(outcome.meta_summary)
     assert summary_dict["reasoning_step_count"] >= 1
     assert summary_dict["reasoning_trace_digest"]
     assert summary_dict["reasoning_ops"][0]
     stats = summary_dict["reasoning_operator_stats"]
     assert any(entry["label"] == "NORMALIZE" for entry in stats)
+    assert summary_dict["expression_preview"]
+    assert summary_dict["expression_quality"] >= 0.0
+    assert summary_dict["expression_route"] == "text"
+    assert summary_dict["expression_answer_digest"]
+    assert summary_dict["expression_reasoning_digest"]
 
 
 def test_run_outcome_exposes_meta_reasoning_node():
@@ -180,6 +186,10 @@ def test_run_outcome_exposes_meta_reasoning_node():
     operations = fields["operations"]
     assert operations.kind.name == "LIST"
     assert len(operations.args) >= 1
+    assert outcome.meta_expression is not None
+    expr_fields = dict(outcome.meta_expression.fields)
+    assert expr_fields["tag"].label == "meta_expression"
+    assert expr_fields["preview"].label
 
 
 def test_run_text_with_explanation_returns_triple():

@@ -26,6 +26,7 @@ from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculat
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
+from .meta_expressor import build_meta_expression
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -106,6 +107,7 @@ class RunOutcome:
     explanation: str
     meta_summary: Tuple[Node, ...] | None = None
     meta_reasoning: Node | None = None
+    meta_expression: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
@@ -224,6 +226,15 @@ def run_struct_full(
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
         snapshot = snapshot_equation(struct_node, isr)
         reasoning_node = build_meta_reasoning(trace.steps)
+        language = _resolve_language(meta_info, session)
+        meta_expression = build_meta_expression(
+            isr.answer,
+            reasoning=reasoning_node,
+            quality=isr.quality,
+            halt_reason=HaltReason.QUALITY_THRESHOLD.value,
+            route=meta_info.route if meta_info else None,
+            language=language,
+        )
         summary = (
             build_meta_summary(
                 meta_info,
@@ -232,6 +243,7 @@ def run_struct_full(
                 HaltReason.QUALITY_THRESHOLD.value,
                 calc_result,
                 meta_reasoning=reasoning_node,
+                meta_expression=meta_expression,
             )
             if meta_info
             else None
@@ -247,6 +259,7 @@ def run_struct_full(
             explanation=render_explanation(isr, struct_node),
             meta_summary=summary,
             meta_reasoning=reasoning_node if meta_info else None,
+            meta_expression=meta_expression,
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
@@ -361,6 +374,15 @@ def run_struct_full(
         last_snapshot = None
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    language = _resolve_language(meta_info, session)
+    meta_expression = build_meta_expression(
+        isr.answer,
+        reasoning=reasoning_node,
+        quality=isr.quality,
+        halt_reason=halt_reason.value,
+        route=meta_info.route if meta_info else None,
+        language=language,
+    )
     meta_summary = (
         build_meta_summary(
             meta_info,
@@ -369,6 +391,7 @@ def run_struct_full(
             halt_reason.value,
             calc_result,
             meta_reasoning=reasoning_node,
+            meta_expression=meta_expression,
         )
         if meta_info
         else None
@@ -389,6 +412,7 @@ def run_struct_full(
         explanation=render_explanation(isr, struct_node),
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node if meta_info else None,
+        meta_expression=meta_expression,
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,
@@ -496,6 +520,12 @@ def _apply_code_rewrite_if_needed(
     return updated, "Φ_CODE[REWRITE_CODE]"
 
 
+def _resolve_language(meta_info: MetaTransformResult | None, session: SessionCtx) -> str | None:
+    if meta_info and meta_info.language_hint:
+        return meta_info.language_hint
+    return session.language_hint
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -517,6 +547,15 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     snapshot = snapshot_equation(meta.struct_node, isr)
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    language = _resolve_language(meta, session)
+    meta_expression = build_meta_expression(
+        isr.answer,
+        reasoning=reasoning_node,
+        quality=isr.quality,
+        halt_reason=HaltReason.PLAN_EXECUTED.value,
+        route=meta.route,
+        language=language,
+    )
     meta_summary = build_meta_summary(
         meta,
         answer_text,
@@ -524,6 +563,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         HaltReason.PLAN_EXECUTED.value,
         calc_result,
         meta_reasoning=reasoning_node,
+        meta_expression=meta_expression,
     )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
@@ -540,6 +580,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         explanation=render_explanation(isr, meta.struct_node),
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node,
+        meta_expression=meta_expression,
         calc_plan=plan,
         calc_result=calc_result,
         lc_meta=meta.lc_meta,
