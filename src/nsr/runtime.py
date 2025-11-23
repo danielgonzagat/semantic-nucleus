@@ -29,6 +29,7 @@ from .meta_reasoner import build_meta_reasoning
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
 from .meta_memory_store import append_memory, load_recent_memory
+from .meta_memory_induction import record_episode, run_memory_induction
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -185,9 +186,9 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     if calc_mode == "plan_only":
         plan_outcome = _run_plan_only(meta, session)
         if plan_outcome is not None:
-            return plan_outcome
+            return _finalize_outcome(session, text, plan_outcome)
     struct0 = meta.struct_node
-    return run_struct_full(
+    outcome = run_struct_full(
         struct0,
         session,
         preseed_answer=meta.preseed_answer,
@@ -196,6 +197,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
         trace_hint=meta.trace_label,
         meta_info=meta,
     )
+    return _finalize_outcome(session, text, outcome)
 
 
 def run_struct(
@@ -294,7 +296,7 @@ def run_struct_full(
             tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
         )
         _persist_meta_memory(session, meta_memory)
-        return RunOutcome(
+        outcome = RunOutcome(
             answer=answer_text,
             trace=trace,
             isr=isr,
@@ -315,6 +317,7 @@ def run_struct_full(
             code_summary=meta_info.code_summary if meta_info else None,
             math_ast=meta_info.math_ast if meta_info else None,
         )
+        return outcome
     steps = 0
     seen_signatures = set()
     idle_loops = 0
@@ -458,7 +461,7 @@ def run_struct_full(
         limit = getattr(session.config, "meta_history_limit", 0)
         if limit and len(session.meta_history) > limit:
             del session.meta_history[:-limit]
-    return RunOutcome(
+    outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
         isr=isr,
@@ -479,6 +482,7 @@ def run_struct_full(
         code_summary=meta_info.code_summary if meta_info else None,
         math_ast=meta_info.math_ast if meta_info else None,
     )
+    return outcome
 
 
 def _state_signature(isr: ISR) -> str:
@@ -690,6 +694,39 @@ def _persist_meta_memory(session: SessionCtx, memory_node: Node | None) -> None:
         return
 
 
+def _record_episode(session: SessionCtx, text: str, outcome: RunOutcome) -> None:
+    path = getattr(session.config, "episodes_path", None)
+    if path:
+        try:
+            record_episode(path, text, outcome)
+        except OSError:
+            pass
+    _maybe_run_memory_induction(session)
+
+
+def _maybe_run_memory_induction(session: SessionCtx) -> None:
+    episodes_path = getattr(session.config, "episodes_path", None)
+    suggestions_path = getattr(session.config, "induction_rules_path", None)
+    limit = getattr(session.config, "induction_episode_limit", 0)
+    support = getattr(session.config, "induction_min_support", 0)
+    if not episodes_path or not suggestions_path or limit <= 0:
+        return
+    try:
+        run_memory_induction(
+            episodes_path,
+            suggestions_path,
+            episode_limit=limit,
+            min_support=max(1, support),
+        )
+    except OSError:
+        return
+
+
+def _finalize_outcome(session: SessionCtx, text: str, outcome: RunOutcome) -> RunOutcome:
+    _record_episode(session, text, outcome)
+    return outcome
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -743,7 +780,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
     _persist_meta_memory(session, meta_memory)
-    return RunOutcome(
+    outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
         isr=isr,
@@ -764,6 +801,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         code_summary=meta.code_summary,
         math_ast=meta.math_ast,
     )
+    return outcome
 
 
 def _audit_state(

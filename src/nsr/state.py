@@ -25,6 +25,10 @@ class Config:
     calc_mode: str = "hybrid"
     memory_store_path: str | None = ".nsr_memory/memory.jsonl"
     memory_persist_limit: int = 256
+    episodes_path: str | None = ".nsr_memory/episodes.jsonl"
+    induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
+    induction_episode_limit: int = 128
+    induction_min_support: int = 3
 
 
 @dataclass(slots=True)
