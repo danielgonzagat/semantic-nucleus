@@ -179,6 +179,18 @@ fn soma(x: i32, y: i32) -> i32 {
     assert meta["code_ast_node_count"] >= 1
 
 
+def test_cli_includes_equation_trend_block(capsys):
+    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-equation-trend"])
+    assert exit_code == 0
+    captured = capsys.readouterr().out.strip().splitlines()[-1]
+    data = json.loads(captured)
+    eq = data.get("equation_trend_detail")
+    assert eq is not None
+    assert eq["digest"]
+    assert eq["trend"] in {"initial", "expanding", "stable", "regressing"}
+    assert isinstance(eq.get("sections"), list)
+
+
 def test_cli_accepts_expect_meta_digest(capsys):
     exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
     assert exit_code == 0

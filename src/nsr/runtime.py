@@ -788,10 +788,10 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         language=language,
         memory_refs=memory_refs,
     )
-    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node, equation_node)
-    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     equation_node = build_meta_equation_node(snapshot, session.last_equation_stats)
     equation_stats = snapshot.stats()
+    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node, equation_node)
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = build_meta_summary(
         meta,
         answer_text,
