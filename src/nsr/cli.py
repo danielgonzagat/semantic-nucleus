@@ -99,6 +99,11 @@ def _build_parser() -> argparse.ArgumentParser:
         type=int,
         help="Verifica se o resumo de código detectou exatamente N funções.",
     )
+    parser.add_argument(
+        "--expect-code-function-name",
+        action="append",
+        help="Garante que o resumo de código contém uma função com o nome informado (pode repetir a flag).",
+    )
     return parser
 
 
@@ -154,6 +159,15 @@ def main(argv: list[str] | None = None) -> int:
         if fn_count != args.expect_code_functions:
             raise SystemExit(
                 f"code_summary_function_count divergente: esperado {args.expect_code_functions}, obtido {fn_count}."
+            )
+    if args.expect_code_function_name:
+        if summary_data is None or not summary_data.get("functions"):
+            raise SystemExit("expect-code-function-name requer um resumo de código (rota CODE ou --include-code-summary).")
+        functions = summary_data.get("functions") or []
+        missing = [name for name in args.expect_code_function_name if name not in functions]
+        if missing:
+            raise SystemExit(
+                f"Funções ausentes no resumo: {', '.join(sorted(set(missing)))}."
             )
     payload = {
         "answer": outcome.answer,
@@ -214,12 +228,17 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
     node_count = None
     language = None
     function_names: list[str] | None = None
+    function_details: list[dict[str, object]] | None = None
     if outcome.meta_summary:
         summary_dict = meta_summary_to_dict(outcome.meta_summary)
         digest = summary_dict.get("code_summary_digest") or None
         fn = summary_dict.get("code_summary_function_count")
         nc = summary_dict.get("code_summary_node_count")
         lang = summary_dict.get("code_summary_language")
+        fn_details = summary_dict.get("code_summary_function_details")
+        if isinstance(fn_details, list):
+            function_details = fn_details
+            function_names = [str(item.get("name")) for item in fn_details if item.get("name")]
         fn_names = summary_dict.get("code_summary_functions")
         if fn is not None:
             fn_count = int(fn)
@@ -227,7 +246,7 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
             node_count = int(nc)
         if lang:
             language = lang
-        if isinstance(fn_names, list):
+        if function_names is None and isinstance(fn_names, list):
             function_names = [str(item) for item in fn_names if isinstance(item, str)]
         if digest and fn_count is not None:
             return {
@@ -236,6 +255,7 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
                 "node_count": node_count,
                 "language": language,
                 "functions": function_names,
+                "function_details": function_details,
             }
     if outcome.code_summary is not None:
         summary_json = to_json(outcome.code_summary)
@@ -251,22 +271,35 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
             node_count = int(node_node.get("value", 0))
         if lang_node is not None:
             language = lang_node.get("label")
+        function_details = None
         if functions_node and functions_node.get("kind") == "LIST":
             items = functions_node.get("args") or []
-            function_names = []
+            names: list[str] = []
+            details: list[dict[str, object]] = []
             for item in items:
                 entry_fields = item.get("fields") or {}
                 name_field = entry_fields.get("name")
-                if name_field and name_field.get("label"):
-                    function_names.append(name_field["label"])
+                name_value = name_field.get("label") if name_field else ""
+                if name_value:
+                    names.append(name_value)
+                detail: dict[str, object] = {"name": name_value}
+                param_count_field = entry_fields.get("param_count")
+                if param_count_field and param_count_field.get("value") is not None:
+                    detail["param_count"] = int(param_count_field["value"])
+                params_field = entry_fields.get("parameters")
+                if params_field and params_field.get("kind") == "LIST":
+                    detail["parameters"] = [arg.get("label", "") for arg in params_field.get("args", [])]
+                details.append(detail)
+            function_names = names
+            function_details = details
         result = {
             "digest": digest,
             "function_count": fn_count,
             "node_count": node_count,
             "language": language,
+            "functions": function_names,
+            "function_details": function_details,
         }
-        if function_names:
-            result["functions"] = function_names
         if digest:
             return result
     return None

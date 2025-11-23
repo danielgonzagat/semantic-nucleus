@@ -523,9 +523,25 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         result["code_summary_digest"] = _label(summary_fields.get("digest"))
         functions_node = summary_fields.get("functions")
         if functions_node is not None and functions_node.kind.name == "LIST":
-            result["code_summary_functions"] = [
-                _label(_fields(entry).get("name")) for entry in functions_node.args
-            ]
+            function_names: list[str] = []
+            function_details: list[dict[str, object]] = []
+            for entry in functions_node.args:
+                entry_fields = _fields(entry)
+                name = _label(entry_fields.get("name"))
+                if name:
+                    function_names.append(name)
+                detail: dict[str, object] = {"name": name}
+                param_count_node = entry_fields.get("param_count")
+                if param_count_node is not None:
+                    detail["param_count"] = int(_value(param_count_node))
+                params_node = entry_fields.get("parameters")
+                if params_node is not None and params_node.kind.name == "LIST":
+                    detail["parameters"] = [_label(arg) for arg in params_node.args]
+                function_details.append(detail)
+            if function_names:
+                result["code_summary_functions"] = function_names
+            if any(item.get("name") for item in function_details):
+                result["code_summary_function_details"] = function_details
     math_ast_node = nodes.get("math_ast")
     if math_ast_node is not None:
         math_fields = _fields(math_ast_node)

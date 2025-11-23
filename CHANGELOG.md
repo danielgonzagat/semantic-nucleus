@@ -26,7 +26,7 @@ Todas as mudanças relevantes neste repositório serão documentadas aqui.
 - MetaTransformer passa a gerar e propagar `code_ast_summary` durante o Meta-LER sempre que existir um `code_ast` (rotas CODE e TEXT com código detectado), anexando o resumo ao contexto inicial, ao `meta_summary` e ao `RunOutcome`; o runtime executa automaticamente `REWRITE_CODE`, garantindo que as estatísticas de código (inclusive o digest BLAKE2b do AST) apareçam no trace (`Φ_CODE[REWRITE_CODE]`) mesmo em execuções `plan_only`.
 - O `code_ast_summary` agora inclui a lista determinística de funções (nome + `param_count` quando disponível), permitindo auditar quais símbolos foram detectados pelo Meta-LER.
 - CLI `python -m nsr.cli` recebe `--expect-code-digest HEX`, permitindo validar deterministamente o `code_summary_digest` produzido pelo Meta-LER (útil para auditoria de snippets e pipelines externos).
-- CLI agora aceita `--expect-code-functions N` (verifica contagem de funções do resumo) e `--include-code-summary` (injeta o `code_ast_summary` serializado no payload principal), possibilitando auditorias estruturais sem depender apenas do `meta_summary`.
+- CLI agora aceita `--expect-code-functions N`, `--expect-code-function-name NAME` (verificações estruturais) e `--include-code-summary` (injeta o `code_ast_summary` serializado no payload principal), possibilitando auditorias detalhadas sem depender apenas do `meta_summary`.
 
 ## [0.1.0] - 2025-11-21
 

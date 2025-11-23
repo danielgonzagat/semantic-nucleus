@@ -266,6 +266,24 @@ def soma(x, y):
         nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "2"])
 
 
+def test_cli_expect_code_function_name(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "soma"])
+    assert exit_code == 0
+
+
+def test_cli_expect_code_function_name_fails(capsys):
+    code = """
+def soma(x, y):
+    return x + y
+"""
+    with pytest.raises(SystemExit):
+        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "subtrai"])
+
+
 def test_cli_include_code_summary(capsys):
     code = """
 def soma(x, y):
@@ -283,6 +301,8 @@ def soma(x, y):
     assert fields["digest"]["label"]
     functions = fields["functions"]["args"]
     assert any(entry["fields"]["name"]["label"] == "soma" for entry in functions)
+    params = functions[0]["fields"]["parameters"]["args"]
+    assert [arg["label"] for arg in params] == ["x", "y"]
 
 
 def test_cli_includes_lc_meta(capsys, monkeypatch):

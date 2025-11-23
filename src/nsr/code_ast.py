@@ -178,6 +178,7 @@ def _summary_nodes(counter: Counter) -> list[Node]:
 class CodeFunctionInfo:
     name: str
     param_count: int | None = None
+    parameters: Tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -230,6 +231,8 @@ def build_code_ast_summary(node: Node, stats: CodeAstStats | None = None) -> Nod
             }
             if info.param_count is not None:
                 fn_fields["param_count"] = number(info.param_count)
+            if info.parameters:
+                fn_fields["parameters"] = list_node(entity(param) for param in info.parameters)
             function_nodes.append(liu_struct(**fn_fields))
         summary_fields["functions"] = list_node(function_nodes)
     return liu_struct(**summary_fields)
@@ -264,11 +267,11 @@ def _collect_python_functions(root: Node) -> list[CodeFunctionInfo]:
         if type_field and (type_field.label or "").lower() == "functiondef":
             name = _extract_ast_field_value(node, "name")
             if name:
-                infos.append(CodeFunctionInfo(name=name))
-        children = fields.get("children")
-        if children and children.kind.name == "LIST":
-            for child in children.args:
-                _walk(child)
+                params = _extract_function_params(node)
+                param_count = len(params) if params else None
+                infos.append(CodeFunctionInfo(name=name, param_count=param_count, parameters=tuple(params)))
+        for child in _children_nodes(node):
+            _walk(child)
 
     _walk(root)
     return infos
@@ -301,10 +304,60 @@ def _collect_outline_functions(functions_node: Node) -> list[CodeFunctionInfo]:
         name_field = entry_fields.get("name")
         if not name_field or not name_field.label:
             continue
+        params_node = entry_fields.get("params")
+        param_names = []
+        if params_node and params_node.kind.name == "LIST":
+            for param in params_node.args:
+                param_fields = dict(param.fields)
+                pname = param_fields.get("name")
+                if pname and pname.label:
+                    param_names.append(pname.label)
         param_count_node = entry_fields.get("param_count")
-        count = int(param_count_node.value) if (param_count_node and param_count_node.value is not None) else None
-        infos.append(CodeFunctionInfo(name=name_field.label, param_count=count))
+        if param_count_node and param_count_node.value is not None:
+            count = int(param_count_node.value)
+        elif param_names:
+            count = len(param_names)
+        else:
+            count = None
+        infos.append(
+            CodeFunctionInfo(name=name_field.label, param_count=count, parameters=tuple(param_names))
+        )
     return infos
+
+
+def _children_nodes(node: Node) -> Tuple[Node, ...]:
+    children = dict(node.fields).get("children")
+    if children and children.kind.name == "LIST":
+        return tuple(children.args)
+    return tuple()
+
+
+def _extract_function_params(fn_node: Node) -> list[str]:
+    for child in _children_nodes(fn_node):
+        child_fields = dict(child.fields)
+        field_field = child_fields.get("field")
+        if field_field and (field_field.label or "").lower() == "args":
+            return _collect_arg_names(child)
+    return []
+
+
+def _collect_arg_names(args_node: Node) -> list[str]:
+    names: list[str] = []
+
+    def _walk(node: Node) -> None:
+        if node.kind.name != "STRUCT":
+            return
+        fields = dict(node.fields)
+        type_field = fields.get("type")
+        if type_field and (type_field.label or "").lower() == "arg":
+            name = _extract_ast_field_value(node, "arg")
+            if name:
+                names.append(name)
+        for child in _children_nodes(node):
+            _walk(child)
+
+    _walk(args_node)
+    return names
 
 
 __all__ = [

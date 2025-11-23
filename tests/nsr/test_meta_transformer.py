@@ -156,6 +156,10 @@ def soma(x, y):
     fn_entry = functions_node.args[0]
     fn_entry_fields = dict(fn_entry.fields)
     assert fn_entry_fields["name"].label == "soma"
+    parameters_field = fn_entry_fields.get("parameters")
+    assert parameters_field is not None
+    assert parameters_field.kind.name == "LIST"
+    assert [arg.label for arg in parameters_field.args] == ["x", "y"]
     assert summary_fields["digest"].label
     assert result.code_summary is not None
     assert dict(result.code_summary.fields)["tag"].label == "code_ast_summary"
@@ -276,6 +280,11 @@ def soma(x, y):
     assert summary_dict["code_summary_language"] == "python"
     assert summary_dict["code_summary_function_count"] >= 1
     assert "soma" in summary_dict["code_summary_functions"]
+    details = summary_dict["code_summary_function_details"]
+    assert details
+    detail = next(item for item in details if item["name"] == "soma")
+    assert detail["param_count"] == 2
+    assert detail["parameters"][:2] == ["x", "y"]
 
 
 def test_meta_summary_includes_calc_exec_snapshot():
