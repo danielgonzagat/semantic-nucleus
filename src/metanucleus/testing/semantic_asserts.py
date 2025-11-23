@@ -4,6 +4,9 @@ from typing import Any, Dict, Optional
 
 from metanucleus.evolution.intent_mismatch_log import log_intent_mismatch
 from metanucleus.evolution.semantic_mismatch_log import SemanticMismatch, append_semantic_mismatch
+from metanucleus.testing.mismatch_logger import (
+    log_intent_mismatch as log_intent_mismatch_central,
+)
 
 
 def assert_intent(kernel: Any, text: str, expected_intent: str) -> None:
@@ -22,6 +25,13 @@ def assert_intent(kernel: Any, text: str, expected_intent: str) -> None:
             lang=lang,
             source="test",
         )
+        if lang:
+            log_intent_mismatch_central(
+                input_text=text,
+                language=lang,
+                expected=expected_intent,
+                predicted=actual or "unknown",
+            )
         raise AssertionError(
             f"INTENT_MISMATCH: esperado '{expected_intent}' mas obtido '{actual}' para {text!r}"
         )

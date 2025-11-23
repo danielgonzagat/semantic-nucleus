@@ -101,8 +101,8 @@ flowchart LR
 
 O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches determinísticos e pede revisão humana. O ciclo completo é o seguinte:
 
-1. **Rode os testes** (`python -m pytest`). Eles exercitam semântica, regras e meta-cálculo e, em vez de quebrar a suíte, escrevem mismatches em `logs/*.jsonl` e `.meta/*.jsonl`.
-2. **Geradores de patch** (`IntentLexiconPatchGenerator`, `RulePatchGenerator`, `SemanticPatchGenerator`, `MetaCalculusPatchGenerator`) leem esses JSONL e produzem diffs para `intent_lexicon.json`, `rule_suggestions.md`, `semantic_suggestions.md` e `meta_calculus_rules.json`.
+1. **Rode os testes** (`python -m pytest`). Eles exercitam semântica, regras e meta-cálculo e, em vez de quebrar a suíte, escrevem mismatches em `logs/*.jsonl`, `.meta/*.jsonl` e no hub central `.metanucleus/mismatch_log.jsonl`.
+2. **Geradores de patch** (`IntentLexiconPatchGenerator`, `RulePatchGenerator`, `SemanticPatchGenerator`, `semantic_frames_auto_patch`, `meta_calculus_auto_patch`) leem esses registros e produzem diffs para `intent_lexicon.json`, `rule_suggestions.md`, `semantic_suggestions.md`, `.metanucleus/frame_patterns.json` e `metanucleus/config/meta_calculus_rules.json`.
 3. **MetaKernel** consolida tudo via `run_auto_evolution_cycle(domains=[...], apply_changes=...)`, devolvendo `EvolutionPatch` (domínio, título, descrição, diff).
 4. **CLI** `metanucleus-auto-evolve` roda esse ciclo fora do código principal:
 

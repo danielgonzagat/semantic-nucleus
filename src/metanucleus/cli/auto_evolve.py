@@ -19,7 +19,10 @@ def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "domains",
         nargs="*",
         default=["all"],
-        help="Domínios a evoluir: intent, rules, semantics, calculus, language ou all.",
+        help=(
+            "Domínios a evoluir: intent, rules, semantics, semantic_frames, "
+            "meta_calculus (alias calculus), language ou all."
+        ),
     )
     parser.add_argument(
         "--apply",
@@ -52,7 +55,17 @@ def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
 
 def _normalize_domains(domains: Iterable[str]) -> List[str]:
-    valid = {"intent", "rules", "semantics", "calculus", "language", "all", "*"}
+    valid = {
+        "intent",
+        "rules",
+        "semantics",
+        "semantic_frames",
+        "meta_calculus",
+        "calculus",
+        "language",
+        "all",
+        "*",
+    }
     normalized: List[str] = []
     for raw in domains:
         clean = raw.strip().lower()

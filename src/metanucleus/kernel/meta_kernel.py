@@ -10,8 +10,9 @@ from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
 from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.core.state import MetaState
 from metanucleus.evolution.intent_auto_patch import suggest_intent_patches
-from metanucleus.evolution.meta_calculus_patch_generator import MetaCalculusPatchGenerator
+from metanucleus.evolution.meta_calculus_auto_patch import suggest_meta_calculus_patches
 from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
+from metanucleus.evolution.semantic_frames_auto_patch import suggest_frame_patches
 from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
 from metanucleus.evolution.types import EvolutionPatch
 
@@ -120,8 +121,10 @@ class MetaKernel:
             patches.extend(self._suggest_rule_patches())
         if "semantics" in normalized or "language" in normalized:
             patches.extend(self._suggest_semantic_patches())
-        if "calculus" in normalized and self.config.auto_evolution.enable_calculus:
-            patches.extend(self._suggest_calculus_patches())
+        if "semantic_frames" in normalized:
+            patches.extend(self._suggest_semantic_frame_patches())
+        if "meta_calculus" in normalized:
+            patches.extend(self._suggest_meta_calculus_patches())
 
         if max_patches is not None and len(patches) > max_patches:
             patches = patches[:max_patches]
@@ -139,23 +142,10 @@ class MetaKernel:
         limit = self.config.auto_evolution.max_new_intent_rules
         return suggest_intent_patches(max_candidates=limit)
 
-    def _suggest_calculus_patches(self) -> List[EvolutionPatch]:
-        generator = MetaCalculusPatchGenerator()
-        candidates = generator.generate_patches(
-            max_new_rules=self.config.auto_evolution.max_new_calculus_rules
+    def _suggest_meta_calculus_patches(self) -> List[EvolutionPatch]:
+        return suggest_meta_calculus_patches(
+            max_mismatches=self.config.auto_evolution.max_new_calculus_rules
         )
-        patches: List[EvolutionPatch] = []
-        for cand in candidates:
-            patches.append(
-                EvolutionPatch(
-                    domain="calculus",
-                    title=cand.title,
-                    description=cand.description,
-                    diff=cand.diff,
-                    meta={"source": "MetaKernel._suggest_calculus_patches"},
-                )
-            )
-        return patches
 
     def _suggest_rule_patches(self, max_rules: Optional[int] = None) -> List[EvolutionPatch]:
         generator = RulePatchGenerator()
@@ -189,11 +179,23 @@ class MetaKernel:
             )
         return patches
 
+    def _suggest_semantic_frame_patches(self) -> List[EvolutionPatch]:
+        return suggest_frame_patches()
+
 
 def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
-    allowed = ["intent", "rules", "semantics", "language", "calculus", "all"]
+    allowed = [
+        "intent",
+        "rules",
+        "semantics",
+        "language",
+        "semantic_frames",
+        "meta_calculus",
+        "calculus",
+        "all",
+    ]
     if domains is None:
-        return ["intent", "calculus"]
+        return ["intent", "meta_calculus"]
     normalized: List[str] = []
     for domain in domains:
         if domain is None:
@@ -202,9 +204,11 @@ def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
         if clean not in allowed:
             raise ValueError(f"Domínio desconhecido: {domain}")
         if clean == "all":
-            return ["intent", "rules", "semantics", "calculus"]
-        normalized.append("semantics" if clean == "language" else clean)
-    return normalized or ["intent", "calculus"]
+            return ["intent", "rules", "semantics", "semantic_frames", "meta_calculus"]
+        if clean == "language":
+            clean = "semantics"
+        normalized.append("meta_calculus" if clean == "calculus" else clean)
+    return normalized or ["intent", "meta_calculus"]
 
 
 __all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult"]
