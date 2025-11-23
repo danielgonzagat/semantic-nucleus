@@ -429,6 +429,7 @@ def build_meta_summary(
     calc_result: "MetaCalculationResult | None" = None,
     meta_reasoning: Node | None = None,
     meta_expression: Node | None = None,
+    meta_memory: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -457,6 +458,8 @@ def build_meta_summary(
         nodes.append(meta_reasoning)
     if meta_expression is not None:
         nodes.append(meta_expression)
+    if meta_memory is not None:
+        nodes.append(meta_memory)
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -622,6 +625,25 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
         reasoning_digest = expression_fields.get("reasoning_digest")
         if reasoning_digest is not None:
             result["expression_reasoning_digest"] = _label(reasoning_digest)
+    memory_node = nodes.get("meta_memory")
+    if memory_node is not None:
+        memory_fields = _fields(memory_node)
+        result["memory_size"] = int(_value(memory_fields.get("size")))
+        result["memory_digest"] = _label(memory_fields.get("digest"))
+        entries_node = memory_fields.get("entries")
+        if entries_node is not None and entries_node.kind.name == "LIST":
+            memory_entries: list[dict[str, object]] = []
+            for entry in entries_node.args:
+                entry_fields = _fields(entry)
+                memory_entries.append(
+                    {
+                        "route": _label(entry_fields.get("route")),
+                        "answer_preview": _label(entry_fields.get("answer_preview")),
+                        "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
+                        "expression_digest": _label(entry_fields.get("expression_digest")),
+                    }
+                )
+            result["memory_entries"] = memory_entries
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)

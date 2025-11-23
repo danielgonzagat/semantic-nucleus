@@ -164,6 +164,7 @@ def test_meta_summary_carries_reasoning_digest():
     tags = [dict(node.fields)["tag"].label for node in outcome.meta_summary]
     assert "meta_reasoning" in tags
     assert "meta_expression" in tags
+    assert "meta_memory" in tags
     summary_dict = meta_summary_to_dict(outcome.meta_summary)
     assert summary_dict["reasoning_step_count"] >= 1
     assert summary_dict["reasoning_trace_digest"]
@@ -175,6 +176,10 @@ def test_meta_summary_carries_reasoning_digest():
     assert summary_dict["expression_route"] == "text"
     assert summary_dict["expression_answer_digest"]
     assert summary_dict["expression_reasoning_digest"]
+    assert summary_dict["memory_size"] >= 1
+    assert summary_dict["memory_entries"]
+    assert summary_dict["memory_entries"][-1]["route"] == "text"
+    assert outcome.meta_memory is not None
 
 
 def test_run_outcome_exposes_meta_reasoning_node():
@@ -190,6 +195,7 @@ def test_run_outcome_exposes_meta_reasoning_node():
     expr_fields = dict(outcome.meta_expression.fields)
     assert expr_fields["tag"].label == "meta_expression"
     assert expr_fields["preview"].label
+    assert outcome.meta_memory is not None
 
 
 def test_trace_summary_operator_adds_context():

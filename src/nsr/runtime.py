@@ -27,6 +27,7 @@ from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
 from .meta_expressor import build_meta_expression
+from .meta_memory import build_meta_memory
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -108,6 +109,7 @@ class RunOutcome:
     meta_summary: Tuple[Node, ...] | None = None
     meta_reasoning: Node | None = None
     meta_expression: Node | None = None
+    meta_memory: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
@@ -236,21 +238,25 @@ def run_struct_full(
             route=meta_info.route if meta_info else None,
             language=language,
         )
+        answer_text = _answer_text(isr)
+        memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+        meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
             build_meta_summary(
                 meta_info,
-                _answer_text(isr),
+                answer_text,
                 isr.quality,
                 HaltReason.QUALITY_THRESHOLD.value,
                 calc_result,
                 meta_reasoning=reasoning_node,
                 meta_expression=meta_expression,
+                meta_memory=meta_memory,
             )
             if meta_info
             else None
         )
         return RunOutcome(
-            answer=_answer_text(isr),
+            answer=answer_text,
             trace=trace,
             isr=isr,
             halt_reason=HaltReason.QUALITY_THRESHOLD,
@@ -261,6 +267,7 @@ def run_struct_full(
             meta_summary=summary,
             meta_reasoning=reasoning_node if meta_info else None,
             meta_expression=meta_expression,
+            meta_memory=meta_memory,
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
@@ -385,6 +392,8 @@ def run_struct_full(
         route=meta_info.route if meta_info else None,
         language=language,
     )
+    memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = (
         build_meta_summary(
             meta_info,
@@ -394,6 +403,7 @@ def run_struct_full(
             calc_result,
             meta_reasoning=reasoning_node,
             meta_expression=meta_expression,
+            meta_memory=meta_memory,
         )
         if meta_info
         else None
@@ -415,6 +425,7 @@ def run_struct_full(
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node if meta_info else None,
         meta_expression=meta_expression,
+        meta_memory=meta_memory,
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,
@@ -541,6 +552,35 @@ def _apply_trace_summary_if_needed(
     return updated
 
 
+def _memory_entry_payload(
+    meta_info: MetaTransformResult | None,
+    answer_text: str,
+    meta_expression: Node | None,
+    reasoning_node: Node | None,
+) -> dict[str, object]:
+    route = meta_info.route.value if meta_info else ""
+    return {
+        "route": route,
+        "answer": answer_text,
+        "expression_preview": _node_field_label(meta_expression, "preview"),
+        "expression_answer_digest": _node_field_label(meta_expression, "answer_digest"),
+        "reasoning_trace_digest": _node_field_label(reasoning_node, "digest"),
+    }
+
+
+def _node_field_label(node: Node | None, field: str) -> str:
+    if node is None:
+        return ""
+    value = dict(node.fields).get(field)
+    if value is None:
+        return ""
+    if value.label:
+        return value.label
+    if value.value is not None:
+        return str(value.value)
+    return ""
+
+
 def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome | None:
     plan = meta.calc_plan
     if plan is None:
@@ -572,6 +612,8 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         route=meta.route,
         language=language,
     )
+    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
+    meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = build_meta_summary(
         meta,
         answer_text,
@@ -580,6 +622,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         calc_result,
         meta_reasoning=reasoning_node,
         meta_expression=meta_expression,
+        meta_memory=meta_memory,
     )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
@@ -597,6 +640,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node,
         meta_expression=meta_expression,
+        meta_memory=meta_memory,
         calc_plan=plan,
         calc_result=calc_result,
         lc_meta=meta.lc_meta,
