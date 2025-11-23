@@ -592,7 +592,11 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                 if label:
                     ops_labels.append(label)
                 detail: dict[str, object] = {
-                    "index": int(_value(entry_fields.get("index"))),
+                index_node = entry_fields.get("index")
+                if index_node is None:
+                    continue  # Skip malformed entries
+                detail: dict[str, object] = {
+                    "index": int(_value(index_node)),
                     "label": label,
                 }
                 quality_node = entry_fields.get("quality")
