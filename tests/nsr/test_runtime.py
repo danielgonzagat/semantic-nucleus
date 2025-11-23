@@ -129,6 +129,7 @@ def test_run_struct_converges_with_summary(monkeypatch):
 def test_run_text_full_matches_legacy_output():
     session = SessionCtx()
     outcome = run_text_full("Um carro existe", session)
+    session.meta_buffer = tuple()
     legacy_answer, legacy_trace = run_text("Um carro existe", session)
     assert outcome.answer == legacy_answer
     assert outcome.trace.steps == legacy_trace.steps
@@ -214,6 +215,19 @@ def test_trace_summary_operator_adds_context():
     assert summary_fields["total_steps"].value >= 1
     assert summary_fields["unique_ops"].value >= 1
     assert summary_fields["reasoning_digest"].label
+
+
+def test_meta_memory_is_seeded_into_next_turn_context():
+    session = SessionCtx()
+    run_text("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    tags = [
+        dict(node.fields).get("tag").label
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    assert "meta_memory" in tags
+    assert session.meta_buffer
 
 
 def test_run_text_with_explanation_returns_triple():

@@ -97,6 +97,7 @@ class SessionCtx:
     logic_engine: "LogicEngine | None" = None
     logic_serialized: str | None = None
     meta_history: List[Tuple[Node, ...]] = field(default_factory=list)
+    meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
 
 
 @dataclass(slots=True)

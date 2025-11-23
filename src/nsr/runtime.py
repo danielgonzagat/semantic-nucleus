@@ -150,6 +150,30 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
     _ensure_logic_engine(session)
     transformer = MetaTransformer(session)
     meta = transformer.transform(text)
+    if session.meta_buffer:
+        extra_context = session.meta_buffer
+        if meta.preseed_context:
+            meta_context = tuple((*meta.preseed_context, *extra_context))
+        else:
+            meta_context = extra_context
+        meta = MetaTransformResult(
+            struct_node=meta.struct_node,
+            route=meta.route,
+            input_text=meta.input_text,
+            trace_label=meta.trace_label,
+            preseed_answer=meta.preseed_answer,
+            preseed_context=meta_context,
+            preseed_quality=meta.preseed_quality,
+            language_hint=meta.language_hint,
+            calc_plan=meta.calc_plan,
+            lc_meta=meta.lc_meta,
+            meta_calculation=meta.meta_calculation,
+            phi_plan_ops=meta.phi_plan_ops,
+            language_profile=meta.language_profile,
+            code_ast=meta.code_ast,
+            code_summary=meta.code_summary,
+            math_ast=meta.math_ast,
+        )
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     if calc_mode == "plan_only":
         plan_outcome = _run_plan_only(meta, session)
@@ -255,6 +279,7 @@ def run_struct_full(
             if meta_info
             else None
         )
+        session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
         return RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -408,6 +433,7 @@ def run_struct_full(
         if meta_info
         else None
     )
+    session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
@@ -628,6 +654,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     limit = getattr(session.config, "meta_history_limit", 0)
     if limit and len(session.meta_history) > limit:
         del session.meta_history[:-limit]
+    session.meta_buffer = (meta_memory,) if meta_memory is not None else tuple()
     return RunOutcome(
         answer=answer_text,
         trace=trace,
