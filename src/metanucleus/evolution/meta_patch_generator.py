@@ -1,24 +1,32 @@
 """
-Gerador de patches internos (v2) baseado em análise sintática determinística.
+Gerador determinístico de patches internos (v2) baseado em análise de AST.
 """
 
 from __future__ import annotations
 
 import ast
+import copy
 import difflib
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from metanucleus.evolution.supervised_evolution import PatchCandidate
+
+DEFAULT_INTENT_ENRICHMENTS: Dict[str, Dict[str, List[str]]] = {
+    "pt": {
+        "question": ["onde", "quanto", "qual", "quais", "quem", "quando"],
+        "greeting": ["bom dia", "boa tarde", "boa noite"],
+    },
+    "en": {
+        "question": ["where", "which", "who", "how much", "how many"],
+        "greeting": ["good morning", "good afternoon", "good evening"],
+    },
+}
 
 
 @dataclass
 class CodeUnit:
-    """
-    Representa um arquivo de código acompanhado do AST parseado.
-    """
-
     path: Path
     source: str
     tree: ast.AST
@@ -26,18 +34,26 @@ class CodeUnit:
 
 @dataclass
 class PhiFunctionInfo:
-    """
-    Metadados determinísticos sobre uma função Φ (phi_*).
-    """
-
     name: str
     module_path: str
     file_path: Path
 
 
+@dataclass
+class IntentLogEntry:
+    text: str
+    detected: str
+    expected: str
+    lang: str
+
+
 class MetaPatchGenerator:
     """
-    Gera patches autônomos para docstrings, registro de operadores Φ e testes.
+    Estratégias v2:
+      1) Docstrings semânticas em funções/classes centrais.
+      2) Expansão determinística de INTENT_KEYWORDS.
+      3) Registro automático de operadores Φ em PHI_OPS.
+      4) Testes automáticos mínimos para operadores Φ.
     """
 
     def __init__(self, project_root: Path):
@@ -63,6 +79,12 @@ class MetaPatchGenerator:
                 if len(patches) >= max_candidates:
                     return patches
 
+        keyword_patches = self._semantic_keyword_patches(units)
+        for patch in keyword_patches:
+            patches.append(patch)
+            if len(patches) >= max_candidates:
+                return patches
+
         registry_patches = self._phi_registry_patches(units, phi_infos)
         for patch in registry_patches:
             patches.append(patch)
@@ -74,6 +96,15 @@ class MetaPatchGenerator:
             patches.append(test_patch)
 
         return patches[:max_candidates]
+
+    def generate_from_logs(self, logs: List[IntentLogEntry], max_candidates: int = 3) -> List[PatchCandidate]:
+        if not logs:
+            return []
+        enrichment = self._build_dynamic_enrichment(logs)
+        if not enrichment:
+            return []
+        units = self._scan_codebase()
+        return self._patch_semantic_keyword_dicts(units, enrichment, max_candidates)
 
     # ------------------------------------------------------------------
     # Scan helpers
@@ -118,7 +149,7 @@ class MetaPatchGenerator:
         return units
 
     # ------------------------------------------------------------------
-    # Coleta de funções Φ
+    # Coleta Φ
     # ------------------------------------------------------------------
 
     def _collect_phi_functions(self, units: List[CodeUnit]) -> List[PhiFunctionInfo]:
@@ -147,7 +178,7 @@ class MetaPatchGenerator:
         return ".".join(parts)
 
     # ------------------------------------------------------------------
-    # Docstrings semânticas
+    # Docstrings
     # ------------------------------------------------------------------
 
     def _docstring_patches_for_unit(self, unit: CodeUnit) -> List[PatchCandidate]:
@@ -201,16 +232,7 @@ class MetaPatchGenerator:
         return issues
 
     def _is_core_file(self, path: Path) -> bool:
-        keywords = [
-            "kernel",
-            "meta",
-            "semantics",
-            "runtime",
-            "evolution",
-            "liu",
-            "calculus",
-            "phi",
-        ]
+        keywords = ["kernel", "meta", "semantics", "runtime", "evolution", "liu", "calculus", "phi"]
         lower = str(path).lower()
         return any(key in lower for key in keywords)
 
@@ -287,7 +309,155 @@ class MetaPatchGenerator:
         return "[auto] " + base
 
     # ------------------------------------------------------------------
-    # Registro de operadores Φ
+    # INTENT_KEYWORDS
+    # ------------------------------------------------------------------
+
+    def _semantic_keyword_patches(self, units: List[CodeUnit]) -> List[PatchCandidate]:
+        return self._patch_semantic_keyword_dicts(units, DEFAULT_INTENT_ENRICHMENTS)
+
+    def _patch_semantic_keyword_dicts(
+        self,
+        units: List[CodeUnit],
+        enrichment: Dict[str, Dict[str, List[str]]],
+        max_candidates: Optional[int] = None,
+    ) -> List[PatchCandidate]:
+        patches: List[PatchCandidate] = []
+        for unit in units:
+            for assign in self._find_intent_keyword_assignments(unit.tree):
+                patched_source = self._patch_intent_constant(unit, assign, enrichment)
+                if patched_source is None:
+                    continue
+                diff = self._make_diff(unit.path, unit.source, patched_source)
+                patch = PatchCandidate(
+                    id=f"intent-{unit.path.name}",
+                    title=f"Enriquecer INTENT_KEYWORDS em {unit.path.name}",
+                    description=(
+                        "Amplia determinísticamente o vocabulário de intents conhecidos "
+                        "com base no dicionário padrão ou logs simbólicos."
+                    ),
+                    diff=diff,
+                )
+                patches.append(patch)
+                if max_candidates and len(patches) >= max_candidates:
+                    return patches
+        return patches
+
+    def _find_intent_keyword_assignments(self, tree: ast.AST) -> List[ast.AST]:
+        nodes: List[ast.AST] = []
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Assign):
+                if any(isinstance(t, ast.Name) and t.id == "INTENT_KEYWORDS" for t in node.targets):
+                    nodes.append(node)
+            elif isinstance(node, ast.AnnAssign):
+                if isinstance(node.target, ast.Name) and node.target.id == "INTENT_KEYWORDS" and node.value:
+                    nodes.append(node)
+        return nodes
+
+    def _patch_intent_constant(
+        self,
+        unit: CodeUnit,
+        assign_node: ast.AST,
+        enrichment: Dict[str, Dict[str, List[str]]],
+    ) -> Optional[str]:
+        value_node = assign_node.value if isinstance(assign_node, ast.Assign) else getattr(assign_node, "value", None)
+        if value_node is None:
+            return None
+        try:
+            data = ast.literal_eval(value_node)
+        except Exception:
+            return None
+        if not isinstance(data, dict):
+            return None
+        updated = copy.deepcopy(data)
+        changed = self._apply_enrichment(updated, enrichment)
+        if not changed:
+            return None
+
+        indent = self._infer_assignment_indent(unit.source, assign_node.lineno)
+        dict_text = self._format_intent_dict(updated, indent)
+        prefix = self._assignment_prefix(unit.source, assign_node, value_node)
+        new_segment = prefix + dict_text + ("\n" if not dict_text.endswith("\n") else "")
+        return self._replace_source_segment(unit.source, assign_node, new_segment)
+
+    def _apply_enrichment(
+        self,
+        data: Dict[str, Dict[str, List[str]]],
+        enrichment: Dict[str, Dict[str, List[str]]],
+    ) -> bool:
+        changed = False
+        for lang, intents in enrichment.items():
+            lang_dict = data.setdefault(lang, {})
+            for intent, keywords in intents.items():
+                intent_list = lang_dict.setdefault(intent, [])
+                for word in keywords:
+                    if word not in intent_list:
+                        intent_list.append(word)
+                        changed = True
+        return changed
+
+    def _format_intent_dict(self, data: Dict[str, Dict[str, List[str]]], indent: int) -> str:
+        base = " " * indent
+        lang_indent = base + "    "
+        intent_indent = lang_indent + "    "
+        value_indent = intent_indent + "    "
+
+        lines = [base + "{"] if base else ["{"]
+        for lang, intents in data.items():
+            lines.append(f'{lang_indent}"{lang}": {{')
+            for intent, keywords in intents.items():
+                lines.append(f'{intent_indent}"{intent}": [')
+                for word in keywords:
+                    lines.append(f'{value_indent}{word!r},')
+                lines.append(f"{intent_indent}],")
+            lines.append(f"{lang_indent}},")
+        lines.append(base + "}")
+        return "\n".join(lines)
+
+    def _infer_assignment_indent(self, source: str, lineno: int) -> int:
+        lines = source.splitlines()
+        if 0 <= lineno - 1 < len(lines):
+            line = lines[lineno - 1]
+            return len(line) - len(line.lstrip(" "))
+        return 0
+
+    def _assignment_prefix(self, source: str, node: ast.AST, value_node: ast.AST) -> str:
+        start = self._node_offset(source, node.lineno, node.col_offset)
+        value_start = self._node_offset(source, value_node.lineno, value_node.col_offset)
+        return source[start:value_start]
+
+    def _replace_source_segment(self, source: str, node: ast.AST, new_segment: str) -> str:
+        start = self._node_offset(source, node.lineno, node.col_offset)
+        end = self._node_offset(source, node.end_lineno, node.end_col_offset)
+        return source[:start] + new_segment + source[end:]
+
+    def _node_offset(self, source: str, lineno: int, col: int) -> int:
+        lines = source.splitlines(keepends=True)
+        offset = 0
+        for idx in range(lineno - 1):
+            offset += len(lines[idx])
+        return offset + col
+
+    def _build_dynamic_enrichment(self, logs: List[IntentLogEntry]) -> Dict[str, Dict[str, List[str]]]:
+        enrichment: Dict[str, Dict[str, List[str]]] = {}
+        for entry in logs:
+            if not entry.text:
+                continue
+            if entry.detected == entry.expected:
+                continue
+            word = entry.text.strip().split()
+            if not word:
+                continue
+            candidate = word[0].lower()
+            lang = entry.lang.lower()
+            expected = entry.expected.lower()
+            enrichment.setdefault(lang, {}).setdefault(expected, [])
+            bucket = enrichment[lang][expected]
+            if candidate not in bucket:
+                bucket.append(candidate)
+        return enrichment
+
+    # ------------------------------------------------------------------
+    # Registro Φ
     # ------------------------------------------------------------------
 
     def _phi_registry_patches(
@@ -316,8 +486,8 @@ class MetaPatchGenerator:
                     id=f"phi-reg-{unit.path.name}",
                     title=f"Registrar operadores Φ ausentes em {unit.path.name}",
                     description=(
-                        "Registra automaticamente os operadores Φ definidos no arquivo mas "
-                        "ausentes em `PHI_OPS`. Operadores: " + ", ".join(missing)
+                        "Registra automaticamente operadores Φ definidos no arquivo "
+                        "que ainda não constavam em `PHI_OPS`. Operadores: " + ", ".join(missing)
                     ),
                     diff=diff,
                 )
@@ -354,7 +524,7 @@ class MetaPatchGenerator:
         return "\n".join(lines) + "\n"
 
     # ------------------------------------------------------------------
-    # Testes automáticos
+    # Testes Φ
     # ------------------------------------------------------------------
 
     def _phi_tests_patch(self, phi_infos: List[PhiFunctionInfo]) -> Optional[PatchCandidate]:
@@ -420,4 +590,5 @@ __all__ = [
     "MetaPatchGenerator",
     "PhiFunctionInfo",
     "CodeUnit",
+    "IntentLogEntry",
 ]
