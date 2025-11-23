@@ -5,11 +5,28 @@ description = "Núcleo Originário - LIU/NSR/SigmaVM symbolic architecture"
 authors = [{name = "NSR Builders"}]
 readme = "README.md"
 requires-python = ">=3.11"
+license = {file = "LICENSE"}
+keywords = ["metanucleo", "liu", "nsr", "svm", "deterministic-ai"]
 dependencies = [
     "blake3>=0.4.1",
     "cryptography>=43.0.0",
     "requests>=2.32.0",
 ]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Topic :: Software Development :: Compilers",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/nucleo-originario/nucleo-originario"
+"Documentation" = "https://github.com/nucleo-originario/nucleo-originario/tree/main/docs"
+"Repository" = "https://github.com/nucleo-originario/nucleo-originario.git"
+"Bug Tracker" = "https://github.com/nucleo-originario/nucleo-originario/issues"
 
 [project.optional-dependencies]
 dev = [

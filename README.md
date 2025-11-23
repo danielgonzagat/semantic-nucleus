@@ -86,6 +86,17 @@ flowchart LR
 - `SessionCtx.meta_history` mantém a lista dos últimos `meta_summary`; ajuste `Config.meta_history_limit` (padrão 64) para controlar a retenção determinística por sessão.
 - A arquitetura completa (macro visão, pipeline interno e topologia cognitiva) está detalhada em [`docs/metanucleo_architecture.md`](docs/metanucleo_architecture.md).
 
+### Esquema oficial do `meta_plan` e do `phi_plan_digest`
+
+- Cada `MetaCalculationPlan` serializado no `meta_summary` inclui os seguintes campos:
+  - `phi_plan_route`: rota determinística (`text`, `logic`, `math`, `code` ou `instinct`).
+  - `phi_plan_description`: identificador humano do plano ΣVM (ex.: `text_phi_pipeline`).
+  - `phi_plan_chain` / `phi_plan_ops`: cadeia Φ (`NORMALIZE→INFER→SUMMARIZE`) e lista ordenada dos operadores.
+  - `phi_plan_program_len` e `phi_plan_const_len`: contagem estática de instruções ΣVM e constantes.
+  - `phi_plan_digest`: `blake2b` (digest_size=16) calculado sobre `route`, `description`, `(opcode, operand)` e fingerprints das constantes LIU.
+- O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
+- Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.

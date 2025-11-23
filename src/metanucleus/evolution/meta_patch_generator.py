@@ -401,7 +401,7 @@ class MetaPatchGenerator:
         intent_indent = lang_indent + "    "
         value_indent = intent_indent + "    "
 
-        lines = [base + "{"] if base else ["{"]
+        lines = [f"{base}{{"] if base else ["{"]
         for lang, intents in data.items():
             lines.append(f'{lang_indent}"{lang}": {{')
             for intent, keywords in intents.items():
@@ -409,8 +409,8 @@ class MetaPatchGenerator:
                 for word in keywords:
                     lines.append(f'{value_indent}{word!r},')
                 lines.append(f"{intent_indent}],")
-            lines.append(f"{lang_indent}},")
-        lines.append(base + "}")
+            lines.append(f"{lang_indent}" + "},")
+        lines.append(f"{base}" + "}")
         return "\n".join(lines)
 
     def _infer_assignment_indent(self, source: str, lineno: int) -> int:

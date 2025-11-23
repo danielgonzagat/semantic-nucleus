@@ -1,0 +1,32 @@
+name: Benchmarks
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 0 * * 0"
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+      - name: Run latency & memory benchmark
+        run: |
+          python3 scripts/ian_bench.py \
+            --iterations 300 \
+            --warmup 40 \
+            --max-p95-ms 0.8 \
+            --max-peak-mib 2.0 \
+            > benchmark-report.txt
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v5
+        with:
+          name: benchmark-report
+          path: benchmark-report.txt
