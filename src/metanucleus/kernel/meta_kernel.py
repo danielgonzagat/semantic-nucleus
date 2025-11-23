@@ -7,6 +7,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
 
+from liu import to_json
+from nsr import SessionCtx, run_text_full, meta_summary_to_dict
+
 from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.core.state import MetaState
 from metanucleus.evolution.intent_auto_patch import suggest_intent_patches
@@ -55,6 +58,7 @@ class MetaKernelTurnResult:
 class MetaKernel:
     state: MetaState = field(default_factory=MetaState)
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)
+    nsr_session: SessionCtx = field(default_factory=SessionCtx)
 
     @classmethod
     def bootstrap(cls) -> MetaKernel:
@@ -93,11 +97,55 @@ class MetaKernel:
         )
 
     def _run_symbolic_pipeline(self, user_text: str) -> tuple[str, Any | None, Dict[str, Any]]:
-        answer = f"[ECO] {user_text}"
+        """
+        Conecta diretamente ao NSR e devolve resposta, STRUCT e pacote meta.
+        """
+
+        outcome = run_text_full(user_text, session=self.nsr_session)
+        answer_struct = outcome.isr.answer
+        answer_text = outcome.answer
+        meta_dict: Dict[str, Any] | None = None
+        if outcome.meta_summary is not None:
+            meta_dict = meta_summary_to_dict(outcome.meta_summary)
+            self._record_meta_history(meta_dict)
         debug_info: Dict[str, Any] = {
-            "note": "MetaKernel._run_symbolic_pipeline ainda é um placeholder determinístico."
+            "trace_digest": outcome.trace.digest,
+            "trace_steps": len(outcome.trace.steps),
+            "halt_reason": outcome.halt_reason.value,
+            "quality": outcome.quality,
+            "finalized": outcome.finalized,
+            "route": meta_dict.get("route") if meta_dict else None,
+            "language": meta_dict.get("language") if meta_dict else None,
         }
-        return answer, None, debug_info
+        if meta_dict:
+            debug_info["meta_summary"] = meta_dict
+            debug_info["meta_digest"] = meta_dict.get("meta_digest")
+            debug_info["phi_plan_chain"] = meta_dict.get("phi_plan_chain")
+            debug_info["phi_plan_digest"] = meta_dict.get("phi_plan_digest")
+            debug_info["calc_exec_snapshot_digest"] = meta_dict.get("calc_exec_snapshot_digest")
+            debug_info["calc_exec_consistent"] = meta_dict.get("calc_exec_consistent")
+            debug_info["calc_exec_error"] = meta_dict.get("calc_exec_error")
+        if outcome.lc_meta is not None:
+            debug_info["lc_meta"] = to_json(outcome.lc_meta)
+        if outcome.language_profile is not None:
+            debug_info["language_profile"] = to_json(outcome.language_profile)
+        if outcome.code_summary is not None and meta_dict:
+            debug_info["code_summary"] = meta_dict.get("code_summary_function_details")
+            debug_info["code_summary_digest"] = meta_dict.get("code_summary_digest")
+        if outcome.calc_plan is not None:
+            debug_info["calc_plan_route"] = outcome.calc_plan.route.value
+            debug_info["calc_plan_description"] = outcome.calc_plan.description
+        if outcome.calc_result is not None:
+            debug_info.setdefault("calc_exec_consistent", outcome.calc_result.consistent)
+            debug_info.setdefault("calc_exec_error", outcome.calc_result.error)
+        return answer_text, answer_struct, debug_info
+
+    def _record_meta_history(self, entry: Dict[str, Any]) -> None:
+        record = dict(entry)
+        self.state.meta_history.append(record)
+        limit = getattr(self.nsr_session.config, "meta_history_limit", 64) or 64
+        if len(self.state.meta_history) > limit:
+            del self.state.meta_history[:-limit]
 
     # ---------------- Autoevolução ---------------- #
 

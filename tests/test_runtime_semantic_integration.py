@@ -10,6 +10,16 @@ def _run_pipeline_and_get_struct(kernel: MetaKernel, phrase: str):
     return answer_struct, debug_info
 
 
+def test_meta_kernel_pipeline_exposes_meta_summary() -> None:
+    kernel = MetaKernel()
+    answer_struct, debug_info = _run_pipeline_and_get_struct(kernel, "Um carro existe.")
+    assert answer_struct is not None
+    assert "meta_summary" in debug_info
+    assert debug_info["meta_summary"]["route"] == "text"
+    assert debug_info["trace_digest"]
+    assert kernel.state.meta_history, "Meta history should mirror NSR summaries."
+
+
 def _check_semantic_frame(kernel: MetaKernel, phrase: str, lang: str, expected_repr: str, issue: str) -> None:
     answer_struct, debug_info = _run_pipeline_and_get_struct(kernel, phrase)
     actual_repr = repr(answer_struct)
