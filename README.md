@@ -97,6 +97,12 @@ flowchart LR
 - O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
 - Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
 
+### Autoevolução simbólica dos léxicos e regras
+
+- Os testes de intent multi-idioma (`tests/metanucleus/test_intent_multilang.py`) alimentam automaticamente `logs/intent_mismatches.jsonl`. O gerador `IntentLexiconPatchGenerator` produz diffs determinísticos para `intent_lexicon.json` a partir desses exemplos, e o CLI `bin/metanucleus-auto-intent` automatiza o ciclo (pytest → diff → branch/commit/PR).
+- Mismatches do meta-cálculo são registrados em `.meta/meta_calculus_mismatches.jsonl`. O `MetaCalculusPatchGenerator` converte esse histórico em novas regras dentro de `meta_calculus_rules.json`, e o CLI `bin/metanucleus-auto-calculus` conduz o mesmo fluxo de revisão.
+- O `MetaKernel` expõe `run_auto_evolution_cycle()` para sugerir patches estruturados (`EvolutionPatch`) tanto para intents quanto para meta-cálculo, permitindo que agentes externos apliquem as melhorias sob supervisão.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.

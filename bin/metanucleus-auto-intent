@@ -1,0 +1,220 @@
+#!/usr/bin/env python3
+"""
+CLI determinístico para autoevolução do intent_lexicon.json.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import subprocess
+import sys
+from dataclasses import dataclass
+from datetime import datetime
+from pathlib import Path
+from typing import List, Optional
+
+from metanucleus.evolution.intent_patch_generator import IntentLexiconPatchGenerator
+
+
+@dataclass
+class CLIConfig:
+    project_root: Path
+    run_tests: bool
+    pytest_args: List[str]
+    apply_patch: bool
+    use_git: bool
+    push: bool
+    create_pr: bool
+    base_branch: str
+    branch_prefix: str
+    remote: str
+    repo_slug: Optional[str]
+    pr_title: str
+    pr_body: Optional[str]
+
+
+# ---------------------------------------------------------------------------
+# Helpers
+# ---------------------------------------------------------------------------
+
+def _run(cmd: List[str], cwd: Path, check: bool = True, input_text: Optional[str] = None) -> subprocess.CompletedProcess:
+    proc = subprocess.run(
+        cmd,
+        cwd=str(cwd),
+        text=True,
+        input=input_text,
+        capture_output=True,
+    )
+    if check and proc.returncode != 0:
+        print(f"[auto-intent] comando falhou: {' '.join(cmd)}", file=sys.stderr)
+        if proc.stdout:
+            print(proc.stdout, file=sys.stderr)
+        if proc.stderr:
+            print(proc.stderr, file=sys.stderr)
+        sys.exit(proc.returncode)
+    return proc
+
+
+def _run_pytest(cfg: CLIConfig) -> None:
+    if not cfg.run_tests:
+        return
+    cmd = ["pytest"] + cfg.pytest_args
+    print("[auto-intent] executando", " ".join(cmd))
+    proc = subprocess.run(cmd, cwd=str(cfg.project_root))
+    if proc.returncode != 0:
+        print(
+            "[auto-intent] pytest retornou código "
+            f"{proc.returncode}. Logs serão usados mesmo assim.",
+            file=sys.stderr,
+        )
+
+
+def _ensure_git_repo(cfg: CLIConfig) -> None:
+    proc = _run(["git", "rev-parse", "--is-inside-work-tree"], cfg.project_root, check=False)
+    if proc.returncode != 0 or "true" not in proc.stdout.lower():
+        print("[auto-intent] diretório não é repositório git.", file=sys.stderr)
+        sys.exit(1)
+
+
+def _create_branch(cfg: CLIConfig) -> str:
+    timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+    branch = f"{cfg.branch_prefix}-{timestamp}"
+    _run(["git", "checkout", cfg.base_branch], cfg.project_root)
+    _run(["git", "checkout", "-b", branch], cfg.project_root)
+    return branch
+
+
+def _git_apply(cfg: CLIConfig, diff: str) -> None:
+    _run(["git", "apply", "-"], cfg.project_root, input_text=diff)
+
+
+def _git_commit(cfg: CLIConfig, message: str) -> Optional[str]:
+    status = _run(["git", "status", "--porcelain"], cfg.project_root, check=False)
+    if not status.stdout.strip():
+        return None
+    _run(["git", "add", "-A"], cfg.project_root)
+    _run(["git", "commit", "-m", message], cfg.project_root)
+    rev = _run(["git", "rev-parse", "HEAD"], cfg.project_root)
+    return rev.stdout.strip()
+
+
+def _git_push(cfg: CLIConfig, branch: str) -> None:
+    _run(["git", "push", "-u", cfg.remote, branch], cfg.project_root)
+
+
+def _create_pr(cfg: CLIConfig, branch: str) -> None:
+    token = os.environ.get("GITHUB_TOKEN")
+    if not token:
+        print("[auto-intent] GITHUB_TOKEN não configurado; PR não será criado.", file=sys.stderr)
+        return
+    repo = cfg.repo_slug or os.environ.get("GITHUB_REPOSITORY")
+    if not repo:
+        print("[auto-intent] repo não informado (--repo ou GITHUB_REPOSITORY).", file=sys.stderr)
+        return
+    import urllib.request
+
+    body = {
+        "title": cfg.pr_title,
+        "head": branch,
+        "base": cfg.base_branch,
+        "body": cfg.pr_body or "",
+    }
+    request = urllib.request.Request(
+        f"https://api.github.com/repos/{repo}/pulls",
+        data=json.dumps(body).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Accept": "application/vnd.github+json",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+    with urllib.request.urlopen(request) as resp:
+        data = json.loads(resp.read().decode("utf-8"))
+    url = data.get("html_url")
+    if url:
+        print(f"[auto-intent] PR criado: {url}")
+
+
+# ---------------------------------------------------------------------------
+# Core
+# ---------------------------------------------------------------------------
+
+def _parse_args(argv: List[str]) -> CLIConfig:
+    parser = argparse.ArgumentParser("metanucleus-auto-intent")
+    parser.add_argument("--project-root", default=".")
+    parser.add_argument("--no-tests", action="store_true")
+    parser.add_argument("--pytest-args", nargs=argparse.REMAINDER)
+    parser.add_argument("--no-apply", action="store_true")
+    parser.add_argument("--git", action="store_true")
+    parser.add_argument("--push", action="store_true")
+    parser.add_argument("--create-pr", action="store_true")
+    parser.add_argument("--base-branch", default="main")
+    parser.add_argument("--branch-prefix", default="meta-evolve/intent")
+    parser.add_argument("--remote", default="origin")
+    parser.add_argument("--repo", default=None)
+    parser.add_argument("--pr-title", default="meta-evolution: refine intent lexicon")
+    parser.add_argument("--pr-body", default=None)
+    args = parser.parse_args(argv)
+    use_git = args.git or args.push or args.create_pr
+    return CLIConfig(
+        project_root=Path(args.project_root).resolve(),
+        run_tests=not args.no_tests,
+        pytest_args=args.pytest_args or [],
+        apply_patch=not args.no_apply,
+        use_git=use_git,
+        push=args.push,
+        create_pr=args.create_pr,
+        base_branch=args.base_branch,
+        branch_prefix=args.branch_prefix,
+        remote=args.remote,
+        repo_slug=args.repo,
+        pr_title=args.pr_title,
+        pr_body=args.pr_body,
+    )
+
+
+def main(argv: Optional[List[str]] = None) -> None:
+    cfg = _parse_args(argv or sys.argv[1:])
+    print(f"[auto-intent] raiz: {cfg.project_root}")
+    _run_pytest(cfg)
+
+    generator = IntentLexiconPatchGenerator(project_root=cfg.project_root)
+    candidates = generator.generate_patches()
+    if not candidates:
+        print("[auto-intent] nenhum patch sugerido.")
+        return
+
+    for cand in candidates:
+        print("=" * 80)
+        print(cand.title)
+        print("-" * 80)
+        print(cand.description)
+        print("-" * 80)
+        print(cand.diff)
+
+    if not cfg.apply_patch:
+        print("[auto-intent] execução em modo dry-run (patch não aplicado).")
+        return
+
+    if cfg.use_git:
+        _ensure_git_repo(cfg)
+        branch = _create_branch(cfg)
+        print(f"[auto-intent] branch criada: {branch}")
+        for cand in candidates:
+            _git_apply(cfg, cand.diff)
+        commit = _git_commit(cfg, "meta-evolution: refine intent lexicon")
+        if cfg.push and commit:
+            _git_push(cfg, branch)
+        if cfg.create_pr and commit:
+            _create_pr(cfg, branch)
+    else:
+        for cand in candidates:
+            _git_apply(cfg, cand.diff)
+        print("[auto-intent] patch aplicado localmente (sem git).")
+
+
+if __name__ == "__main__":
+    main()

@@ -10,6 +10,8 @@ from .meta_evolution import (
     build_patch_prompt,
 )
 from .meta_patch_generator import IntentLogEntry, MetaPatchGenerator
+from .intent_patch_generator import IntentLexiconPatchGenerator
+from .meta_calculus_patch_generator import MetaCalculusPatchGenerator
 
 __all__ = [
     "EvolutionConfig",
@@ -21,4 +23,6 @@ __all__ = [
     "build_patch_prompt",
     "MetaPatchGenerator",
     "IntentLogEntry",
+    "IntentLexiconPatchGenerator",
+    "MetaCalculusPatchGenerator",
 ]
