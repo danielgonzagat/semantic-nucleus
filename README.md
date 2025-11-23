@@ -136,6 +136,10 @@ flowchart LR
   - Ao enviar a tag, o workflow [`release.yml`](.github/workflows/release.yml) recompila o pacote (`python -m build`), roda `pytest` e publica os artefatos gerados como evidência do build.
   - Qualquer alteração que impacte protocolos LIU/ΣVM/meta_summary deve documentar a migração no changelog e na política de CTS antes do merge.
 
+- ### Política de Revisão
+  - `CODEOWNERS` exige revisores específicos por área (`src/nsr/`, `src/svm/`, `docs/`). Consulte [`docs/review_policy.md`](docs/review_policy.md) para saber quantas aprovações são necessárias e como tratar exceções.
+  - Mudanças que afetam protocolos (LIU/ΣVM/meta_summary) precisam de 2 aprovações (nsr-core + svm-core) e de evidências de CTS verde antes do merge.
+
 - Assinaturas: `from svm.signing import generate_ed25519_keypair, sign_snapshot` (requer `cryptography>=43`).
 - Aprendizado simbólico: `from nsr_evo.api import run_text_learning`.
 
