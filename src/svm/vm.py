@@ -139,6 +139,10 @@ class SigmaVM:
             self._apply_phi("EXPLAIN", focus)
         elif opcode is Opcode.PHI_SUMMARIZE:
             self._apply_phi("SUMMARIZE")
+        elif opcode is Opcode.PHI_MEMORY_RECALL:
+            self._apply_phi("MEMORY_RECALL")
+        elif opcode is Opcode.PHI_MEMORY_LINK:
+            self._apply_phi("MEMORY_LINK")
         elif opcode is Opcode.JMP:
             self._instr_jmp(inst.operand)
         elif opcode is Opcode.CALL:

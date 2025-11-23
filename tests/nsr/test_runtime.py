@@ -269,6 +269,7 @@ def test_meta_history_respects_limit():
 
 def test_text_route_trace_logs_phi_plan(monkeypatch):
     session = SessionCtx()
+    session.config.memory_store_path = None
     for target in (
         "maybe_route_math",
         "maybe_route_logic",

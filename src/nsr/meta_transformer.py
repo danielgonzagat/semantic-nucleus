@@ -35,7 +35,7 @@ from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
-from .lc_omega import MetaCalculation
+from .lc_omega import MetaCalculation, LCTerm
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
 from svm.vm import Program
 from svm.bytecode import Instruction
@@ -237,9 +237,18 @@ class MetaTransformer:
         struct_node = build_struct(tokens, language=language, text_input=text_value)
         struct_node = attach_language_field(struct_node, language)
         lc_meta_node, lc_parsed = maybe_build_lc_meta_struct(language, text_value)
+        effective_calculus = lc_parsed.calculus if lc_parsed else None
+        if lc_parsed:
+            effective_calculus = _maybe_state_followup(
+                effective_calculus, lc_parsed.term, bool(self.session.meta_buffer)
+            )
+        if lc_meta_node is not None and effective_calculus is not None:
+            lc_meta_node = _set_struct_field(
+                lc_meta_node, "calculus", meta_calculation_to_node(effective_calculus)
+            )
         if lc_meta_node is not None:
             struct_node = _set_struct_field(struct_node, "lc_meta", lc_meta_node, overwrite=False)
-        text_plan = _text_phi_plan(calculus=lc_parsed.calculus if lc_parsed else None)
+        text_plan = _text_phi_plan(calculus=effective_calculus)
         meta_context = self._with_meta_context(
             None,
             MetaRoute.TEXT,
@@ -274,7 +283,7 @@ class MetaTransformer:
             language_hint=language,
             calc_plan=text_plan,
             lc_meta=lc_meta_node,
-            meta_calculation=lc_parsed.calculus if lc_parsed else None,
+            meta_calculation=effective_calculus,
             phi_plan_ops=phi_plan_ops,
             language_profile=language_profile_node,
             code_ast=fallback_code_ast,
@@ -794,3 +803,17 @@ def _json_to_node(payload: dict[str, Any]) -> Node | None:
         return from_json(json.dumps(payload))
     except Exception:
         return None
+
+
+def _maybe_state_followup(
+    calculus: MetaCalculation | None, term: LCTerm | None, has_memory: bool
+) -> MetaCalculation | None:
+    if not has_memory:
+        return calculus
+    if calculus is None:
+        if term is None:
+            return MetaCalculation(operator="STATE_FOLLOWUP", operands=tuple())
+        return MetaCalculation(operator="STATE_FOLLOWUP", operands=(term,))
+    if calculus.operator in {"STATE_QUERY", "STATE_ASSERT", "STATE_FOLLOWUP"}:
+        return MetaCalculation(operator="STATE_FOLLOWUP", operands=calculus.operands)
+    return calculus
