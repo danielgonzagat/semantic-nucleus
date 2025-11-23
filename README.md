@@ -104,14 +104,17 @@ O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches d
 1. **Rode os testes** (`python -m pytest`). Eles exercitam semântica, regras e meta-cálculo e, em vez de quebrar a suíte, escrevem mismatches em `logs/*.jsonl`, `.meta/*.jsonl` e no hub central `.metanucleus/mismatch_log.jsonl`.
 2. **Geradores de patch** (`IntentLexiconPatchGenerator`, `RulePatchGenerator`, `SemanticPatchGenerator`, `semantic_frames_auto_patch`, `meta_calculus_auto_patch`) leem esses registros e produzem diffs para `intent_lexicon.json`, `rule_suggestions.md`, `semantic_suggestions.md`, `.metanucleus/frame_patterns.json` e `metanucleus/config/meta_calculus_rules.json`.
 3. **MetaKernel** consolida tudo via `run_auto_evolution_cycle(domains=[...], apply_changes=...)`, devolvendo `EvolutionPatch` (domínio, título, descrição, diff).
-4. **CLI** `metanucleus-auto-evolve` roda esse ciclo fora do código principal:
+4. **CLI / Orquestrador**
 
    ```bash
-   # dry-run (só exibe)
-   metanucleus-auto-evolve all --dry-run
+   # Mostra os patches sem alterar arquivos
+   metanucleus-auto-evolve --dry-run
 
-   # aplica os patches no working tree
-   metanucleus-auto-evolve rules semantics --apply -v
+   # Aplica domínios específicos e já cria branch/commit/push
+   metanucleus-auto-evolve semantic_frames meta_calculus --commit --push
+
+   # Versão interativa do ciclo (sem git)
+   metanucleus-evo-cli rules semantics --dry-run
    ```
 
 5. **GitHub Actions** (`.github/workflows/metanucleus-auto-evolution.yml`) executa em todo push para `main`: instala dependências, roda `python -m pytest || true`, chama `metanucleus-auto-evolve all --apply` e, se houver diffs, cria uma branch `auto-evolve/<run_id>` + PR usando `peter-evans/create-pull-request`.

@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
-Atalho legado para o CLI oficial `metanucleus-auto-evolve`.
+Entrada de linha de comando para o orquestrador de autoevolução.
 """
 
 from __future__ import annotations
 
 import sys
 
-from metanucleus.cli.auto_evolve import main
+from metanucleus.evolution.auto_evolve import main
 
 
 if __name__ == "__main__":
