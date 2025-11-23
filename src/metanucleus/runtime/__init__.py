@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from typing import Dict, Optional
 from uuid import uuid4
 
-from metanucleus.kernel.meta_kernel import MetaKernel
+from metanucleus.kernel.meta_kernel import MetaKernel, MetaKernelTurnResult
 from metanucleus.semantics.frames import Role, RoleAssignment, SemanticFrame
 
 from .meta_runtime import MetaRuntime
@@ -62,8 +62,10 @@ class MetanucleusSession:
     kernel: MetaKernel = field(default_factory=MetaKernel.bootstrap)
 
     def ask(self, text: str) -> str:
-        result = self.kernel.handle_turn(user_text=text, session_id=self.session_id)
-        return result.answer_text
+        return self.ask_full(text).answer_text
+
+    def ask_full(self, text: str) -> MetaKernelTurnResult:
+        return self.kernel.handle_turn(user_text=text, session_id=self.session_id)
 
     def analyze(self, text: str) -> Dict[str, object]:
         lang = _detect_language(text)

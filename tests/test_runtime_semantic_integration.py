@@ -6,7 +6,13 @@ from metanucleus.testing.semantic_asserts import assert_semantic_label
 
 
 def _run_pipeline_and_get_struct(kernel: MetaKernel, phrase: str):
-    answer_text, answer_struct, debug_info = kernel._run_symbolic_pipeline(user_text=phrase)  # type: ignore[attr-defined]
+    answer_text, answer_struct, debug_info, meta_summary, calc_exec = kernel._run_symbolic_pipeline(  # type: ignore[attr-defined]
+        user_text=phrase
+    )
+    if meta_summary and "meta_summary" not in debug_info:
+        debug_info["meta_summary"] = meta_summary
+    if calc_exec and "calc_exec" not in debug_info:
+        debug_info["calc_exec"] = calc_exec
     return answer_struct, debug_info
 
 

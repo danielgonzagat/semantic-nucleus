@@ -4,6 +4,8 @@ MetaKernel central do Metanúcleo — orquestra runtime e autoevolução.
 
 from __future__ import annotations
 
+import json
+
 from dataclasses import dataclass, field
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
 
@@ -21,6 +23,7 @@ from metanucleus.evolution.types import EvolutionPatch
 
 if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
+    from nsr.meta_calculator import MetaCalculationResult
 
 
 # ---------------------------------------------------------------------------
@@ -47,6 +50,8 @@ class MetaKernelTurnResult:
     answer_struct: Any | None = None
     suggested_patches: List[EvolutionPatch] = field(default_factory=list)
     debug_info: Dict[str, Any] = field(default_factory=dict)
+    meta_summary: Dict[str, Any] | None = None
+    calc_exec: Dict[str, Any] | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -81,7 +86,9 @@ class MetaKernel:
         if evolution_domains is None:
             evolution_domains = ["intent", "calculus"]
 
-        answer_text, answer_struct, debug = self._run_symbolic_pipeline(user_text=user_text)
+        answer_text, answer_struct, debug, meta_summary, calc_exec = self._run_symbolic_pipeline(
+            user_text=user_text
+        )
         if session_id:
             debug["session_id"] = session_id
 
@@ -94,9 +101,13 @@ class MetaKernel:
             answer_struct=answer_struct,
             suggested_patches=patches,
             debug_info=debug,
+            meta_summary=meta_summary,
+            calc_exec=calc_exec,
         )
 
-    def _run_symbolic_pipeline(self, user_text: str) -> tuple[str, Any | None, Dict[str, Any]]:
+    def _run_symbolic_pipeline(
+        self, user_text: str
+    ) -> tuple[str, Any | None, Dict[str, Any], Dict[str, Any] | None, Dict[str, Any] | None]:
         """
         Conecta diretamente ao NSR e devolve resposta, STRUCT e pacote meta.
         """
@@ -108,6 +119,7 @@ class MetaKernel:
         if outcome.meta_summary is not None:
             meta_dict = meta_summary_to_dict(outcome.meta_summary)
             self._record_meta_history(meta_dict)
+        calc_exec: Dict[str, Any] | None = None
         debug_info: Dict[str, Any] = {
             "trace_digest": outcome.trace.digest,
             "trace_steps": len(outcome.trace.steps),
@@ -138,7 +150,8 @@ class MetaKernel:
         if outcome.calc_result is not None:
             debug_info.setdefault("calc_exec_consistent", outcome.calc_result.consistent)
             debug_info.setdefault("calc_exec_error", outcome.calc_result.error)
-        return answer_text, answer_struct, debug_info
+            calc_exec = _calc_result_to_dict(outcome.calc_result)
+        return answer_text, answer_struct, debug_info, meta_dict, calc_exec
 
     def _record_meta_history(self, entry: Dict[str, Any]) -> None:
         record = dict(entry)
@@ -260,3 +273,19 @@ def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
 
 
 __all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult"]
+
+
+def _calc_result_to_dict(calc_result: "MetaCalculationResult") -> Dict[str, Any]:
+    payload: Dict[str, Any] = {
+        "plan_route": calc_result.plan.route.value,
+        "plan_description": calc_result.plan.description,
+        "consistent": calc_result.consistent,
+        "error": calc_result.error or "",
+    }
+    if calc_result.answer is not None:
+        payload["answer"] = to_json(calc_result.answer)
+    if calc_result.snapshot is not None:
+        payload["snapshot"] = calc_result.snapshot
+    if calc_result.code_summary is not None:
+        payload["code_summary"] = json.loads(to_json(calc_result.code_summary))
+    return payload
