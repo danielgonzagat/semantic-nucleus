@@ -63,6 +63,7 @@ class GitHubClient:
         return f"{self.base}{path}"
 
     def _request(self, method: str, url: str, *, expected_status: Iterable[int] = (200,), **kwargs) -> Dict[str, Any]:
+        kwargs.setdefault('timeout', 30)  # 30 second timeout
         resp = self.session.request(method, url, **kwargs)
         if expected_status and resp.status_code not in expected_status:
             raise GitHubError(resp.status_code, resp.text)
