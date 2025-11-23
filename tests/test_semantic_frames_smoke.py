@@ -1,33 +1,64 @@
 from __future__ import annotations
 
+import pytest
+
+from metanucleus.runtime import MetanucleusRuntime
+from metanucleus.semantics.frames import SemanticFrame
 from metanucleus.testing.mismatch_logger import log_frame_mismatch
 
 
-def test_frame_mismatch_car_pt() -> None:
-    """
-    Exemplo mínimo de frame PT.
-    """
-    log_frame_mismatch(
-        input_text="O carro bateu no muro.",
-        language="pt",
-        predicate="bater",
-        expected_roles={"AGENT": "carro", "PATIENT": "muro"},
-        predicted_roles={"AGENT": "carro", "PATIENT": "parede"},
-        note="placeholder smoke",
-    )
-    assert True
+@pytest.fixture(scope="module")
+def runtime() -> MetanucleusRuntime:
+    return MetanucleusRuntime()
 
 
-def test_frame_mismatch_car_en() -> None:
-    """
-    Exemplo mínimo de frame EN.
-    """
-    log_frame_mismatch(
-        input_text="The car hit the wall.",
-        language="en",
-        predicate="hit",
-        expected_roles={"AGENT": "car", "PATIENT": "wall"},
-        predicted_roles={"AGENT": "car", "PATIENT": "barrier"},
-        note="placeholder smoke",
-    )
+@pytest.fixture()
+def session(runtime: MetanucleusRuntime):
+    return runtime.new_session()
+
+
+FRAME_CASES = [
+    (
+        "O carro bateu no muro.",
+        "pt",
+        "bater",
+        {"AGENT": "carro", "PATIENT": "muro"},
+    ),
+    (
+        "The car hit the wall.",
+        "en",
+        "hit",
+        {"AGENT": "car", "PATIENT": "wall"},
+    ),
+]
+
+
+def _roles_map(frame: SemanticFrame | None) -> dict[str, str]:
+    if frame is None:
+        return {}
+    result: dict[str, str] = {}
+    for assignment in frame.roles:
+        result.setdefault(assignment.role.value, assignment.text)
+    return result
+
+
+@pytest.mark.parametrize("text, lang, expected_predicate, expected_roles", FRAME_CASES)
+def test_semantic_frames(session, text, lang, expected_predicate, expected_roles) -> None:
+    analysis = session.analyze(text)
+    frame: SemanticFrame | None = analysis.get("frame")  # type: ignore[assignment]
+    predicted_roles = _roles_map(frame)
+    predicate = frame.predicate if frame else "(none)"
+
+    if predicate != expected_predicate or any(
+        expected_roles.get(role) != predicted_roles.get(role) for role in expected_roles
+    ):
+        log_frame_mismatch(
+            input_text=text,
+            language=lang,
+            predicate=predicate,
+            expected_roles=expected_roles,
+            predicted_roles=predicted_roles,
+            note=None,
+        )
+
     assert True
