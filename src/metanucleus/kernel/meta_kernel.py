@@ -58,7 +58,7 @@ class MetaKernelTurnResult:
 
 @dataclass(slots=True)
 class MetaKernel:
-    state: MetaState
+    state: MetaState = field(default_factory=MetaState)
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)
 
     @classmethod
@@ -75,6 +75,7 @@ class MetaKernel:
         self,
         user_text: str,
         *,
+        session_id: Optional[str] = None,
         enable_auto_evolution: bool = False,
         evolution_domains: Optional[List[str]] = None,
     ) -> MetaKernelTurnResult:
@@ -82,6 +83,8 @@ class MetaKernel:
             evolution_domains = ["intent", "calculus"]
 
         answer_text, answer_struct, debug = self._run_symbolic_pipeline(user_text=user_text)
+        if session_id:
+            debug["session_id"] = session_id
 
         patches: List[EvolutionPatch] = []
         if enable_auto_evolution:

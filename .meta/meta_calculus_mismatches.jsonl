@@ -1,0 +1,4 @@
+{"test_id": "runtime-semantic-integration", "expr": "A + (B + C)", "expected_repr": "A + (B + C) /*fake*/", "actual_repr": "A + (B + C)", "error_type": "normal_form_mismatch", "meta": {}, "timestamp": "2025-11-23T02:17:18.299284+00:00"}
+{"test_id": "runtime-semantic-integration", "expr": "A + (B + C) == (A + B) + C", "expected_repr": "A + (B + C)", "actual_repr": "A + (B + C) /*fake*/", "error_type": "equivalence_mismatch", "meta": {}, "timestamp": "2025-11-23T02:17:18.299336+00:00"}
+{"test_id": "integration-smoke", "expr": "A + (B + C) == (A + B) + C", "expected_repr": "A + (B + C)", "actual_repr": "(A + B) + C", "error_type": "equivalence_mismatch", "meta": {}, "timestamp": "2025-11-23T02:17:18.299963+00:00"}
+{"test_id": "integration-forced-mismatch", "expr": "A + (B + C) == A + (B + C)", "expected_repr": "A + (B + C)", "actual_repr": "A + (B + C) /*fake*/", "error_type": "equivalence_mismatch", "meta": {}, "timestamp": "2025-11-23T02:17:18.301105+00:00"}

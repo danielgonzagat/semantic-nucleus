@@ -97,11 +97,72 @@ flowchart LR
 - O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
 - Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
 
-### Autoevolução simbólica dos léxicos e regras
+## 🔁 Autoevolução supervisionada do Metanúcleo
 
-- Os testes de intent multi-idioma (`tests/metanucleus/test_intent_multilang.py`) alimentam automaticamente `logs/intent_mismatches.jsonl`. O gerador `IntentLexiconPatchGenerator` produz diffs determinísticos para `intent_lexicon.json` a partir desses exemplos, e o CLI `bin/metanucleus-auto-intent` automatiza o ciclo (pytest → diff → branch/commit/PR).
-- Mismatches do meta-cálculo são registrados em `.meta/meta_calculus_mismatches.jsonl`. O `MetaCalculusPatchGenerator` converte esse histórico em novas regras dentro de `meta_calculus_rules.json`, e o CLI `bin/metanucleus-auto-calculus` conduz o mesmo fluxo de revisão.
-- O `MetaKernel` expõe `run_auto_evolution_cycle()` para sugerir patches estruturados (`EvolutionPatch`) tanto para intents quanto para meta-cálculo, permitindo que agentes externos apliquem as melhorias sob supervisão.
+O Metanúcleo aprende corrigindo o próprio código com diffs auditáveis, não com pesos ocultos.
+
+1. **Runtime roda normalmente**  
+   Cada turno passa pelo pipeline LxU → PSE → LIU → Φ → ΣVM.
+
+2. **Testes exercitam semântica, regras e meta-cálculo**  
+   - `tests/test_runtime_semantic_integration.py`  
+   - `tests/test_integration_metanucleus_auto_evolution.py`  
+   - `tests/test_evolution_semantics_smoke.py`  
+   - `tests/test_evolution_rules_smoke.py`
+   Esses testes usam helpers (`assert_semantic_label`, `assert_meta_normal_form`, `assert_meta_equivalent`) que **não quebram o build** quando algo diverge; eles registram o erro para evolução posterior.
+
+3. **Erros viram mismatches estruturados**  
+   - `logs/intent_mismatches.jsonl`  
+   - `logs/semantic_mismatches.jsonl`  
+   - `logs/rule_mismatches.jsonl`  
+   - `.meta/meta_calculus_mismatches.jsonl`
+   Cada linha descreve `expected`, `actual`, contexto, severidade e origem.
+
+4. **Geradores de patch determinísticos**  
+   - `IntentLexiconPatchGenerator` → `intent_lexicon.json`  
+   - `SemanticPatchGenerator` → `semantic_suggestions.md`  
+   - `RulePatchGenerator` → `rule_suggestions.md`  
+   - `MetaCalculusPatchGenerator` → `meta_calculus_rules.json`
+   Eles vasculham os JSONL e produzem diffs em formato unified diff.
+
+5. **MetaKernel orquestra ciclos internos**
+
+   ```python
+   from metanucleus.core.meta_kernel import MetaKernel
+
+   kernel = MetaKernel()
+   patches = kernel.run_auto_evolution_cycle(domains=["intent", "calculus"])
+   ```
+
+   Cada `EvolutionPatch` traz tipo, diff, título e descrição para revisão humana.
+
+6. **CLI unificado**
+
+   ```bash
+   # 1) roda pytest (gera mismatches)
+   # 2) produz diffs para intent/rules/semantics/calculus
+   # 3) aplica via git apply quando --apply
+   bin/metanucleus-auto-evolve all --apply
+   ```
+
+   CLIs específicos continuam disponíveis:
+
+   ```bash
+   bin/metanucleus-auto-intent --apply
+   bin/metanucleus-auto-calculus --apply
+   ```
+
+7. **PR automático em cada push**  
+   `.github/workflows/metanucleus-auto-evolution.yml` roda no push para `main`, executa o CLI, cria a branch `auto-evolve/<run_id>` quando há mudanças e abre o PR via `peter-evans/create-pull-request`. Você apenas revisa e aprova.
+
+8. **Revisão humana final**  
+   Nada entra sem inspeção. Os diffs são comuns (`intent_lexicon.json`, `meta_calculus_rules.json`, `rule_suggestions.md`, `semantic_suggestions.md`) e sempre se referem a mismatches logados.
+
+Fluxo completo:
+
+```
+pytest → JSONL de mismatches → geradores de patch → bin/metanucleus-auto-evolve → git apply/commit → PR automático → aprovação humana
+```
 
 ## Camadas principais
 
@@ -152,6 +213,52 @@ flowchart LR
   - v2.0: Math-Core, Logic-Engine, Intention-Planner, Memory-Builder, Auto-Evolution Engine v2.
 - **Checklist de segurança**: [`docs/security_checklist.md`](docs/security_checklist.md) descreve os passos obrigatórios antes de promover novos LangPacks, heurísticas IAN ou operadores matemáticos.
 - **DSL de idiomas**: `python3 scripts/langpack_dsl.py --input spec.json --output langpack.json` gera um `LanguagePack` completo a partir de uma descrição compacta (veja `docs/ian_langpacks.md`).
+
+## 💬 Como conversar com o Metanúcleo
+
+O `MetaKernel` expõe um loop determinístico completo (LxU → PSE → LIU → Φ → ΣVM) e preserva contexto por `session_id`.
+
+### Python (REPL)
+
+```python
+from metanucleus.core.meta_kernel import MetaKernel
+
+kernel = MetaKernel()
+session_id = "console-demo"
+
+print("Metanúcleo iniciado. Digite 'sair' para encerrar.\n")
+while True:
+    user = input("Você: ").strip()
+    if not user:
+        continue
+    if user.lower() in {"sair", "exit", "quit"}:
+        print("Metanúcleo: até mais 👋")
+        break
+
+    result = kernel.handle_turn(
+        user_text=user,
+        session_id=session_id,
+        enable_auto_evolution=False,
+    )
+    print(f"Metanúcleo: {result.answer_text}\n")
+```
+
+### CLI
+
+Crie um wrapper fino (ex.: `bin/metanucleus-chat`) ou rode `python -m metanucleus.cli.chat`, reutilizando a estrutura acima. Usar o mesmo `session_id` garante memória de curto prazo.
+
+### Exemplos
+
+```
+Você: oi, metanúcleo
+Metanúcleo: oi :) o que você quer entender, criar ou melhorar hoje?
+
+Você: o carro está andando rápido.
+Metanúcleo: entendi: "carro" como entidade, "andar" como ação, "rápido" como modificador.
+
+Você: evolua a si mesmo usando os logs
+Metanúcleo: ok. vou analisar os mismatches mais recentes e propor patches auditáveis.
+```
 
 - ### Processo de Release & CTS
   - Releases seguem tags semânticas `vX.Y.Z`. Antes de taggear, execute `python -m pytest` e `python -m pytest tests/cts` localmente, atualize o `CHANGELOG.md` e valide a compatibilidade descrita em [`docs/cts_policy.md`](docs/cts_policy.md).

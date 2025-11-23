@@ -1,0 +1,2 @@
+[console_scripts]
+metanucleus = metanucleus.cli:main
