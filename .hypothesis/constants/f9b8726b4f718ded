@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/logic_persistence.py
+# hypothesis_version: 6.148.2
+
+['LogicSnapshot', 'conclusion', 'facts', 'logic_snapshot', 'premises', 'rules']

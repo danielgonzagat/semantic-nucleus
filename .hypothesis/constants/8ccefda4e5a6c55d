@@ -1,0 +1,4 @@
+# file: /workspace/src/svm/signing.py
+# hypothesis_version: 6.148.2
+
+['Ed25519Unavailable', 'SnapshotSignature', 'ascii', 'ed25519', 'sign_snapshot']

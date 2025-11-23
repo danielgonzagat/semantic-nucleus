@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/code_bridge.py
+# hypothesis_version: 6.148.2
+
+[0.8, 0.82, 0.88, 200, '()', ',', '->', '...', ':', '@', 'CODE[ELIXIR]', 'CODE[JS]', 'CODE[PYTHON]', 'CODE[RUST]', 'CodeHook', 'REL', 'async def ', 'body', 'class ', 'code/DEFN', 'code/PARAM', 'code/python', 'code/rust', 'code_fn_outline', 'code_param', 'code_relation', 'code_stats', 'code_struct', 'code_summary', 'def ', 'elixir', 'fn', 'from ', 'if __name__', 'import ', 'input', 'javascript', 'js', 'kind', 'maybe_route_code', 'name', 'params', 'pt', 'python', 'ret', 'rust', 'type', '}']

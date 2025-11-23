@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/meta_structures.py
+# hypothesis_version: 6.148.2
+
+['build_lc_meta_struct', 'calculus', 'children', 'kind', 'label', 'language', 'lc_meta', 'lc_term_to_node', 'meta_calculation', 'operands', 'operator', 'pattern', 'semantics', 'tag', 'term', 'tokens']

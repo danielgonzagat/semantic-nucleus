@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/equation.py
+# hypothesis_version: 6.148.2
+
+[0.0, 0.001, 1.0, 160, ',', '-', '...', '; ', 'Contexto', 'EquationSnapshot', 'FilaΦ', 'Goals', 'Ontologia', 'Relações', 'answer', 'answer_digest', 'context', 'context.digest', 'count', 'digest', 'equation_digest', 'failures', 'goals', 'goals.digest', 'input', 'input_digest', 'ok', 'ontology', 'ontology.digest', 'ops_queue', 'ops_queue.digest', 'quality', 'quality_bounds', 'quality_delta', 'quality_regression', 'relations', 'relations.digest', 'snapshot_equation', 'utf-8', '|']

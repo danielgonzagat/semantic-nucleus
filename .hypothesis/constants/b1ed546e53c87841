@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/meta_calculus_router.py
+# hypothesis_version: 6.148.2
+
+['ANSWER', 'COMMAND_ROUTE', 'EMIT_CONFIRM', 'EMIT_FAREWELL', 'EMIT_GREETING', 'EMIT_THANKS', 'EXPLAIN', 'FACT_QUERY', 'INFER', 'NORMALIZE', 'STATE_ASSERT', 'STATE_QUERY', 'SUMMARIZE', 'text_opcode_pipeline']

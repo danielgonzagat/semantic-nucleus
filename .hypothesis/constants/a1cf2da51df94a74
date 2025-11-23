@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/operators.py
+# hypothesis_version: 6.148.2
+
+[0.0, 0.05, 0.1, 0.2, 0.3, 0.4, 0.45, 0.5, 0.55, 0.95, 1.0, 100, 1024, ', ', 'ADD', 'ALIGN', 'ANSWER', 'CODE/EVAL_PURE', 'COMPARE', 'DIFFERENT', 'DIV', 'Division by zero', 'EQUAL', 'EXPAND', 'EXPLAIN', 'EXTRACT', 'Exponent too large', 'FLOORDIV', 'FunctionDef', 'INFER', 'IS_A', 'MAP', 'MAP_ITEM', 'MOD', 'MULT', 'Modulo by zero', 'NORMALIZE', 'POW', 'REDUCE', 'REWRITE', 'REWRITE_CODE', 'STABILIZE', 'SUB', 'SUMMARIZE', 'apply_operator', 'binop', 'children', 'code/EVAL_PURE', 'code/FUNCTION_COUNT', 'code_ast', 'code_ast_summary', 'coisa', 'functions', 'language', 'left', 'literal', 'node_count', 'op', 'plan_language', 'python', 'right', 'root', 'sem relações', 'tag', 'type', 'unknown']

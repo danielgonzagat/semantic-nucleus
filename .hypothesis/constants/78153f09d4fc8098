@@ -1,0 +1,4 @@
+# file: /workspace/src/liu/ontology.py
+# hypothesis_version: 6.148.2
+
+['BASE_ONTOLOGY', 'IS_A', 'PART_OF', 'carro', 'moto', 'roda', 'veiculo']

@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/math_bridge.py
+# hypothesis_version: 6.148.2
+
+[0.92, 0.99, 'MATH_CORE', 'MathHook', 'math_eval', 'math_expression', 'math_instruction', 'math_reply', 'math_term', 'math_utterance', 'maybe_route_math']
