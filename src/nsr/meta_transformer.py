@@ -19,6 +19,7 @@ from liu import (
     to_json,
     list_node,
     fingerprint,
+    from_json,
 )
 
 if TYPE_CHECKING:
@@ -673,9 +674,34 @@ def _meta_calc_exec_node(calc_result: "MetaCalculationResult") -> Node | None:
         depth = snapshot.get("stack_depth")
         if isinstance(depth, (int, float)):
             fields["snapshot_stack_depth"] = number(depth)
+        if (summary_json := snapshot.get("code_summary")):
+            node = _json_to_node(summary_json)
+            if node is not None:
+                fields["code_summary"] = node
+        if (fn_names := snapshot.get("code_summary_functions")):
+            fields["code_summary_functions"] = list_node(entity(name) for name in fn_names)
+        if (fn_details := snapshot.get("code_summary_function_details")):
+            detail_nodes = []
+            for entry in fn_details:
+                detail_fields: dict[str, Node] = {"name": entity(str(entry.get("name", "")))}
+                if entry.get("param_count") is not None:
+                    detail_fields["param_count"] = number(int(entry["param_count"]))
+                params = entry.get("parameters")
+                if params:
+                    detail_fields["parameters"] = list_node(entity(str(p)) for p in params)
+                detail_nodes.append(liu_struct(**detail_fields))
+            if detail_nodes:
+                fields["code_summary_function_details"] = list_node(detail_nodes)
     return liu_struct(**fields)
 
 
 def _snapshot_digest(snapshot: dict[str, Any]) -> str:
     serialized = json.dumps(snapshot, sort_keys=True, separators=(",", ":"))
     return blake2b(serialized.encode("utf-8"), digest_size=16).hexdigest()
+
+
+def _json_to_node(payload: dict[str, Any]) -> Node | None:
+    try:
+        return from_json(json.dumps(payload))
+    except Exception:
+        return None

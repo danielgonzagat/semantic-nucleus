@@ -649,6 +649,25 @@ def test_run_text_full_provides_calc_plan_for_code():
     assert outcome.calc_result.consistent is True
 
 
+def test_calc_snapshot_includes_code_function_details():
+    session = SessionCtx()
+    code = """
+def soma(x, y):
+    return x - y
+"""
+    outcome = run_text_full(code, session)
+    assert outcome.calc_result is not None
+    snapshot = outcome.calc_result.snapshot
+    assert snapshot is not None
+    names = snapshot.get("code_summary_functions")
+    assert names and "soma" in names
+    details = snapshot.get("code_summary_function_details")
+    assert details
+    entry = next(item for item in details if item.get("name") == "soma")
+    assert entry.get("param_count") == 2
+    assert entry.get("parameters")[:2] == ["x", "y"]
+
+
 def test_run_text_plan_only_mode_executes_plan():
     session = SessionCtx()
     session.config.calc_mode = "plan_only"

@@ -209,7 +209,14 @@ def run_struct_full(
         trace.halt(HaltReason.QUALITY_THRESHOLD, isr, finalized=True)
         calc_plan = meta_info.calc_plan if meta_info else None
         calc_result = (
-            execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
+            execute_meta_plan(
+                calc_plan,
+                struct_node,
+                session,
+                code_summary=meta_info.code_summary if meta_info else None,
+            )
+            if (calc_plan and plan_exec_enabled)
+            else None
         )
         calc_result = _validate_calc_result(calc_result, isr, trace)
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
@@ -334,7 +341,14 @@ def run_struct_full(
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
     calc_plan = meta_info.calc_plan if meta_info else None
     calc_result = (
-        execute_meta_plan(calc_plan, struct_node, session) if (calc_plan and plan_exec_enabled) else None
+        execute_meta_plan(
+            calc_plan,
+            struct_node,
+            session,
+            code_summary=meta_info.code_summary if meta_info else None,
+        )
+        if (calc_plan and plan_exec_enabled)
+        else None
     )
     calc_result = _validate_calc_result(calc_result, isr, trace)
     context_updated = _maybe_attach_calc_answer(isr, calc_result, meta_info)
@@ -470,7 +484,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     plan = meta.calc_plan
     if plan is None:
         return None
-    calc_result = execute_meta_plan(plan, meta.struct_node, session)
+    calc_result = execute_meta_plan(plan, meta.struct_node, session, code_summary=meta.code_summary)
     if calc_result.answer is None:
         return None
     isr = initial_isr(meta.struct_node, session)

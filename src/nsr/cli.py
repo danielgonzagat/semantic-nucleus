@@ -258,7 +258,7 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
                 "function_details": function_details,
             }
     if outcome.code_summary is not None:
-        summary_json = to_json(outcome.code_summary)
+        summary_json = json.loads(to_json(outcome.code_summary))
         fields = summary_json.get("fields") or {}
         digest = fields.get("digest", {}).get("label")
         fn_node = fields.get("function_count")
@@ -302,4 +302,27 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
         }
         if digest:
             return result
+    calc_result = getattr(outcome, "calc_result", None)
+    if calc_result and calc_result.snapshot:
+        snapshot = calc_result.snapshot
+        summary_json = snapshot.get("code_summary")
+        if summary_json:
+            fields = summary_json.get("fields") or {}
+            digest = fields.get("digest", {}).get("label")
+            fn_node = fields.get("function_count")
+            node_node = fields.get("node_count")
+            lang_node = fields.get("language")
+            fn_count = int(fn_node.get("value", 0)) if fn_node and fn_node.get("value") is not None else None
+            node_count = int(node_node.get("value", 0)) if node_node and node_node.get("value") is not None else None
+            language = lang_node.get("label") if lang_node else None
+            function_names = snapshot.get("code_summary_functions")
+            function_details = snapshot.get("code_summary_function_details")
+            return {
+                "digest": digest,
+                "function_count": fn_count,
+                "node_count": node_count,
+                "language": language,
+                "functions": function_names,
+                "function_details": function_details,
+            }
     return None
