@@ -204,6 +204,19 @@ def test_meta_summary_carries_reasoning_digest():
     assert outcome.meta_memory is not None
 
 
+def test_meta_summary_includes_equation_snapshot():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.meta_summary is not None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["equation_digest"]
+    assert summary_dict["equation_input_digest"]
+    assert summary_dict["equation_answer_digest"]
+    sections = summary_dict["equation_sections"]
+    assert sections
+    assert any(section["name"] == "relations" for section in sections)
+
+
 def test_run_outcome_exposes_meta_reasoning_node():
     session = SessionCtx()
     outcome = run_text_full("O carro tem roda", session)

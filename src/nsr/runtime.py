@@ -288,6 +288,7 @@ def run_struct_full(
                 meta_reasoning=reasoning_node,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
+                equation_snapshot=snapshot,
             )
             if meta_info
             else None
@@ -448,6 +449,7 @@ def run_struct_full(
             meta_reasoning=reasoning_node,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
+            equation_snapshot=snapshot,
         )
         if meta_info
         else None
@@ -771,6 +773,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_reasoning=reasoning_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
+        equation_snapshot=snapshot,
     )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)

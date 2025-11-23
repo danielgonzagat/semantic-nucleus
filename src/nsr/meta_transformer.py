@@ -24,6 +24,7 @@ from liu import (
 
 if TYPE_CHECKING:
     from .meta_calculator import MetaCalculationResult
+    from .equation import EquationSnapshot
 
 from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
@@ -37,6 +38,7 @@ from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation, LCTerm
 from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
+from .meta_equation import build_meta_equation_node
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -439,6 +441,7 @@ def build_meta_summary(
     meta_reasoning: Node | None = None,
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
+    equation_snapshot: "EquationSnapshot | None" = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -469,6 +472,8 @@ def build_meta_summary(
         nodes.append(meta_expression)
     if meta_memory is not None:
         nodes.append(meta_memory)
+    if equation_snapshot is not None:
+        nodes.append(build_meta_equation_node(equation_snapshot))
     nodes.append(_meta_digest_node(nodes))
     return tuple(nodes)
 
@@ -563,69 +568,68 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                 result["code_summary_function_details"] = function_details
     math_ast_node = nodes.get("math_ast")
     if math_ast_node is not None:
-        math_fields = _fields(math_ast_node)
-        result["math_ast_operator"] = _label(math_fields.get("operator"))
-        result["math_ast_language"] = _label(math_fields.get("language"))
-        result["math_ast_expression"] = _label(math_fields.get("expression"))
-        operand_node = math_fields.get("operand_count")
-        if operand_node is not None:
-            result["math_ast_operand_count"] = int(_value(operand_node))
-        value_node = math_fields.get("value")
-        if value_node is not None:
-            result["math_ast_value"] = _value(value_node)
+          math_fields = _fields(math_ast_node)
+          result["math_ast_operator"] = _label(math_fields.get("operator"))
+          result["math_ast_language"] = _label(math_fields.get("language"))
+          result["math_ast_expression"] = _label(math_fields.get("expression"))
+          operand_node = math_fields.get("operand_count")
+          if operand_node is not None:
+              result["math_ast_operand_count"] = int(_value(operand_node))
+          value_node = math_fields.get("value")
+          if value_node is not None:
+              result["math_ast_value"] = _value(value_node)
     reasoning_node = nodes.get("meta_reasoning")
     if reasoning_node is not None:
-        reasoning_fields = _fields(reasoning_node)
-        step_count_node = reasoning_fields.get("step_count")
-        if step_count_node is not None:
-            result["reasoning_step_count"] = int(_value(step_count_node))
-        digest_value = reasoning_fields.get("digest")
-        if digest_value is not None:
-            result["reasoning_trace_digest"] = _label(digest_value)
-        operations_node = reasoning_fields.get("operations")
-        if operations_node is not None and operations_node.kind.name == "LIST":
-            ops_labels: list[str] = []
-            op_details: list[dict[str, object]] = []
-            for entry in operations_node.args:
-                entry_fields = _fields(entry)
-                label = _label(entry_fields.get("label"))
-                if label:
-                    ops_labels.append(label)
-                detail: dict[str, object] = {
-                index_node = entry_fields.get("index")
-                if index_node is None:
-                    continue  # Skip malformed entries
-                detail: dict[str, object] = {
-                    "index": int(_value(index_node)),
-                    "label": label,
-                }
-                quality_node = entry_fields.get("quality")
-                if quality_node is not None:
-                    detail["quality"] = _value(quality_node)
-                relations_node = entry_fields.get("relations")
-                if relations_node is not None:
-                    detail["relations"] = int(_value(relations_node))
-                context_node = entry_fields.get("context")
-                if context_node is not None:
-                    detail["context"] = int(_value(context_node))
-                op_details.append(detail)
-            if ops_labels:
-                result["reasoning_ops"] = ops_labels
-            if op_details:
-                result["reasoning_steps"] = op_details
-        stats_node = reasoning_fields.get("operator_stats")
-        if stats_node is not None and stats_node.kind.name == "LIST":
-            stats_list: list[dict[str, object]] = []
-            for entry in stats_node.args:
-                entry_fields = _fields(entry)
-                stats_list.append(
-                    {
-                        "label": _label(entry_fields.get("label")),
-                        "count": int(_value(entry_fields.get("count"))),
-                    }
-                )
-            if stats_list:
-                result["reasoning_operator_stats"] = stats_list
+          reasoning_fields = _fields(reasoning_node)
+          step_count_node = reasoning_fields.get("step_count")
+          if step_count_node is not None:
+              result["reasoning_step_count"] = int(_value(step_count_node))
+          digest_value = reasoning_fields.get("digest")
+          if digest_value is not None:
+              result["reasoning_trace_digest"] = _label(digest_value)
+          operations_node = reasoning_fields.get("operations")
+          if operations_node is not None and operations_node.kind.name == "LIST":
+              ops_labels: list[str] = []
+              op_details: list[dict[str, object]] = []
+              for entry in operations_node.args:
+                  entry_fields = _fields(entry)
+                  label = _label(entry_fields.get("label"))
+                  if label:
+                      ops_labels.append(label)
+                  index_node = entry_fields.get("index")
+                  if index_node is None:
+                      continue  # Skip malformed entries
+                  detail: dict[str, object] = {
+                      "index": int(_value(index_node)),
+                      "label": label,
+                  }
+                  quality_node = entry_fields.get("quality")
+                  if quality_node is not None:
+                      detail["quality"] = _value(quality_node)
+                  relations_node = entry_fields.get("relations")
+                  if relations_node is not None:
+                      detail["relations"] = int(_value(relations_node))
+                  context_node = entry_fields.get("context")
+                  if context_node is not None:
+                      detail["context"] = int(_value(context_node))
+                  op_details.append(detail)
+              if ops_labels:
+                  result["reasoning_ops"] = ops_labels
+              if op_details:
+                  result["reasoning_steps"] = op_details
+          stats_node = reasoning_fields.get("operator_stats")
+          if stats_node is not None and stats_node.kind.name == "LIST":
+              stats_list: list[dict[str, object]] = []
+              for entry in stats_node.args:
+                  entry_fields = _fields(entry)
+                  stats_list.append(
+                      {
+                          "label": _label(entry_fields.get("label")),
+                          "count": int(_value(entry_fields.get("count"))),
+                      }
+                  )
+              if stats_list:
+                  result["reasoning_operator_stats"] = stats_list
     expression_node = nodes.get("meta_expression")
     if expression_node is not None:
         expression_fields = _fields(expression_node)
@@ -672,6 +676,26 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                     }
                 )
             result["memory_entries"] = memory_entries
+    equation_node = nodes.get("meta_equation")
+    if equation_node is not None:
+          equation_fields = _fields(equation_node)
+          result["equation_digest"] = _label(equation_fields.get("digest"))
+          result["equation_input_digest"] = _label(equation_fields.get("input_digest"))
+          result["equation_answer_digest"] = _label(equation_fields.get("answer_digest"))
+          result["equation_quality"] = _value(equation_fields.get("quality"))
+          sections_node = equation_fields.get("sections")
+          if sections_node is not None and sections_node.kind.name == "LIST":
+              eq_sections: list[dict[str, object]] = []
+              for entry in sections_node.args:
+                  entry_fields = _fields(entry)
+                  eq_sections.append(
+                      {
+                          "name": _label(entry_fields.get("name")),
+                          "count": int(_value(entry_fields.get("count"))),
+                          "digest": _label(entry_fields.get("digest")),
+                      }
+                  )
+              result["equation_sections"] = eq_sections
     digest_node = nodes.get("meta_digest")
     if digest_node is not None:
         digest_fields = _fields(digest_node)
