@@ -142,6 +142,12 @@ Resumo do fluxo:
 pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
+### 🔁 Pipeline Auto Debug (diagnóstico + auto-correção)
+
+- `python scripts/auto_debug.py --max-cycles 3 --verbose --report auto_debug.json` executa ciclos determinísticos de **diagnóstico → auto-correção → verificação**. Cada ciclo roda `pre-commit`, `pytest`, `pytest tests/cts` e valida todos os LangPacks (`scripts/langpack_check.py --code {pt,en,es,fr,it}`); se algo falhar, dispara `metanucleus-auto-evolve all --apply` para gerar patches determinísticos e repete até estabilizar ou atingir o limite de ciclos. O relatório JSON registra stdout/stderr, duração e estado de cada comando.
+- Adicione verificações ou fixers extras via `--diagnostic nome:comando` e `--fix nome:comando` (ex.: `--diagnostic mypy:"mypy src"` ou `--fix formatter:"black src"`), mantendo rastreabilidade completa no relatório.
+- O workflow GitHub Actions `auto-debug.yml` agenda essa rotina diariamente (03:00 UTC) e pode ser disparado manualmente (`workflow_dispatch`). Ao detectar diffs, ele cria a branch `auto-debug/<run_id>`, comita os ajustes e abre um PR automático anexando `auto_debug_report.json` como artefato.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
