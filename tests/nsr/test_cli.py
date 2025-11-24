@@ -5,8 +5,12 @@ import pytest
 import nsr.cli as nsr_cli
 
 
+def _run_cli(args):
+    return nsr_cli.main([*args, "--stateless"])
+
+
 def test_cli_outputs_equation_bundle(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--enable-contradictions"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--enable-contradictions"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -22,7 +26,7 @@ def test_cli_outputs_equation_bundle(capsys):
 
 
 def test_cli_supports_plan_only_mode(capsys):
-    exit_code = nsr_cli.main(["2 + 2", "--include-calc", "--calc-mode", "plan_only"])
+    exit_code = _run_cli(["2 + 2", "--include-calc", "--calc-mode", "plan_only"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -34,7 +38,7 @@ def test_cli_supports_plan_only_mode(capsys):
 
 def test_cli_writes_file(tmp_path):
     output_path = tmp_path / "bundle.json"
-    exit_code = nsr_cli.main(
+    exit_code = _run_cli(
         [
             "O carro tem roda",
             "--disable-contradictions",
@@ -54,7 +58,7 @@ def test_cli_writes_file(tmp_path):
 
 
 def test_cli_includes_text_report(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-report"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-report"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -63,7 +67,7 @@ def test_cli_includes_text_report(capsys):
 
 
 def test_cli_includes_stats(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-stats"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-stats"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -74,7 +78,7 @@ def test_cli_includes_stats(capsys):
 
 
 def test_cli_includes_explanation(capsys):
-    exit_code = nsr_cli.main(["O carro tem roda", "--format", "json", "--include-explanation"])
+    exit_code = _run_cli(["O carro tem roda", "--format", "json", "--include-explanation"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -86,7 +90,7 @@ def test_cli_includes_explanation(capsys):
 
 
 def test_cli_includes_meta_summary(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -111,7 +115,7 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
         "maybe_route_text",
     ):
         monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
-    exit_code = nsr_cli.main(["como você está?", "--format", "json", "--include-meta"])
+    exit_code = _run_cli(["como você está?", "--format", "json", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -132,7 +136,7 @@ def test_cli_meta_summary_includes_lc_calculation(capsys, monkeypatch):
 
 
 def test_cli_meta_summary_exposes_plan_metadata_for_math(capsys):
-    exit_code = nsr_cli.main(["2+2", "--format", "json", "--include-meta"])
+    exit_code = _run_cli(["2+2", "--format", "json", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -153,7 +157,7 @@ def test_cli_meta_summary_exposes_code_ast(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -169,7 +173,7 @@ fn soma(x: i32, y: i32) -> i32 {
     x + y
 }
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -180,7 +184,7 @@ fn soma(x: i32, y: i32) -> i32 {
 
 
 def test_cli_includes_equation_trend_block(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-equation-trend"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-equation-trend"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -192,7 +196,7 @@ def test_cli_includes_equation_trend_block(capsys):
 
 
 def test_cli_includes_logic_proof_block(capsys):
-    exit_code = nsr_cli.main(["QUERY carro e veiculo", "--format", "json", "--include-proof", "--include-meta"])
+    exit_code = _run_cli(["QUERY carro e veiculo", "--format", "json", "--include-proof", "--include-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)
@@ -204,24 +208,24 @@ def test_cli_includes_logic_proof_block(capsys):
 
 
 def test_cli_accepts_expect_meta_digest(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-meta"])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     digest = payload["meta_summary"]["meta_digest"]
-    exit_code = nsr_cli.main(
+    exit_code = _run_cli(
         ["Um carro existe", "--format", "json", "--include-meta", "--expect-meta-digest", digest]
     )
     assert exit_code == 0
 
 
 def test_cli_expect_meta_digest_fails_on_mismatch(capsys):
-    exit_code = nsr_cli.main(["Um carro existe", "--format", "json", "--include-meta"])
+    exit_code = _run_cli(["Um carro existe", "--format", "json", "--include-meta"])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     digest = payload["meta_summary"]["meta_digest"]
     bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
     with pytest.raises(SystemExit):
-        nsr_cli.main(
+        _run_cli(
             [
                 "Um carro existe",
                 "--format",
@@ -238,12 +242,12 @@ def test_cli_expect_code_digest(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta"])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     digest = payload["meta_summary"]["code_summary_digest"]
     assert digest
-    exit_code = nsr_cli.main(
+    exit_code = _run_cli(
         [code, "--format", "json", "--include-meta", "--expect-code-digest", digest]
     )
     assert exit_code == 0
@@ -254,13 +258,13 @@ def test_cli_expect_code_digest_fails_on_mismatch(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta"])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     digest = payload["meta_summary"]["code_summary_digest"]
     bad_digest = digest[:-1] + ("0" if digest[-1] != "0" else "1")
     with pytest.raises(SystemExit):
-        nsr_cli.main(
+        _run_cli(
             [
                 code,
                 "--format",
@@ -277,7 +281,7 @@ def test_cli_expect_code_functions(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "1"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta", "--expect-code-functions", "1"])
     assert exit_code == 0
 
 
@@ -287,7 +291,7 @@ def soma(x, y):
     return x + y
 """
     with pytest.raises(SystemExit):
-        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-functions", "2"])
+        _run_cli([code, "--format", "json", "--include-meta", "--expect-code-functions", "2"])
 
 
 def test_cli_expect_code_function_name(capsys):
@@ -295,7 +299,7 @@ def test_cli_expect_code_function_name(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "soma"])
+    exit_code = _run_cli([code, "--format", "json", "--include-meta", "--expect-code-function-name", "soma"])
     assert exit_code == 0
 
 
@@ -305,7 +309,7 @@ def soma(x, y):
     return x + y
 """
     with pytest.raises(SystemExit):
-        nsr_cli.main([code, "--format", "json", "--include-meta", "--expect-code-function-name", "subtrai"])
+        _run_cli([code, "--format", "json", "--include-meta", "--expect-code-function-name", "subtrai"])
 
 
 def test_cli_include_code_summary(capsys):
@@ -313,7 +317,7 @@ def test_cli_include_code_summary(capsys):
 def soma(x, y):
     return x + y
 """
-    exit_code = nsr_cli.main([code, "--format", "json", "--include-code-summary"])
+    exit_code = _run_cli([code, "--format", "json", "--include-code-summary"])
     assert exit_code == 0
     payload = json.loads(capsys.readouterr().out.strip().splitlines()[-1])
     summary_raw = payload.get("code_summary")
@@ -337,7 +341,7 @@ def test_cli_includes_lc_meta(capsys, monkeypatch):
         "maybe_route_text",
     ):
         monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
-    exit_code = nsr_cli.main(["como você está?", "--format", "json", "--include-lc-meta"])
+    exit_code = _run_cli(["como você está?", "--format", "json", "--include-lc-meta"])
     assert exit_code == 0
     captured = capsys.readouterr().out.strip().splitlines()[-1]
     data = json.loads(captured)

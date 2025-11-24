@@ -91,6 +91,11 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inclui o bloco meta_proof (Φ_PROVE) com verdade/query/digest determinísticos quando disponível.",
     )
     parser.add_argument(
+        "--stateless",
+        action="store_true",
+        help="Desativa persistência de memória/episódios, garantindo execuções totalmente determinísticas.",
+    )
+    parser.add_argument(
         "--calc-mode",
         choices=("hybrid", "plan_only", "skip"),
         default=None,
@@ -131,10 +136,9 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     session = SessionCtx()
-    session.config.memory_store_path = None
-    session.config.episodes_path = None
-    session.config.induction_rules_path = None
     session.meta_buffer = tuple()
+    if args.stateless:
+        session.disable_persistence()
     if args.disable_contradictions:
         session.config.enable_contradiction_check = False
     elif args.enable_contradictions:

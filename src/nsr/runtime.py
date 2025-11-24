@@ -784,6 +784,8 @@ def _ensure_memory_loaded(session: SessionCtx) -> None:
     if session.memory_loaded:
         return
     session.memory_loaded = True
+    if not _state_persistence_enabled(session):
+        return
     path = getattr(session.config, "memory_store_path", None)
     if not path:
         return
@@ -794,7 +796,7 @@ def _ensure_memory_loaded(session: SessionCtx) -> None:
 
 
 def _persist_meta_memory(session: SessionCtx, memory_node: Node | None) -> None:
-    if memory_node is None:
+    if memory_node is None or not _state_persistence_enabled(session):
         return
     path = getattr(session.config, "memory_store_path", None)
     if not path:
@@ -806,6 +808,8 @@ def _persist_meta_memory(session: SessionCtx, memory_node: Node | None) -> None:
 
 
 def _record_episode(session: SessionCtx, text: str, outcome: RunOutcome) -> None:
+    if not _state_persistence_enabled(session):
+        return
     path = getattr(session.config, "episodes_path", None)
     if path:
         try:
@@ -816,6 +820,8 @@ def _record_episode(session: SessionCtx, text: str, outcome: RunOutcome) -> None
 
 
 def _maybe_run_memory_induction(session: SessionCtx) -> None:
+    if not _state_persistence_enabled(session):
+        return
     episodes_path = getattr(session.config, "episodes_path", None)
     suggestions_path = getattr(session.config, "induction_rules_path", None)
     limit = getattr(session.config, "induction_episode_limit", 0)
@@ -929,6 +935,10 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         math_ast=meta.math_ast,
     )
     return outcome
+
+
+def _state_persistence_enabled(session: SessionCtx) -> bool:
+    return getattr(session.config, "enable_state_persistence", True)
 
 
 def _audit_state(

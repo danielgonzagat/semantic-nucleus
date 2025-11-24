@@ -8,7 +8,7 @@ import argparse
 import subprocess
 import sys
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, List, Optional
 
@@ -84,8 +84,9 @@ def run_auto_patches(
 
 def log_summary(patches: List[EvolutionPatch], pytest_code: Optional[int], branch: Optional[str]) -> None:
     LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
+    timestamp = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     LOG_PATH.write_text(
-        f"time: {datetime.utcnow().isoformat()}Z\n"
+        f"time: {timestamp}\n"
         f"pytest_code: {pytest_code}\n"
         f"patches: {[p.domain for p in patches]}\n"
         f"branch: {branch or '-'}\n",
@@ -171,7 +172,7 @@ def main(argv: Optional[List[str]] = None) -> None:
 
     branch_name = None
     if args.commit and _git_status_porcelain():
-        timestamp = datetime.utcnow().strftime("%Y%m%d-%H%M%S")
+        timestamp = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         branch_name = f"{args.branch_prefix}-{timestamp}"
         _git_checkout_branch(branch_name)
         _git_add_all()

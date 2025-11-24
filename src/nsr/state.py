@@ -24,6 +24,7 @@ class Config:
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
     calc_mode: str = "hybrid"
+    enable_state_persistence: bool = True
     memory_store_path: str | None = ".nsr_memory/memory.jsonl"
     memory_persist_limit: int = 256
     episodes_path: str | None = ".nsr_memory/episodes.jsonl"
@@ -108,6 +109,18 @@ class SessionCtx:
     meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
     memory_loaded: bool = False
     last_equation_stats: "EquationSnapshotStats | None" = None
+
+    def disable_persistence(self) -> None:
+        """
+        Desativa toda forma de persistência (memória, episódios, indução).
+        """
+
+        self.config.enable_state_persistence = False
+        self.config.memory_store_path = None
+        self.config.episodes_path = None
+        self.config.induction_rules_path = None
+        self.meta_buffer = tuple()
+        self.memory_loaded = True
 
 
 @dataclass(slots=True)

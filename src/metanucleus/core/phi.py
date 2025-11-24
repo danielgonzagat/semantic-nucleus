@@ -580,8 +580,6 @@ def _safe_eval_math(expr: str) -> float:
     def _eval(node: ast.AST) -> float:
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return float(node.value)
-        if isinstance(node, ast.Num):
-            return float(node.n)
         if isinstance(node, ast.BinOp):
             op_type = type(node.op)
             if op_type not in _BIN_OPS:

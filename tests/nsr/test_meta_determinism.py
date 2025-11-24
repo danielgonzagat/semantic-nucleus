@@ -21,9 +21,7 @@ def test_meta_digest_is_deterministic(text_input: str) -> None:
     ctx_a = SessionCtx()
     ctx_b = SessionCtx()
     for ctx in (ctx_a, ctx_b):
-        ctx.config.memory_store_path = None
-        ctx.config.episodes_path = None
-        ctx.config.induction_rules_path = None
+        ctx.disable_persistence()
     try:
         outcome_a = run_text_full(text_input, session=ctx_a)
         outcome_b = run_text_full(text_input, session=ctx_b)

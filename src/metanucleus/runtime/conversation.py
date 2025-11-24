@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 import itertools
 import re
 from typing import Dict, List, Optional, Set
@@ -115,7 +115,7 @@ class TopicManager:
         self._counter = itertools.count(1)
 
     def assign(self, state: ConversationState, terms: Set[str], hint: str) -> TopicId:
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if not state.topics:
             tid = next(self._counter)
             state.topics[tid] = TopicRecord(
@@ -234,7 +234,7 @@ class ConversationSession:
 
     def _register_turn(self, role: str, text: str, topic_id: Optional[TopicId] = None) -> TurnRecord:
         terms = _key_terms(text)
-        now = datetime.utcnow()
+        now = datetime.now(timezone.utc)
         if role == "user":
             topic_id = self._topics.assign(self.state, terms, text)
         elif topic_id is None:

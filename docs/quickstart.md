@@ -10,6 +10,8 @@ pip install -e .[dev]
 pre-commit install
 ```
 
+> Se optar por `pip install --user` fora de um virtualenv, exporte `PATH="$HOME/.local/bin:$PATH"` para que `metanucleus`, `pytest`, `ruff` e demais CLIs sejam encontrados no shell.
+
 `blake3` é opcional, mas garante digests BLAKE3-256 para snapshots ΣVM. `cryptography` habilita assinaturas Ed25519.
 
 ## 2. Testes
@@ -23,7 +25,7 @@ coverage run -m pytest && coverage report
 ## 3. Pipeline texto → equação → texto
 
 ```bash
-PYTHONPATH=src python -m nsr.cli "O carro anda rápido" --format both --include-report --include-stats
+PYTHONPATH=src python -m nsr.cli "O carro anda rápido" --format both --include-report --include-stats --stateless
 ```
 
 Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), lista determinística `invariant_failures`
@@ -31,6 +33,8 @@ Saída inclui `trace_digest`, `equation_hash` (Blake2b-128), lista determinísti
 de contagens/digests para auditoria estrutural.
 
 > A checagem de contradições LIU/NSR agora é padrão. Desative somente quando precisar inspecionar execuções exploratórias com `--disable-contradictions` ou ajustando `SessionCtx().config.enable_contradiction_check = False`.
+>
+> Use `SessionCtx().disable_persistence()` (ou `--stateless` no CLI) sempre que precisar de execuções totalmente reprodutíveis sem ler/escrever em `.nsr_memory/` ou `logs/`.
 
 ### 3.1 Léxicos multilíngues
 

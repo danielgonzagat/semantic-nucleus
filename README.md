@@ -168,6 +168,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 
 - Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
 - Instalação: `pip install -e .[dev] && pre-commit install`.
+- Se o `pip` usar instalação em modo usuário, adicione `export PATH="$HOME/.local/bin:$PATH"` ao seu shell para acessar `metanucleus`, `metanucleus-chat`, `pytest`, `ruff` e demais CLIs instalados em `~/.local/bin`.
 - Execução NSR CLI: `PYTHONPATH=src python -m nsr.cli "Um carro existe" --format both --include-report --include-stats`.
 - Léxicos multilíngues: `from nsr.lex import compose_lexicon, load_lexicon_file`. Combine pacotes (`compose_lexicon(("pt","en","es","fr","it"))`) ou carregue JSON customizado para estender sinônimos/relações determinísticas. O fluxo completo para adicionar idiomas está descrito em [`docs/ian_langpacks.md`](docs/ian_langpacks.md).
 - Instinto IAN-Ω: `from nsr.ian import respond` responde deterministamente a cumprimentos/saudações iniciais; `nsr.runtime.run_text` usa esse instinto para pré-semear respostas quando o input é reconhecido.
@@ -195,6 +196,11 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 ## 💬 Como conversar com o Metanúcleo
 
 O Metanúcleo mantém um ciclo determinístico (LxU → PSE → LIU → Φ → ΣVM) e guarda memória curta por `session_id`. Você escolhe entre um REPL de terminal ou a API Python.
+
+#### Modos stateful vs. stateless
+
+- Por padrão, `SessionCtx` persiste memórias (`.nsr_memory/`) e episódios para alimentar autoevolução. Use `session.disable_persistence()` quando precisar de execuções totalmente reprodutíveis ou isoladas (sem leituras/escritas em disco).
+- O CLI `python -m nsr.cli` agora aceita `--stateless`, que aplica o mesmo modo determinístico (sem memória, sem episódios, sem indução). Ideal para pipelines CI e para reproduzir regressões sem efeitos colaterais.
 
 ### 1. REPL (linha de comando)
 
