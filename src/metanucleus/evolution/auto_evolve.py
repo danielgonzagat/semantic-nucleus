@@ -160,7 +160,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         print("[auto-evolve] domínios analisados:")
         for entry in stats:
             reason = entry.get("reason")
-            suffix = f" ({reason})" if reason else ""
+            duration = entry.get("duration_ms")
+            details = []
+            if reason:
+                details.append(reason)
+            if duration is not None:
+                details.append(f"{duration} ms")
+            suffix = f" ({'; '.join(details)})" if details else ""
             print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
         print()
 

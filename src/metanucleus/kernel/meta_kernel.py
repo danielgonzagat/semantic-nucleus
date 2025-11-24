@@ -9,6 +9,7 @@ import json
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
+from time import perf_counter
 
 from liu import to_json
 from nsr import SessionCtx, run_text_full, meta_summary_to_dict
@@ -184,9 +185,17 @@ class MetaKernel:
         patches: List[EvolutionPatch] = []
         self.last_evolution_stats = []
 
-        def record(domain: str, status: str, reason: str = "") -> None:
+        def record(domain: str, status: str, reason: str = "", start_time: float | None = None) -> None:
+            duration_ms = None
+            if start_time is not None:
+                duration_ms = round((perf_counter() - start_time) * 1000, 2)
             self.last_evolution_stats.append(
-                {"domain": domain, "status": status, "reason": reason}
+                {k: v for k, v in {
+                    "domain": domain,
+                    "status": status,
+                    "reason": reason,
+                    "duration_ms": duration_ms,
+                }.items() if v not in (None, "")}
             )
 
         def remaining_capacity() -> Optional[int]:
@@ -205,78 +214,83 @@ class MetaKernel:
         )
 
         if "intent" in normalized:
+            start = perf_counter()
             if not self.config.auto_evolution.enable_intent:
-                record("intent", "disabled", "config flag disabled")
+                record("intent", "disabled", "config flag disabled", start)
             else:
                 available = remaining_capacity()
                 if available is not None and available <= 0:
-                    record("intent", "skipped", "max patches reached")
+                    record("intent", "skipped", "max patches reached", start)
                 elif not _log_has_entries(INTENT_MISMATCH_LOG_PATH):
-                    record("intent", "skipped", "no intent mismatches")
+                    record("intent", "skipped", "no intent mismatches", start)
                 else:
                     limit = self.config.auto_evolution.max_new_intent_rules
                     if available is not None:
                         limit = min(limit, available)
                     if limit <= 0:
-                        record("intent", "skipped", "max patches reached")
+                        record("intent", "skipped", "max patches reached", start)
                     else:
                         new_patches = self._suggest_intent_patches(
                             max_candidates=limit,
                             log_limit=log_limit,
                         )
                         patches.extend(new_patches)
-                        record("intent", "executed", f"{len(new_patches)} patch(es)")
+                        record("intent", "executed", f"{len(new_patches)} patch(es)", start)
 
         if "rules" in normalized:
+            start = perf_counter()
             available = remaining_capacity()
             if available is not None and available <= 0:
-                record("rules", "skipped", "max patches reached")
+                record("rules", "skipped", "max patches reached", start)
             elif not _log_has_entries(RULE_MISMATCH_LOG_PATH):
-                record("rules", "skipped", "no rule mismatches")
+                record("rules", "skipped", "no rule mismatches", start)
             else:
                 new_patches = self._suggest_rule_patches(max_rules=available)
                 patches.extend(new_patches)
-                record("rules", "executed", f"{len(new_patches)} patch(es)")
+                record("rules", "executed", f"{len(new_patches)} patch(es)", start)
 
         if "semantics" in normalized or "language" in normalized:
+            start = perf_counter()
             available = remaining_capacity()
             if available is not None and available <= 0:
-                record("semantics", "skipped", "max patches reached")
+                record("semantics", "skipped", "max patches reached", start)
             elif not _log_has_entries(SEMANTIC_MISMATCH_LOG_PATH):
-                record("semantics", "skipped", "no semantic mismatches")
+                record("semantics", "skipped", "no semantic mismatches", start)
             else:
                 new_patches = self._suggest_semantic_patches(max_groups=available)
                 patches.extend(new_patches)
-                record("semantics", "executed", f"{len(new_patches)} patch(es)")
+                record("semantics", "executed", f"{len(new_patches)} patch(es)", start)
 
         if "semantic_frames" in normalized:
+            start = perf_counter()
             available = remaining_capacity()
             if available is not None and available <= 0:
-                record("semantic_frames", "skipped", "max patches reached")
+                record("semantic_frames", "skipped", "max patches reached", start)
             else:
                 frame_records = meta_records.get("frame_mismatch", [])
                 if not frame_records:
-                    record("semantic_frames", "skipped", "no frame mismatches")
+                    record("semantic_frames", "skipped", "no frame mismatches", start)
                 else:
                     new_patches = self._suggest_semantic_frame_patches(records=frame_records)
                     patches.extend(new_patches)
-                    record("semantic_frames", "executed", f"{len(new_patches)} patch(es)")
+                    record("semantic_frames", "executed", f"{len(new_patches)} patch(es)", start)
 
         if "meta_calculus" in normalized:
+            start = perf_counter()
             if not self.config.auto_evolution.enable_calculus:
-                record("meta_calculus", "disabled", "config flag disabled")
+                record("meta_calculus", "disabled", "config flag disabled", start)
             else:
                 available = remaining_capacity()
                 if available is not None and available <= 0:
-                    record("meta_calculus", "skipped", "max patches reached")
+                    record("meta_calculus", "skipped", "max patches reached", start)
                 else:
                     calc_records = meta_records.get("calc_rule_mismatch", [])
                     if not calc_records:
-                        record("meta_calculus", "skipped", "no calc_rule mismatches")
+                        record("meta_calculus", "skipped", "no calc_rule mismatches", start)
                     else:
                         new_patches = self._suggest_meta_calculus_patches(records=calc_records)
                         patches.extend(new_patches)
-                        record("meta_calculus", "executed", f"{len(new_patches)} patch(es)")
+                        record("meta_calculus", "executed", f"{len(new_patches)} patch(es)", start)
 
         if max_patches is not None and len(patches) > max_patches:
             patches = patches[:max_patches]

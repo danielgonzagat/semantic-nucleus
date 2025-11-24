@@ -115,12 +115,18 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         print(f"[metanucleus-auto-evolve] erro ao executar ciclo: {exc!r}", file=sys.stderr)
         return 3
 
-    stats = getattr(kernel, "last_evolution_stats", [])
-    if stats:
+    eval_stats = getattr(kernel, "last_evolution_stats", [])
+    if eval_stats:
         print("[metanucleus-auto-evolve] domínios analisados:")
-        for entry in stats:
+        for entry in eval_stats:
             reason = entry.get("reason")
-            suffix = f" ({reason})" if reason else ""
+            duration = entry.get("duration_ms")
+            details = []
+            if reason:
+                details.append(reason)
+            if duration is not None:
+                details.append(f"{duration} ms")
+            suffix = f" ({'; '.join(details)})" if details else ""
             print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
         print()
 
