@@ -15,6 +15,7 @@ def test_meta_memory_aggregates_history_and_current_entry():
         "expression_preview": "Nova resposta determinística.",
         "expression_answer_digest": "digest::current",
         "reasoning_trace_digest": "trace::current",
+        "reflection_digest": "reflect::current",
     }
     node = build_meta_memory(history, current_entry, limit=2)
     assert node is not None
@@ -28,6 +29,7 @@ def test_meta_memory_aggregates_history_and_current_entry():
     assert first_entry_fields["route"].label
     assert first_entry_fields["answer_preview"].label
     assert first_entry_fields["reasoning_digest"].label is not None
+    assert first_entry_fields["reflection_digest"].label
 
 
 def test_meta_memory_persistence_roundtrip(tmp_path):

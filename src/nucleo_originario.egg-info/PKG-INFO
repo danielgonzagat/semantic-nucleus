@@ -124,6 +124,7 @@ flowchart LR
 - Um detector determinístico de idioma/dialeto (`nsr.language_detector.detect_language_profile`) roda antes do roteamento, alimenta o `language_hint`, gera o nó `language_profile` (categoria, confiança, pistas e dialeto de código quando aplicável) no contexto inicial e garante que o parser/lexicon recebam o idioma correto mesmo sem pistas externas.
 - Código Python e Rust agora são convertidos em representações estruturais: `nsr.code_ast.build_python_ast_meta` serializa o AST real para snippets Python, enquanto `nsr.code_ast.build_rust_ast_meta` gera um outline determinístico (funções, parâmetros, retorno, corpo) para Rust; ambos aportam um `code_ast` no contexto/meta_summary, permitindo auditar módulos detectados pelo `language_detector`. Para matemática, `nsr.math_ast.build_math_ast_node` transforma instruções do Math-Core em `math_ast` (operador, expressão, operandos, valor), expondo o cálculo simbólico em todos os caminhos Math.
 - O operador `REWRITE_CODE` (Φ formal nova) inspecciona `code_ast` presentes no contexto, gera resumos determinísticos (`code_ast_summary`) e relações `code/FUNCTION_COUNT`, abrindo caminho para pipelines Φ específicos de programação antes de `Φ_NORMALIZE`/`Φ_INFER`.
+- `Φ_NORMALIZE` foi elevado a deduplicador estrutural: remove relações repetidas após normalização, ordena o grafo, cria um `normalize_summary` (total, deduplicados, removidos) e já deixa rastros auditáveis no contexto LIU antes das próximas Φ. Com `Config.normalize_aggressive=True`, o operador aplica uma heurística determinística que considera apenas os argumentos não textuais como chave e mantém a versão mais curta/leve das relações redundantes, registrando `aggressive_removed` no resumo e expondo esses totais diretamente no `meta_reasoner` (a linha `NORMALIZE[...]` mostra `tot/dedup/rem/agg` no trace).
 - Sempre que um plano ΣVM é emitido (rotas MATH/LOGIC/CODE/INSTINCT/TEXT), o MetaTransformer adiciona um `meta_plan` ao contexto inicial e ao `meta_summary`, contendo `plan_digest` (BLAKE2b das instruções+constantes), descrição humana, contagem de instruções/constantes e, quando aplicável, a cadeia Φ (`phi_plan_chain`). O CLI (`--include-meta`) expõe os mesmos campos (`phi_plan_description`, `phi_plan_digest`, `phi_plan_program_len`, `phi_plan_const_len`) para auditoria externa.
 - Cada `meta_summary` recebe um `meta_digest` calculado com BLAKE2b-128 (digest_size=16, sem chave/salt) sobre os fingerprints LIU canonizados, permitindo verificar end-to-end que rota, inputs, cálculos e ASTs não foram alterados entre Meta-LER → Meta-Resultado; o CLI e a API retornam esse hash pronto para auditoria.
 - `python -m nsr.cli ... --include-lc-meta` exporta o `lc_meta` serializado em JSON, permitindo auditar as tokens, a sequência semântica e o `meta_calculation` que guiaram o plano ΣVM.
@@ -133,8 +134,12 @@ flowchart LR
 - `python -m nsr.cli "...código..." --expect-code-digest HEX` garante que o `code_summary_digest` (hash Blake2b do AST resumido) corresponde ao valor esperado; funciona tanto com `--include-meta` quanto com `--include-code-summary`.
 - `python -m nsr.cli "...código..." --include-meta --expect-code-functions N` valida simbolicamente quantas funções determinísticas foram detectadas no resumo (`code_ast_summary`), útil para pipelines que exigem invariantes estruturais.
 - `python -m nsr.cli "...código..." --include-meta --expect-code-function-name soma` exige que o resumo contenha uma função específica (repita a flag para múltiplas); combinado com `--include-code-summary`, permite auditar nomes/assinaturas determinísticas.
+- `python -m nsr.cli "...texto..." --include-equation-trend` exporta o bloco `meta_equation` completo (digests, trend e deltas por seção), ideal para dashboards que acompanham a evolução do grafo LIU.
+- `python -m nsr.cli "QUERY ... " --include-meta --include-proof` publica um bloco `proof_detail` com verdade/query/digest e o `logic_proof` completo produzido por `Φ_PROVE`, garantindo auditoria determinística de consultas lógicas.
 - `--include-code-summary` injeta o `code_ast_summary` serializado diretamente no payload principal (sem depender do pacote meta), permitindo exportar idioma, contagem de nós/funções e digest do AST para auditoria externa.
 - Cada `code_ast_summary` inclui a lista determinística de funções detectadas (nome + `param_count` quando disponível), garantindo rastreabilidade simbólica do snippet analisado.
+- O `meta_reasoner` expõe `delta_quality` e `delta_relations` em cada `reasoning_step`, quantificando numericamente o impacto de cada operador Φ no estado LIU.
+- `Φ_PROVE` integra o `logic_engine` ao loop Φ: consultas `FACT_QUERY`/`FACT_FOLLOWUP` agora executam PROVE após INFER, registrando um `logic_proof` no contexto (fatos conhecidos, derivados e verdade atual da consulta) e espelhando esse resumo no `meta_summary`.
 - Quando existe um `meta_calculation`, o `meta_summary` também carrega `meta_calculation` (serializado) e o `meta_plan` correspondente — útil para auditar as regras LC-Ω e a sequência Φ planejada antes mesmo de inspecionar o `lc_meta`.
 - O `meta_summary` também inclui um bloco `meta_calc_exec` sempre que um plano ΣVM é executado: rota/descrição do plano, flag `consistent`, erro (se houver), fingerprint da resposta e `snapshot_digest` BLAKE2b-128 (digest_size=16, sem chave/salt) do snapshot ΣVM (com `pc`/`stack_depth`). O CLI exporta esses campos como `calc_exec_*`, ligando o Meta-Cálculo à execução física auditável.
 - O runtime consome o `meta_calculation` detectado (via `lc_meta_calc`), injeta a mesma sequência Φ na fila do NSR **e** registra `Φ_PLAN[...]` no `trace`, garantindo que consultas `STATE_QUERY` executem `NORMALIZE → INFER → SUMMARIZE`, afirmações `STATE_ASSERT` disparem `NORMALIZE → ANSWER → EXPLAIN → SUMMARIZE` e assim por diante antes da fila padrão, mantendo ΣVM e loop Φ sincronizados do Meta-LER até o Meta-CALCULAR com auditoria explícita.
@@ -152,72 +157,45 @@ flowchart LR
   - `phi_plan_digest`: `blake2b` (digest_size=16) calculado sobre `route`, `description`, `(opcode, operand)` e fingerprints das constantes LIU.
 - O digest é validado via CTS em `tests/cts/test_meta_plan_digest.py`, com fixtures versionadas que garantem compatibilidade retroativa quando novas versões forem lançadas.
 - Testes adicionais em `tests/nsr/test_plan_digest.py` asseguram que qualquer mudança nas instruções, na ordem dos opcodes ou no conteúdo das constantes provoca um novo hash — prova formal de imutabilidade do meta-cálculo.
+- Antes da execução física, `svm.verifier.verify_program` valida cada plano (operandos, registradores, destinos de salto e `HALT` explícito); se a verificação falha, `execute_meta_plan` retorna um erro determinístico e não toca o hardware.
+- Cada `meta_summary` também inclui `meta_equation`: um snapshot compactado da equação LIU (digests de entrada/resposta, qualidade, contagens e hashes de ontologia/relações/contexto/goals/fila Φ) **e** os deltas determinísticos em relação à execução anterior (delta de qualidade e delta de contagem/digest por seção), além do `trend` categórico (`initial`/`expanding`/`stable`/`regressing`), permitindo auditar o estado simbólico completo e sua evolução juntamente com o plano ΣVM e o raciocínio Φ. O CLI expõe o mesmo pacote via `--include-equation-trend`, exportando JSON pronto para dashboards externos.
 
-## 🔁 Autoevolução supervisionada do Metanúcleo
+## ♻️ Auto-evolução & PRs automáticos
 
-O Metanúcleo aprende corrigindo o próprio código com diffs auditáveis, não com pesos ocultos.
+O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches determinísticos e pede revisão humana. O ciclo completo é o seguinte:
 
-1. **Runtime roda normalmente**  
-   Cada turno passa pelo pipeline LxU → PSE → LIU → Φ → ΣVM.
-
-2. **Testes exercitam semântica, regras e meta-cálculo**  
-   - `tests/test_runtime_semantic_integration.py`  
-   - `tests/test_integration_metanucleus_auto_evolution.py`  
-   - `tests/test_evolution_semantics_smoke.py`  
-   - `tests/test_evolution_rules_smoke.py`
-   Esses testes usam helpers (`assert_semantic_label`, `assert_meta_normal_form`, `assert_meta_equivalent`) que **não quebram o build** quando algo diverge; eles registram o erro para evolução posterior.
-
-3. **Erros viram mismatches estruturados**  
-   - `logs/intent_mismatches.jsonl`  
-   - `logs/semantic_mismatches.jsonl`  
-   - `logs/rule_mismatches.jsonl`  
-   - `.meta/meta_calculus_mismatches.jsonl`
-   Cada linha descreve `expected`, `actual`, contexto, severidade e origem.
-
-4. **Geradores de patch determinísticos**  
-   - `IntentLexiconPatchGenerator` → `intent_lexicon.json`  
-   - `SemanticPatchGenerator` → `semantic_suggestions.md`  
-   - `RulePatchGenerator` → `rule_suggestions.md`  
-   - `MetaCalculusPatchGenerator` → `meta_calculus_rules.json`
-   Eles vasculham os JSONL e produzem diffs em formato unified diff.
-
-5. **MetaKernel orquestra ciclos internos**
-
-   ```python
-   from metanucleus.core.meta_kernel import MetaKernel
-
-   kernel = MetaKernel()
-   patches = kernel.run_auto_evolution_cycle(domains=["intent", "calculus"])
-   ```
-
-   Cada `EvolutionPatch` traz tipo, diff, título e descrição para revisão humana.
-
-6. **CLI unificado**
+1. **Rode os testes** (`python -m pytest`). Eles exercitam semântica, regras e meta-cálculo e, em vez de quebrar a suíte, escrevem mismatches em `logs/*.jsonl`, `.meta/*.jsonl` e no hub central `.metanucleus/mismatch_log.jsonl`.
+2. **Geradores de patch** (`IntentLexiconPatchGenerator`, `RulePatchGenerator`, `SemanticPatchGenerator`, `semantic_frames_auto_patch`, `meta_calculus_auto_patch`) leem esses registros e produzem diffs para `intent_lexicon.json`, `rule_suggestions.md`, `semantic_suggestions.md`, `.metanucleus/frame_patterns.json` e `metanucleus/config/meta_calculus_rules.json`.
+3. **MetaKernel** consolida tudo via `run_auto_evolution_cycle(domains=[...], apply_changes=...)`, devolvendo `EvolutionPatch` (domínio, título, descrição, diff).
+4. **CLI / Orquestrador**
 
    ```bash
-   # 1) roda pytest (gera mismatches)
-   # 2) produz diffs para intent/rules/semantics/calculus
-   # 3) aplica via git apply quando --apply
-   bin/metanucleus-auto-evolve all --apply
+   # Mostra os patches sem alterar arquivos
+   metanucleus-auto-evolve --dry-run
+
+   # Aplica domínios específicos e já cria branch/commit/push
+   metanucleus-auto-evolve semantic_frames meta_calculus --commit --push
+
+   # Versão interativa do ciclo (sem git)
+   metanucleus-evo-cli rules semantics --dry-run
    ```
 
-   CLIs específicos continuam disponíveis:
+5. **GitHub Actions** (`.github/workflows/metanucleus-auto-evolution.yml`) executa em todo push para `main`: instala dependências, roda `python -m pytest || true`, chama `metanucleus-auto-evolve all --apply` e, se houver diffs, cria uma branch `auto-evolve/<run_id>` + PR usando `peter-evans/create-pull-request`.
+6. **Daemon 24/7 opcional** (`metanucleus-daemon`) roda o mesmo processo continuamente em qualquer servidor: dá `git pull`, executa testes, chama `MetaKernel.run_auto_evolution_cycle(..., apply_changes=True)`, revalida os testes, cria branch/commit/push e abre PR direto via GitHub API. Configure:
 
    ```bash
-   bin/metanucleus-auto-intent --apply
-   bin/metanucleus-auto-calculus --apply
+   export GITHUB_TOKEN=ghp_xxx
+   export GITHUB_REPOSITORY=owner/repo
+   export METANUCLEUS_DAEMON_INTERVAL=600  # segundos
+   metanucleus-daemon
    ```
 
-7. **PR automático em cada push**  
-   `.github/workflows/metanucleus-auto-evolution.yml` roda no push para `main`, executa o CLI, cria a branch `auto-evolve/<run_id>` quando há mudanças e abre o PR via `peter-evans/create-pull-request`. Você apenas revisa e aprova.
+7. **Revisão humana final**: cada PR contém diffs normais (semântica, intent, regras, meta-cálculo). Você só precisa revisar/mergear ou fechar.
 
-8. **Revisão humana final**  
-   Nada entra sem inspeção. Os diffs são comuns (`intent_lexicon.json`, `meta_calculus_rules.json`, `rule_suggestions.md`, `semantic_suggestions.md`) e sempre se referem a mismatches logados.
-
-Fluxo completo:
+Resumo do fluxo:
 
 ```
-pytest → JSONL de mismatches → geradores de patch → bin/metanucleus-auto-evolve → git apply/commit → PR automático → aprovação humana
+pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
 ## Camadas principais
@@ -272,9 +250,17 @@ pytest → JSONL de mismatches → geradores de patch → bin/metanucleus-auto-e
 
 ## 💬 Como conversar com o Metanúcleo
 
-O `MetaKernel` expõe um loop determinístico completo (LxU → PSE → LIU → Φ → ΣVM) e preserva contexto por `session_id`.
+O Metanúcleo mantém um ciclo determinístico (LxU → PSE → LIU → Φ → ΣVM) e guarda memória curta por `session_id`. Você escolhe entre um REPL de terminal ou a API Python.
 
-### Python (REPL)
+### 1. REPL (linha de comando)
+
+```bash
+metanucleus-chat
+```
+
+O comando acima inicia um console multi-turno (PT/EN) com comandos especiais (`/state`, `/debug`, `/sair`). Por trás, ele instancia um `MetaKernel`, cria uma sessão e chama `handle_turn()` a cada entrada. O estado interno pode ser inspecionado a qualquer momento com `/debug`.
+
+### 2. API Python embutida
 
 ```python
 from metanucleus.core.meta_kernel import MetaKernel
@@ -282,39 +268,30 @@ from metanucleus.core.meta_kernel import MetaKernel
 kernel = MetaKernel()
 session_id = "console-demo"
 
-print("Metanúcleo iniciado. Digite 'sair' para encerrar.\n")
 while True:
     user = input("Você: ").strip()
+    if user in {"sair", "exit", "quit"}:
+        break
     if not user:
         continue
-    if user.lower() in {"sair", "exit", "quit"}:
-        print("Metanúcleo: até mais 👋")
-        break
 
     result = kernel.handle_turn(
         user_text=user,
         session_id=session_id,
         enable_auto_evolution=False,
     )
-    print(f"Metanúcleo: {result.answer_text}\n")
+    print("Metanúcleo:", result.answer_text)
 ```
 
-### CLI
+### 3. Exemplos de prompts úteis
 
-Crie um wrapper fino (ex.: `bin/metanucleus-chat`) ou rode `python -m metanucleus.cli.chat`, reutilizando a estrutura acima. Usar o mesmo `session_id` garante memória de curto prazo.
+- **Saudação:** “oi, metanúcleo” → o núcleo responde com um cumprimento e já registra a intenção.
+- **Pergunta estrutural:** “explica esta frase como estrutura lógica?” → o Metanúcleo descreve entidades, ações e modificadores.
+- **Autoevolução:** “evolua a si mesmo usando os logs de mismatch” → o núcleo dispara o ciclo interno e relata o que faria (patches ficam para revisão humana).
 
-### Exemplos
+### 4. Conversa + autoevolução
 
-```
-Você: oi, metanúcleo
-Metanúcleo: oi :) o que você quer entender, criar ou melhorar hoje?
-
-Você: o carro está andando rápido.
-Metanúcleo: entendi: "carro" como entidade, "andar" como ação, "rápido" como modificador.
-
-Você: evolua a si mesmo usando os logs
-Metanúcleo: ok. vou analisar os mismatches mais recentes e propor patches auditáveis.
-```
+Toda conversa gera contexto LIU/ISR. Se alguma sentença for mal interpretada, os helpers de teste/REPL registram `SemanticMismatch` ou `IntentMismatch` em `logs/*.jsonl`. Esses logs são consumidos pelos geradores de patch (`IntentLexiconPatchGenerator`, `SemanticPatchGenerator`, etc.). Quando você roda `metanucleus-auto-evolve` (ou o daemon 24/7), os patches propostos refletem exatamente os erros que surgiram durante o chat.
 
 - ### Processo de Release & CTS
   - Releases seguem tags semânticas `vX.Y.Z`. Antes de taggear, execute `python -m pytest` e `python -m pytest tests/cts` localmente, atualize o `CHANGELOG.md` e valide a compatibilidade descrita em [`docs/cts_policy.md`](docs/cts_policy.md).
