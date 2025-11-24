@@ -49,6 +49,7 @@ metanucleus-daemon = "metanucleus.daemon.auto_pr_daemon:main"
 nucleo-auto-debug = "metanucleus.cli.auto_debug:main"
 nucleo-auto-report = "metanucleus.cli.auto_report:main"
 nucleo-auto-prune = "metanucleus.cli.auto_prune:main"
+nucleo-auto-cycle = "metanucleus.cli.auto_cycle:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]
