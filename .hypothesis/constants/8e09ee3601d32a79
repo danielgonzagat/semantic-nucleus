@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr_evo/env_kb.py
+# hypothesis_version: 6.148.2
+
+['.nsr_learning', 'ENV_ROOT', 'EnvironmentKB', 'current_kb.json', 'ensure_env_dir', 'kb_rules', 'learned_rules.jsonl', 'load_env_kb', 'make_session_for_env', 'prod', 'promote_kb_version', 'rollback_kb_version', 'utf-8', 'version']

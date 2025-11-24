@@ -4,6 +4,7 @@ Estado e configuração do Núcleo Semântico Reativo (NSR).
 
 from __future__ import annotations
 
+import os
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Mapping, Sequence, Tuple, TYPE_CHECKING
@@ -17,6 +18,13 @@ if TYPE_CHECKING:
     from .equation import EquationSnapshotStats
 
 
+def _env_path(var_name: str) -> str | None:
+    value = os.environ.get(var_name)
+    if value:
+        return value
+    return None
+
+
 @dataclass(slots=True)
 class Config:
     max_steps: int = 32
@@ -24,10 +32,12 @@ class Config:
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
     calc_mode: str = "hybrid"
-    memory_store_path: str | None = ".nsr_memory/memory.jsonl"
+    memory_store_path: str | None = field(default_factory=lambda: _env_path("NSR_MEMORY_STORE_PATH"))
     memory_persist_limit: int = 256
-    episodes_path: str | None = ".nsr_memory/episodes.jsonl"
-    induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
+    episodes_path: str | None = field(default_factory=lambda: _env_path("NSR_EPISODES_PATH"))
+    induction_rules_path: str | None = field(
+        default_factory=lambda: _env_path("NSR_INDUCTION_RULES_PATH")
+    )
     induction_episode_limit: int = 128
     induction_min_support: int = 3
     normalize_aggressive: bool = False

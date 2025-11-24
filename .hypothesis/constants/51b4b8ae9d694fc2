@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr_evo/policy.py
+# hypothesis_version: 6.148.2
+
+['args', 'label', 'rel', 'support']

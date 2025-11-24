@@ -79,7 +79,6 @@ def _is_alert_decision(decision: _ReflectionDecision) -> bool:
     if decision.category == "meta_guard":
         return True
     return upper.startswith("CONTRADICTION") or "FAILURE" in upper
-            self.alert = True
 
 
 _PHASE_LABELS = {
@@ -316,13 +315,6 @@ def _decision_justification(label: str, category: str) -> str:
     if category == "meta_halt":
         return f"{base} Motivo: {label}."
     return base
-
-
-def _is_alert_decision(decision: _ReflectionDecision) -> bool:
-    upper = decision.label.upper()
-    if decision.category == "meta_guard":
-        return True
-    return upper.startswith("CONTRADICTION") or "FAILURE" in upper
 
 
 def _node_float(node: Node | None) -> float | None:

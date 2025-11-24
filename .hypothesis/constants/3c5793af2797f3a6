@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/evolution/intent_patch_generator.py
+# hypothesis_version: 6.148.2
+
+[', ', 'data', 'intent_lexicon.json', 'metanucleus', 'pt', 'src', 'utf-8']

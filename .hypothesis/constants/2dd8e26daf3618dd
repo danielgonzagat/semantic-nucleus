@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/state.py
+# hypothesis_version: 6.148.2
+
+[0.0, 0.6, 128, 256, 'ALIGN', 'ANSWER', 'Config', 'EXPLAIN', 'INFER', 'ISR', 'Lexicon', 'LogicEngine | None', 'NORMALIZE', 'NSR_EPISODES_PATH', 'Rule', 'SessionCtx', 'Token', 'hybrid', 'initial_isr', 'pos_hint', 'qualifiers', 'rel_words', 'relations', 'synonyms']

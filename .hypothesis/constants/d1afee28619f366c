@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/evolution/meta_calculus_auto_patch.py
+# hypothesis_version: 6.148.2
+
+[0.1, 0.15, 1.0, 1000, '.metanucleus', 'calc_rule_mismatch', 'data', 'defaults', 'enabled', 'fail_count', 'failures_processed', 'id', 'meta_calculus', 'metanucleus', 'min_weight', 'mismatch_log.jsonl', 'r', 'rule_id', 'rules', 'src', 'type', 'utf-8', 'weight', '{}\n']

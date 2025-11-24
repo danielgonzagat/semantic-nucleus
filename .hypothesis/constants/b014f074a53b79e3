@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/semantics/intent_lexicon.py
+# hypothesis_version: 6.148.2
+
+['IntentLexicon', '[?!.,;:]+', 'add_pattern', 'data', 'detect_language', 'infer_intent', 'intent_lexicon.json', 'load_intent_lexicon', 'metanucleus', 'pt', 'save_intent_lexicon', 'src', 'utf-8']
