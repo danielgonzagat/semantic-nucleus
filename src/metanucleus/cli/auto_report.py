@@ -54,26 +54,55 @@ def build_report(root: Path, targets: Sequence[tuple[str, Path]]) -> list[FileSu
     return summaries
 
 
-def format_report(entries: Sequence[FileSummary], as_json: bool) -> str:
+def summaries_to_payload(entries: Sequence[FileSummary]) -> list[dict]:
+    return [
+        {
+            "label": entry.label,
+            "path": str(entry.path),
+            "exists": entry.exists,
+            "count": entry.count,
+            "last_entry": entry.last_entry,
+        }
+        for entry in entries
+    ]
+
+
+def format_payload(payload: Sequence[dict], as_json: bool) -> str:
     if as_json:
-        payload = [
-            {
-                "label": entry.label,
-                "path": str(entry.path),
-                "exists": entry.exists,
-                "count": entry.count,
-                "last_entry": entry.last_entry,
-            }
-            for entry in entries
-        ]
         return json.dumps(payload, ensure_ascii=False, indent=2)
     lines: list[str] = []
-    for entry in entries:
-        status = "missing" if not entry.exists else "ok"
-        lines.append(f"[{entry.label}] {status} :: {entry.count} registros :: {entry.path}")
-        if entry.last_entry:
-            preview = json.dumps(entry.last_entry, ensure_ascii=False)[:240]
+    for entry in payload:
+        status = "missing" if not entry.get("exists") else "ok"
+        lines.append(
+            f"[{entry.get('label')}] {status} :: {entry.get('count', 0)} registros :: {entry.get('path')}"
+        )
+        last_entry = entry.get("last_entry")
+        if last_entry:
+            preview = json.dumps(last_entry, ensure_ascii=False)[:240]
             lines.append(f"  ↳ última entrada: {preview}")
+    return "\n".join(lines)
+
+
+def format_diff(current: Sequence[dict], previous: Sequence[dict] | None) -> str:
+    prev_map = {entry.get("label"): entry for entry in (previous or [])}
+    lines: list[str] = []
+    for entry in current:
+        label = entry.get("label")
+        prev = prev_map.pop(label, None)
+        prev_count = prev.get("count", 0) if prev else 0
+        prev_exists = prev.get("exists") if prev else False
+        delta = entry.get("count", 0) - prev_count
+        exists_change = ""
+        if prev and prev_exists != entry.get("exists"):
+            exists_change = f" status {prev_exists}->{entry.get('exists')}"
+        if not prev:
+            lines.append(f"[{label}] novo arquivo (count={entry.get('count',0)})")
+        elif delta or exists_change:
+            lines.append(
+                f"[{label}] Δcount {delta:+d}{exists_change} (agora {entry.get('count',0)})"
+            )
+    for label, prev in prev_map.items():
+        lines.append(f"[{label}] removido (count anterior {prev.get('count',0)})")
     return "\n".join(lines)
 
 
@@ -82,9 +111,10 @@ def render_report(
     targets: Sequence[tuple[str, Path]],
     *,
     as_json: bool,
-) -> str:
+) -> tuple[str, list[dict]]:
     summaries = build_report(root, targets)
-    return format_report(summaries, as_json=as_json)
+    payload = summaries_to_payload(summaries)
+    return format_payload(payload, as_json=as_json), payload
 
 
 def resolve_targets(
@@ -141,7 +171,37 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default=0.0,
         help="Quando >0, reexecuta o relatório a cada N segundos até Ctrl+C.",
     )
+    parser.add_argument(
+        "--snapshot",
+        help="Quando informado, grava o relatório atual (JSON) no caminho indicado.",
+    )
+    parser.add_argument(
+        "--diff",
+        help="Compara o relatório atual com um snapshot JSON anterior e imprime as diferenças.",
+    )
     return parser.parse_args(argv)
+
+
+def load_snapshot(path: str | None) -> list[dict] | None:
+    if not path:
+        return None
+    snap_path = Path(path)
+    if not snap_path.exists():
+        return None
+    try:
+        with snap_path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+            return data if isinstance(data, list) else None
+    except (OSError, json.JSONDecodeError):
+        return None
+
+
+def write_snapshot(path: str | None, payload: Sequence[dict]) -> None:
+    if not path:
+        return
+    snap_path = Path(path)
+    snap_path.parent.mkdir(parents=True, exist_ok=True)
+    snap_path.write_text(json.dumps(payload, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -149,9 +209,18 @@ def main(argv: list[str] | None = None) -> int:
     root = Path(args.root).resolve()
     targets = resolve_targets(root, args.paths, args.glob_patterns)
     watch_interval = max(0.0, float(args.watch or 0.0))
+    baseline = load_snapshot(args.diff)
     try:
         while True:
-            print(render_report(root, targets, as_json=args.json))
+            text, payload = render_report(root, targets, as_json=args.json)
+            if baseline:
+                diff_text = format_diff(payload, baseline)
+                if diff_text:
+                    print(diff_text)
+            print(text)
+            if args.snapshot:
+                write_snapshot(args.snapshot, payload)
+                baseline = payload if args.diff and args.diff == args.snapshot else baseline
             if watch_interval <= 0.0:
                 break
             time.sleep(watch_interval)

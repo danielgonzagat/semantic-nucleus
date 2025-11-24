@@ -33,7 +33,8 @@ def test_build_report_uses_defaults(tmp_path: Path):
 def test_format_report_json(tmp_path: Path):
     write_jsonl(tmp_path / "file.jsonl", [{"foo": "bar"}])
     summary = auto_report.summarize_file("file", tmp_path / "file.jsonl")
-    report = auto_report.format_report([summary], as_json=True)
+    payload = auto_report.summaries_to_payload([summary])
+    report = auto_report.format_payload(payload, as_json=True)
     data = json.loads(report)
     assert data[0]["label"] == "file"
     assert data[0]["count"] == 1
@@ -42,12 +43,13 @@ def test_format_report_json(tmp_path: Path):
 def test_render_report_returns_string(tmp_path: Path):
     path = tmp_path / "logs/semantic_mismatches.jsonl"
     write_jsonl(path, [{"msg": "ok"}])
-    output = auto_report.render_report(
+    output, payload = auto_report.render_report(
         tmp_path,
         [("demo", Path("logs/semantic_mismatches.jsonl"))],
         as_json=False,
     )
     assert "[demo]" in output
+    assert payload[0]["count"] == 1
 
 
 def test_resolve_targets_supports_glob(tmp_path: Path):
@@ -61,3 +63,25 @@ def test_resolve_targets_supports_glob(tmp_path: Path):
     labels = {label for label, _ in targets}
     assert "logs/a.jsonl" in labels
     assert "logs/b.jsonl" in labels
+
+
+def test_format_diff_detects_changes():
+    current = [
+        {"label": "a", "count": 5, "exists": True},
+        {"label": "b", "count": 0, "exists": False},
+    ]
+    previous = [
+        {"label": "a", "count": 2, "exists": True},
+        {"label": "c", "count": 1, "exists": True},
+    ]
+    diff = auto_report.format_diff(current, previous)
+    assert "[a]" in diff and "Δcount +3" in diff
+    assert "removido" in diff and "c" in diff
+
+
+def test_snapshot_roundtrip(tmp_path: Path):
+    payload = [{"label": "a", "count": 3, "exists": True}]
+    snap_path = tmp_path / "snap.json"
+    auto_report.write_snapshot(str(snap_path), payload)
+    loaded = auto_report.load_snapshot(str(snap_path))
+    assert loaded == payload

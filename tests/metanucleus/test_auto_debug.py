@@ -67,16 +67,11 @@ def test_auto_debug_respects_skip_auto_evolve(monkeypatch):
 def test_auto_debug_reports_when_enabled(monkeypatch):
     report_calls = []
 
-    def fake_build(root, targets):
-        report_calls.append(("build", tuple(targets)))
-        return ["summary"]
+    def fake_render(root, targets, as_json):
+        report_calls.append((tuple(targets), as_json))
+        return "REPORT", [{"label": "demo", "count": 0, "exists": True}]
 
-    def fake_format(entries, as_json):
-        report_calls.append(("format", as_json))
-        return "REPORT"
-
-    monkeypatch.setattr(auto_debug.auto_report, "build_report", fake_build)
-    monkeypatch.setattr(auto_debug.auto_report, "format_report", fake_format)
+    monkeypatch.setattr(auto_debug.auto_report, "render_report", fake_render)
 
     def fail_once(cmd, env):
         return 1
@@ -92,5 +87,4 @@ def test_auto_debug_reports_when_enabled(monkeypatch):
         runner=fail_once,
     )
     assert rc == 1
-    assert report_calls[0][0] == "build"
-    assert report_calls[1] == ("format", True)
+    assert report_calls[0][1] is True

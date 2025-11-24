@@ -157,6 +157,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   ```bash
   nucleo-auto-report --json
   ```
+- Gere snapshots para auditoria e diffs automáticos: `nucleo-auto-report --snapshot reports/latest.json --diff reports/baseline.json`.
 
 ## Camadas principais
 

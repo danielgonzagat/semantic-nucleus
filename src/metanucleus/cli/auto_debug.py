@@ -99,9 +99,9 @@ def _emit_report(
     if not targets:
         return
     root = root or Path.cwd()
-    summaries = auto_report.build_report(root, targets)
+    text, _payload = auto_report.render_report(root, targets, as_json=as_json)
     print("[auto-debug] mismatch summary:", flush=True)
-    print(auto_report.format_report(summaries, as_json=as_json), flush=True)
+    print(text, flush=True)
 
 
 def run_cycle(
