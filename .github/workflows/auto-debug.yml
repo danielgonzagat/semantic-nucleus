@@ -31,6 +31,14 @@ on:
         description: Optional space-separated list of extra JSONL files to include
         required: false
         default: ""
+      report_snapshot:
+        description: Optional path to store the latest report snapshot (JSON)
+        required: false
+        default: ""
+      report_diff:
+        description: Optional snapshot path used as baseline for diffing
+        required: false
+        default: ""
   workflow_call:
     inputs:
       pytest_args:
@@ -61,6 +69,14 @@ on:
         required: false
         type: string
         default: ""
+      report_snapshot:
+        required: false
+        type: string
+        default: ""
+      report_diff:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   auto-debug:
@@ -88,6 +104,8 @@ jobs:
           WF_REPORT: ${{ inputs.report || github.event.inputs.report || 'false' }}
           WF_REPORT_JSON: ${{ inputs.report_json || github.event.inputs.report_json || 'false' }}
           WF_REPORT_PATHS: ${{ inputs.report_paths || github.event.inputs.report_paths || '' }}
+          WF_REPORT_SNAPSHOT: ${{ inputs.report_snapshot || github.event.inputs.report_snapshot || '' }}
+          WF_REPORT_DIFF: ${{ inputs.report_diff || github.event.inputs.report_diff || '' }}
         run: |
           set -euo pipefail
           PYTEST_ARGS="${WF_PYTEST_ARGS}"
@@ -97,6 +115,8 @@ jobs:
           REPORT="${WF_REPORT}"
           REPORT_JSON="${WF_REPORT_JSON}"
           REPORT_PATHS="${WF_REPORT_PATHS}"
+          REPORT_SNAPSHOT="${WF_REPORT_SNAPSHOT}"
+          REPORT_DIFF="${WF_REPORT_DIFF}"
           if [ "${KEEP_MEMORY,,}" = "true" ]; then
             KEEP_FLAG="--keep-memory"
           else
@@ -118,6 +138,14 @@ jobs:
               REPORT_PATH_FLAGS="${REPORT_PATH_FLAGS} --report-path ${path}"
             done
           fi
+          SNAPSHOT_FLAG=""
+          if [ -n "${REPORT_SNAPSHOT}" ]; then
+            SNAPSHOT_FLAG="--report-snapshot ${REPORT_SNAPSHOT}"
+          fi
+          DIFF_FLAG=""
+          if [ -n "${REPORT_DIFF}" ]; then
+            DIFF_FLAG="--report-diff ${REPORT_DIFF}"
+          fi
           echo "::group::nucleo-auto-debug output"
           nucleo-auto-debug \
             --pytest-args "${PYTEST_ARGS}" \
@@ -126,5 +154,7 @@ jobs:
             ${KEEP_FLAG} \
             ${REPORT_FLAG} \
             ${REPORT_JSON_FLAG} \
-            ${REPORT_PATH_FLAGS}
+            ${REPORT_PATH_FLAGS} \
+            ${SNAPSHOT_FLAG} \
+            ${DIFF_FLAG}
           echo "::endgroup::"

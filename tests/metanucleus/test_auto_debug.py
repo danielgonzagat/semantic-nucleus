@@ -76,15 +76,67 @@ def test_auto_debug_reports_when_enabled(monkeypatch):
     def fail_once(cmd, env):
         return 1
 
+    ctx = auto_debug.ReportContext.build(
+        targets=[("demo", Path("foo.jsonl"))],
+        as_json=True,
+        snapshot_path=None,
+        diff_path=None,
+    )
     rc = auto_debug.run_cycle(
         pytest_args=[],
         domains=["all"],
         max_cycles=1,
         skip_auto_evolve=True,
         keep_memory=False,
-        report_targets=[("demo", Path("foo.jsonl"))],
-        report_json=True,
+        report_context=ctx,
         runner=fail_once,
     )
     assert rc == 1
     assert report_calls[0][1] is True
+
+
+def test_auto_debug_report_context_handles_snapshot_and_diff(monkeypatch, tmp_path):
+    snapshot_calls = []
+    diff_calls = []
+
+    def fake_render(root, targets, as_json):
+        return "TXT", [{"label": "demo", "count": 1, "exists": True}]
+
+    def fake_write(path, payload):
+        snapshot_calls.append((path, payload))
+
+    def fake_load(path):
+        return [{"label": "demo", "count": 0, "exists": True}] if path else None
+
+    def fake_diff(curr, prev):
+        diff_calls.append((curr, prev))
+        return "DIFF"
+
+    monkeypatch.setattr(auto_debug.auto_report, "render_report", fake_render)
+    monkeypatch.setattr(auto_debug.auto_report, "write_snapshot", fake_write)
+    monkeypatch.setattr(auto_debug.auto_report, "load_snapshot", fake_load)
+    monkeypatch.setattr(auto_debug.auto_report, "format_diff", fake_diff)
+
+    ctx = auto_debug.ReportContext.build(
+        targets=[("demo", Path("foo.jsonl"))],
+        as_json=False,
+        snapshot_path=str(tmp_path / "snap.json"),
+        diff_path=str(tmp_path / "snap.json"),
+    )
+    assert ctx is not None
+
+    def always_fail(cmd, env):
+        return 1
+
+    rc = auto_debug.run_cycle(
+        pytest_args=[],
+        domains=["all"],
+        max_cycles=1,
+        skip_auto_evolve=True,
+        keep_memory=False,
+        report_context=ctx,
+        runner=always_fail,
+    )
+    assert rc == 1
+    assert snapshot_calls
+    assert diff_calls

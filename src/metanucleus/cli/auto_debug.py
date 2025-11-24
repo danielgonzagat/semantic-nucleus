@@ -7,6 +7,7 @@ import os
 import shlex
 import subprocess
 import sys
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -63,6 +64,14 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         dest="report_paths",
         help="Arquivo JSONL adicional para aparecer no relatório (pode repetir).",
     )
+    parser.add_argument(
+        "--report-snapshot",
+        help="Quando definido, grava o relatório atual (JSON) no caminho indicado.",
+    )
+    parser.add_argument(
+        "--report-diff",
+        help="Compara o relatório atual com um snapshot JSON anterior e imprime o delta.",
+    )
     return parser.parse_args(argv)
 
 
@@ -90,18 +99,54 @@ def _run_command(cmd: list[str], env: dict[str, str]) -> int:
     return result.returncode
 
 
-def _emit_report(
-    targets: Sequence[tuple[str, Path]] | None,
-    *,
-    as_json: bool,
-    root: Path | None = None,
-) -> None:
-    if not targets:
-        return
-    root = root or Path.cwd()
-    text, _payload = auto_report.render_report(root, targets, as_json=as_json)
-    print("[auto-debug] mismatch summary:", flush=True)
-    print(text, flush=True)
+@dataclass
+class ReportContext:
+    targets: Sequence[tuple[str, Path]]
+    as_json: bool
+    root: Path
+    snapshot_path: str | None = None
+    diff_path: str | None = None
+    baseline: list[dict] | None = None
+
+    @classmethod
+    def build(
+        cls,
+        targets: Sequence[tuple[str, Path]] | None,
+        *,
+        as_json: bool,
+        snapshot_path: str | None,
+        diff_path: str | None,
+    ) -> "ReportContext | None":
+        if not targets:
+            return None
+        root = Path.cwd()
+        baseline = auto_report.load_snapshot(diff_path)
+        return cls(
+            targets=targets,
+            as_json=as_json,
+            root=root,
+            snapshot_path=snapshot_path,
+            diff_path=diff_path,
+            baseline=baseline,
+        )
+
+    def emit(self) -> None:
+        text, payload = auto_report.render_report(
+            self.root,
+            self.targets,
+            as_json=self.as_json,
+        )
+        if self.diff_path:
+            diff_text = auto_report.format_diff(payload, self.baseline)
+            if diff_text:
+                print("[auto-debug] mismatch diff:", flush=True)
+                print(diff_text, flush=True)
+        print("[auto-debug] mismatch summary:", flush=True)
+        print(text, flush=True)
+        if self.snapshot_path:
+            auto_report.write_snapshot(self.snapshot_path, payload)
+            if self.diff_path and self.diff_path == self.snapshot_path:
+                self.baseline = payload
 
 
 def run_cycle(
@@ -111,8 +156,7 @@ def run_cycle(
     *,
     skip_auto_evolve: bool,
     keep_memory: bool,
-    report_targets: Sequence[tuple[str, Path]] | None = None,
-    report_json: bool = False,
+    report_context: ReportContext | None = None,
     runner=_run_command,
 ) -> int:
     env = _build_env(disable_memory=not keep_memory)
@@ -123,7 +167,8 @@ def run_cycle(
     attempt = 0
     while attempt < max_cycles:
         attempt += 1
-        _emit_report(report_targets, as_json=report_json)
+        if report_context:
+            report_context.emit()
         print(f"[auto-debug] pytest attempt {attempt}/{max_cycles}", flush=True)
         if runner(pytest_cmd, env) == 0:
             print("[auto-debug] pytest succeeded ✅", flush=True)
@@ -136,7 +181,8 @@ def run_cycle(
         if auto_code != 0:
             print("[auto-debug] metanucleus-auto-evolve failed; aborting cycle.", flush=True)
             return auto_code
-        _emit_report(report_targets, as_json=report_json)
+        if report_context:
+            report_context.emit()
     return 1
 
 
@@ -150,19 +196,23 @@ def main(argv: list[str] | None = None) -> int:
             path = Path(raw)
             label = path.stem or f"custom_{idx+1}"
             report_targets.append((label, path))
+    report_ctx: ReportContext | None = None
     if args.report or report_targets:
         if not report_targets:
             report_targets = [(label, Path(path)) for label, path in auto_report.DEFAULT_TARGETS]
-    else:
-        report_targets = None
+        report_ctx = ReportContext.build(
+            report_targets,
+            as_json=args.report_json,
+            snapshot_path=args.report_snapshot,
+            diff_path=args.report_diff,
+        )
     return run_cycle(
         pytest_args,
         domains,
         args.max_cycles,
         skip_auto_evolve=args.skip_auto_evolve,
         keep_memory=args.keep_memory,
-        report_targets=report_targets,
-        report_json=args.report_json,
+        report_context=report_ctx,
     )
 
 
