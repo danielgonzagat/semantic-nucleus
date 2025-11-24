@@ -142,6 +142,16 @@ Resumo do fluxo:
 pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
+### Pipeline de auto-debug local
+
+- `nucleo-auto-debug` roda `pytest` e, em caso de falha, encadeia `metanucleus-auto-evolve <domínios> --apply` antes de repetir a suíte.  
+  ```bash
+  nucleo-auto-debug --pytest-args "-k runtime -vv" --auto-evolve-domains all
+  ```
+- Persistência do NSR é desativada por padrão (`NSR_MEMORY_STORE_PATH/EPISODES_PATH/INDUCTION_RULES_PATH=""`), evitando que arquivos em `.nsr_memory/` e `.meta/` contaminem depurações determinísticas.
+- Ajuste `--max-cycles` para controlar quantas tentativas executar, `--skip-auto-evolve` para apenas rodar os testes ou `--keep-memory` quando quiser reaproveitar o estado simbólico entre ciclos.
+- Ideal para loops locais de autocura ou para integrar em jobs de CI que precisem tentar remediação automaticamente antes de falhar.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
