@@ -47,6 +47,7 @@ metanucleus-evo-cli = "metanucleus.cli.auto_evolve:main"
 metanucleus-chat = "metanucleus.cli.chat:main"
 metanucleus-daemon = "metanucleus.daemon.auto_pr_daemon:main"
 nucleo-auto-debug = "metanucleus.cli.auto_debug:main"
+nucleo-auto-report = "metanucleus.cli.auto_report:main"
 
 [build-system]
 requires = ["setuptools>=68.0"]

@@ -1,0 +1,39 @@
+import json
+from pathlib import Path
+
+from metanucleus.cli import auto_report
+
+
+def write_jsonl(path: Path, rows: list[dict]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("w", encoding="utf-8") as handle:
+        for row in rows:
+            handle.write(json.dumps(row) + "\n")
+
+
+def test_summarize_file_counts_and_last_entry(tmp_path: Path):
+    file_path = tmp_path / "semantic.jsonl"
+    payload = [{"id": 1, "msg": "a"}, {"id": 2, "msg": "b"}]
+    write_jsonl(file_path, payload)
+    summary = auto_report.summarize_file("semantic", file_path)
+    assert summary.count == 2
+    assert summary.exists is True
+    assert summary.last_entry == payload[-1]
+
+
+def test_build_report_uses_defaults(tmp_path: Path):
+    write_jsonl(tmp_path / "logs/semantic_mismatches.jsonl", [{"id": 7}])
+    summaries = auto_report.build_report(tmp_path, auto_report.DEFAULT_TARGETS)
+    labels = {entry.label for entry in summaries}
+    assert {"semantic", "rule", "meta_calculus"} == labels
+    semantic = next(entry for entry in summaries if entry.label == "semantic")
+    assert semantic.count == 1
+
+
+def test_format_report_json(tmp_path: Path):
+    write_jsonl(tmp_path / "file.jsonl", [{"foo": "bar"}])
+    summary = auto_report.summarize_file("file", tmp_path / "file.jsonl")
+    report = auto_report.format_report([summary], as_json=True)
+    data = json.loads(report)
+    assert data[0]["label"] == "file"
+    assert data[0]["count"] == 1
