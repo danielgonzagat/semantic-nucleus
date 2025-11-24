@@ -147,6 +147,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   - `--log-since 2025-01-01T00:00:00Z` limita a leitura aos mismatches recentes (todos os domínios).
   - `--frame-language pt --frame-language en` restringe os patches de frames aos idiomas informados.
 - Os arquivos `.meta/*_mismatches.jsonl`, `logs/*.jsonl` e `.metanucleus/mismatch_log.jsonl` são rotacionados automaticamente (mantêm ~5 000 entradas mais recentes), impedindo crescimento infinito mesmo em execuções 24/7.
+- O último ciclo gera `.metanucleus/auto_evolve_last.json` com o resumo completo (domínios, filtros aplicados, patches sugeridos/aplicados e estatísticas), útil para auditoria ou dashboards.
 
 ## Camadas principais
 

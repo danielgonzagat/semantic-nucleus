@@ -68,6 +68,12 @@ class AutoEvolutionFilters:
     log_since: Optional[datetime] = None
     frame_languages: Optional[Set[str]] = None
 
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "log_since": self.log_since.isoformat() if self.log_since else None,
+            "frame_languages": sorted(self.frame_languages) if self.frame_languages else [],
+        }
+
 
 @dataclass(slots=True)
 class MetaKernelTurnResult:

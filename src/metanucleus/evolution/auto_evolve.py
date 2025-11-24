@@ -14,10 +14,12 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 
 from metanucleus.kernel.meta_kernel import MetaKernel, AutoEvolutionFilters
 from metanucleus.evolution.types import EvolutionPatch
+from .report import write_auto_evolve_report
 from metanucleus.utils.project import get_project_root
 
 PROJECT_ROOT = get_project_root(Path(__file__))
 LOG_PATH = PROJECT_ROOT / ".metanucleus" / "auto_evolve_last.log"
+REPORT_PATH = PROJECT_ROOT / ".metanucleus" / "auto_evolve_last.json"
 
 
 def _run_command(cmd: List[str], *, capture: bool = False, check: bool = True) -> subprocess.CompletedProcess:
@@ -176,10 +178,9 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
     pytest_code = run_pytest(args.pytest_args, skip=args.skip_tests)
-    frame_languages = args.frame_languages if args.frame_languages else set()
     filters = AutoEvolutionFilters(
         log_since=args.log_since,
-        frame_languages=frame_languages or None,
+        frame_languages=args.frame_languages or None,
     )
 
     patches, stats = run_auto_patches(
@@ -189,6 +190,23 @@ def main(argv: Optional[List[str]] = None) -> None:
         source=args.source,
         filters=filters,
     )
+
+    def emit_report(applied_flag: bool, branch: Optional[str]) -> None:
+        write_auto_evolve_report(
+            REPORT_PATH,
+            domains=args.domains,
+            patches=patches,
+            domain_stats=stats,
+            filters=filters,
+            applied=applied_flag,
+            source=args.source,
+            max_patches=args.max_patches,
+            extra={
+                "cli": "metanucleus.evolution.auto_evolve",
+                "branch": branch,
+                "commit_requested": args.commit,
+            },
+        )
 
     if stats:
         print("[auto-evolve] domínios analisados:")
@@ -210,6 +228,7 @@ def main(argv: Optional[List[str]] = None) -> None:
     if not patches:
         print("[auto-evolve] nenhum patch foi gerado.")
         log_summary([], pytest_code, None)
+        emit_report(False, None)
         return
 
     print(f"[auto-evolve] patches gerados: {len(patches)}")
@@ -220,6 +239,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             print(f"\n--- PATCH #{idx} [{patch.domain}] {patch.title} ---\n")
             print(patch.diff)
         log_summary(patches, pytest_code, None)
+        emit_report(False, None)
         return
 
     branch_name = None
@@ -237,6 +257,7 @@ def main(argv: Optional[List[str]] = None) -> None:
         print("[auto-evolve] nenhum arquivo mudou após aplicar patches; commit ignorado.")
 
     log_summary(patches, pytest_code, branch_name)
+    emit_report(True, branch_name)
 
 
 if __name__ == "__main__":  # pragma: no cover

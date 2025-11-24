@@ -5,8 +5,14 @@ import sys
 from typing import Iterable, List, Optional
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from metanucleus.kernel.meta_kernel import MetaKernel, AutoEvolutionFilters
+from metanucleus.evolution.report import write_auto_evolve_report
+from metanucleus.utils.project import get_project_root
+
+PROJECT_ROOT = get_project_root(Path(__file__))
+REPORT_PATH = PROJECT_ROOT / ".metanucleus" / "auto_evolve_last.json"
 
 
 def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
@@ -166,6 +172,18 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             suffix = f" ({'; '.join(details)})" if details else ""
             print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
         print()
+
+    write_auto_evolve_report(
+        REPORT_PATH,
+        domains=domains,
+        patches=patches,
+        domain_stats=eval_stats,
+        filters=filters,
+        applied=apply_changes,
+        source=args.source,
+        max_patches=args.max_patches,
+        extra={"cli": "metanucleus-auto-evolve"},
+    )
 
     if not patches:
         print("[metanucleus-auto-evolve] nenhum patch sugerido.")
