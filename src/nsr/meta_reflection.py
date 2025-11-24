@@ -74,6 +74,14 @@ class _ReflectionPhase:
             self.alert = True
 
 
+def _is_alert_decision(decision: _ReflectionDecision) -> bool:
+    upper = decision.label.upper()
+    if decision.category == "meta_guard":
+        return True
+    return upper.startswith("CONTRADICTION") or "FAILURE" in upper
+            self.alert = True
+
+
 _PHASE_LABELS = {
     "meta_ler": "Meta-LER",
     "meta_plan": "Meta-PLANO",
