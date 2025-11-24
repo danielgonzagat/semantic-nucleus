@@ -1,2 +1,6 @@
 [console_scripts]
 metanucleus = metanucleus.cli:main
+metanucleus-auto-evolve = metanucleus.evolution.auto_evolve:main
+metanucleus-chat = metanucleus.cli.chat:main
+metanucleus-daemon = metanucleus.daemon.auto_pr_daemon:main
+metanucleus-evo-cli = metanucleus.cli.auto_evolve:main
