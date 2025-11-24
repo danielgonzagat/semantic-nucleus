@@ -12,7 +12,9 @@ from metanucleus.runtime.conversation import (
 def _mk_session(cfg: MemoryConfig | None = None) -> ConversationSession:
     state = MetaState()
     runtime = MetaRuntime(state=state)
-    return ConversationSession(runtime=runtime, state=ConversationState(), cfg=cfg or MemoryConfig())
+    return ConversationSession(
+        runtime=runtime, state=ConversationState(), cfg=cfg or MemoryConfig()
+    )
 
 
 def test_conversation_tracks_topics_and_memory():
@@ -26,6 +28,7 @@ def test_conversation_tracks_topics_and_memory():
     # dois turns de usuário + dois turns meta
     assert len(session.state.turns) == 4
     user_turns = [t for t in session.state.turns if t.role == "user"]
+    assert len(user_turns) == 2
     assert session.state.active_topic_id is not None
     assert len(session.state.short_mem[session.state.active_topic_id]) >= 1
     # pelo menos um tópico ativo registrado
@@ -36,7 +39,9 @@ def test_conversation_promotes_to_long_memory_when_needed():
     cfg = MemoryConfig(max_short=2, max_long=2, min_tokens_for_long=3)
     session = _mk_session(cfg)
 
-    session.handle_user_message("preciso de detalhes técnicos sobre o metanúcleo simbólico")
+    session.handle_user_message(
+        "preciso de detalhes técnicos sobre o metanúcleo simbólico"
+    )
     session.handle_user_message("ok, e sobre a auto evolução supervisionada?")
     session.handle_user_message("agora fale de inteligência determinística")
 

@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/explain.py
-# hypothesis_version: 6.148.2
-
-[', ', '.', '. ', '; ', 'NOOP', 'REL', 'Relaciones: ', 'Relations : ', 'Relations: ', 'Relações: ', '_', 'action', 'contexto vazio', 'en', 'entidade', 'es', 'estrutura vazia', 'falso', 'fila vazia', 'fr', 'language', 'modifier', 'nenhuma', 'número indefinido', 'object', 'plan_language', 'pt', 'relations', 'render_explanation', 'render_struct_node', 'sem relações', 'subject', 'texto vazio', 'verdadeiro']

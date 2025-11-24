@@ -48,7 +48,9 @@ class MathInstinct:
         if expr_data is None:
             return None
         expression, language = expr_data
-        return MathUtterance(expression=expression, language=language, role="MATH_EVAL", original=text)
+        return MathUtterance(
+            expression=expression, language=language, role="MATH_EVAL", original=text
+        )
 
     def evaluate(self, text: str) -> MathReply | None:
         utterance = self.analyze(text)
@@ -92,7 +94,10 @@ class MathInstinct:
 
 def evaluate_expression(expression: str) -> float:
     expr_ast = ast.parse(expression, mode="eval")
-    return float(_eval_math_node(expr_ast.body))
+    try:
+        return float(_eval_math_node(expr_ast.body))
+    except ZeroDivisionError as exc:
+        raise ValueError("math expression contains invalid division") from exc
 
 
 def _normalize_spaces(text: str) -> str:
@@ -140,7 +145,7 @@ def _eval_math_node(node: ast.AST) -> float:
         if isinstance(node.op, ast.Div):
             return left / right
         if isinstance(node.op, ast.Pow):
-            return left ** right
+            return left**right
     if isinstance(node, ast.UnaryOp) and isinstance(node.op, ALLOWED_UNARY_OPS):
         operand = _eval_math_node(node.operand)
         return operand if isinstance(node.op, ast.UAdd) else -operand

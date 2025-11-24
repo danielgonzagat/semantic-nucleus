@@ -76,7 +76,6 @@ NUMBER_WORDS: Dict[str, Dict[str, float]] = {
         "DOIS": 2,
         "DUAS": 2,
         "TRES": 3,
-        "TRES": 3,
         "QUATRO": 4,
         "CINCO": 5,
         "SEIS": 6,
@@ -244,7 +243,9 @@ class MathInstruction:
     def as_term(self):
         from .lc_omega import LCTerm
 
-        children = tuple(LCTerm(kind="NUM", label=_format_number(value)) for value in self.operands)
+        children = tuple(
+            LCTerm(kind="NUM", label=_format_number(value)) for value in self.operands
+        )
         return LCTerm(kind="MATH_OP", label=self.operation.upper(), children=children)
 
 
@@ -260,7 +261,9 @@ class MathCoreResult:
 def parse_math_phrase(text: str) -> MathInstruction | None:
     normalized = _normalize_upper(text)
     language = _detect_language(normalized)
-    operation = _detect_operation(normalized, language) or _detect_operation(normalized, None)
+    operation = _detect_operation(normalized, language) or _detect_operation(
+        normalized, None
+    )
     numbers = _extract_numbers(text, normalized, language)
     if operation is None and numbers:
         # fallback to raw arithmetic when input already resembles expression
@@ -299,7 +302,9 @@ def evaluate_math_phrase(text: str) -> MathCoreResult | None:
     return MathCoreResult(instruction=instruction, value=value)
 
 
-def _extract_numbers(text: str, normalized: str, language: str | None) -> Tuple[float, ...]:
+def _extract_numbers(
+    text: str, normalized: str, language: str | None
+) -> Tuple[float, ...]:
     values = []
     values.extend(_extract_numeric_literals(text))
     values.extend(_extract_number_words(normalized, language))
@@ -340,7 +345,9 @@ def _extract_number_words(normalized: str, language: str | None) -> Tuple[float,
 
 def _detect_language(normalized: str) -> str:
     for language in LANGUAGE_ORDER:
-        keywords = LANGUAGE_KEYWORD_CACHE.setdefault(language, _language_keywords(language))
+        keywords = LANGUAGE_KEYWORD_CACHE.setdefault(
+            language, _language_keywords(language)
+        )
         if any(keyword in normalized for keyword in keywords):
             return language
     return "und"
@@ -456,4 +463,9 @@ EXPRESSION_BUILDERS = {
 }
 
 
-__all__ = ["MathInstruction", "MathCoreResult", "parse_math_phrase", "evaluate_math_phrase"]
+__all__ = [
+    "MathInstruction",
+    "MathCoreResult",
+    "parse_math_phrase",
+    "evaluate_math_phrase",
+]

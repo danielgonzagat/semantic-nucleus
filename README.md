@@ -124,7 +124,7 @@ O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches d
    metanucleus-evo-cli rules semantics --dry-run
    ```
 
-5. **GitHub Actions** (`.github/workflows/metanucleus-auto-evolution.yml`) executa em todo push para `main`: instala dependências, roda `python -m pytest || true`, chama `metanucleus-auto-evolve all --apply` e, se houver diffs, cria uma branch `auto-evolve/<run_id>` + PR usando `peter-evans/create-pull-request`.
+5. **GitHub Actions** (`.github/workflows/metanucleus-auto-evolution.yml`) executa em todo push para `main`: instala dependências, roda `python -m pytest || true`, chama `metanucleus-auto-evolve all --skip-tests` e, se houver diffs, cria uma branch `auto-evolve/<run_id>` + PR usando `peter-evans/create-pull-request`.
 6. **Daemon 24/7 opcional** (`metanucleus-daemon`) roda o mesmo processo continuamente em qualquer servidor: dá `git pull`, executa testes, chama `MetaKernel.run_auto_evolution_cycle(..., apply_changes=True)`, revalida os testes, cria branch/commit/push e abre PR direto via GitHub API. Configure:
 
    ```bash
@@ -139,12 +139,12 @@ O Metanúcleo não ajusta pesos: ele registra erros estruturados, gera patches d
 Resumo do fluxo:
 
 ```
-pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
+pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --skip-tests → git branch/commit → PR automático → revisão humana
 ```
 
 ### 🔁 Pipeline Auto Debug (diagnóstico + auto-correção)
 
-- `python scripts/auto_debug.py --max-cycles 3 --verbose --report auto_debug.json` executa ciclos determinísticos de **diagnóstico → auto-correção → verificação**. Cada ciclo roda `pre-commit`, `pytest`, `pytest tests/cts` e valida todos os LangPacks (`scripts/langpack_check.py --code {pt,en,es,fr,it}`); se algo falhar, dispara `metanucleus-auto-evolve all --apply` para gerar patches determinísticos e repete até estabilizar ou atingir o limite de ciclos. O relatório JSON registra stdout/stderr, duração e estado de cada comando.
+- `python scripts/auto_debug.py --max-cycles 3 --verbose --report auto_debug.json` executa ciclos determinísticos de **diagnóstico → auto-correção → verificação**. Cada ciclo roda `pytest`, `pytest tests/cts` e valida todos os LangPacks (`scripts/langpack_check.py --code {pt,en,es,fr,it}`); se algo falhar, dispara `metanucleus-auto-evolve all --skip-tests` para gerar patches determinísticos e repete até estabilizar ou atingir o limite de ciclos. O relatório JSON registra stdout/stderr, duração e estado de cada comando.
 - Adicione verificações ou fixers extras via `--diagnostic nome:comando` e `--fix nome:comando` (ex.: `--diagnostic mypy:"mypy src"` ou `--fix formatter:"black src"`), mantendo rastreabilidade completa no relatório.
 - O workflow GitHub Actions `auto-debug.yml` agenda essa rotina diariamente (03:00 UTC) e pode ser disparado manualmente (`workflow_dispatch`). Ao detectar diffs, ele cria a branch `auto-debug/<run_id>`, comita os ajustes e abre um PR automático anexando `auto_debug_report.json` como artefato.
 

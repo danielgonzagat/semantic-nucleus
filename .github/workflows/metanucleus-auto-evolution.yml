@@ -33,7 +33,7 @@ jobs:
       - name: Run auto-evolution
         id: autoevolve
         run: |
-          metanucleus-auto-evolve all --apply || true
+          metanucleus-auto-evolve all --skip-tests || true
           if ! git diff --quiet; then
             BRANCH="auto-evolve/${GITHUB_RUN_ID}"
             git config user.name  "metanucleus-bot"

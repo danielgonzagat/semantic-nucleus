@@ -36,7 +36,13 @@ def _build_romance_verbs(
                         base = lemma
                     form = (base + ending).lower()
                     conjugations.append(
-                        {"lemma": lemma, "tense": tense, "person": person, "number": number, "form": form}
+                        {
+                            "lemma": lemma,
+                            "tense": tense,
+                            "person": person,
+                            "number": number,
+                            "form": form,
+                        }
                     )
                     forms_set.add(form.upper())
                     metadata[form.upper()] = {
@@ -45,7 +51,14 @@ def _build_romance_verbs(
                         "person": person,
                         "number": number,
                     }
-            lexemes.append({"lemma": lemma.upper(), "semantics": semantics, "pos": "VERB", "forms": sorted(forms_set)})
+            lexemes.append(
+                {
+                    "lemma": lemma.upper(),
+                    "semantics": semantics,
+                    "pos": "VERB",
+                    "forms": sorted(forms_set),
+                }
+            )
     return lexemes, conjugations, metadata
 
 
@@ -375,7 +388,6 @@ def build_es_verbs() -> Tuple[List[dict], List[dict], Dict[str, dict]]:
             "partir",
             "sentir",
             "permitir",
-            "descubrir",
             "construir",
             "distribuir",
             "traducir",
@@ -565,13 +577,11 @@ def build_it_verbs() -> Tuple[List[dict], List[dict], Dict[str, dict]]:
             "permettere",
             "sorprendere",
             "decidere",
-            "offrire",
             "difendere",
             "perdere",
             "temere",
             "accendere",
             "discendere",
-            "gestire",
             "promuovere",
             "descrivere",
             "trasmettere",
@@ -1012,7 +1022,15 @@ def build_en_verbs() -> Tuple[List[dict], List[dict], Dict[str, dict]]:
             ("3", "plur", past, "past"),
         ]:
             form_lower = form.lower()
-            conjugations.append({"lemma": lemma, "tense": tense, "person": person, "number": number, "form": form_lower})
+            conjugations.append(
+                {
+                    "lemma": lemma,
+                    "tense": tense,
+                    "person": person,
+                    "number": number,
+                    "form": form_lower,
+                }
+            )
             metadata[form_lower.upper()] = {
                 "lemma": lemma.upper(),
                 "tense": tense,
@@ -1021,8 +1039,20 @@ def build_en_verbs() -> Tuple[List[dict], List[dict], Dict[str, dict]]:
             }
             forms.add(form_lower.upper())
         forms.add(prog.upper())
-        metadata[prog.upper()] = {"lemma": lemma.upper(), "tense": "prog", "person": "-", "number": "-"}
-        lexemes.append({"lemma": lemma.upper(), "semantics": "ACTION", "pos": "VERB", "forms": sorted(forms)})
+        metadata[prog.upper()] = {
+            "lemma": lemma.upper(),
+            "tense": "prog",
+            "person": "-",
+            "number": "-",
+        }
+        lexemes.append(
+            {
+                "lemma": lemma.upper(),
+                "semantics": "ACTION",
+                "pos": "VERB",
+                "forms": sorted(forms),
+            }
+        )
     return lexemes, conjugations, metadata
 
 

@@ -8,7 +8,15 @@ import re
 from dataclasses import dataclass
 from typing import Tuple
 
-from liu import Node, entity, struct as liu_struct, text as liu_text, list_node, number, relation
+from liu import (
+    Node,
+    entity,
+    struct as liu_struct,
+    text as liu_text,
+    list_node,
+    number,
+    relation,
+)
 
 from frontend_python.compiler import compile_source
 from frontend_rust.compiler import compile_items as compile_rust_items
@@ -50,7 +58,9 @@ RUST_FN_PATTERN = re.compile(
 )
 
 
-def maybe_route_code(text_value: str, module_name: str = "input", dialect: str | None = None) -> CodeHook | None:
+def maybe_route_code(
+    text_value: str, module_name: str = "input", dialect: str | None = None
+) -> CodeHook | None:
     """Detecta código determinístico e devolve o pacote LIU correspondente."""
 
     normalized = (dialect or "").lower()
@@ -195,7 +205,9 @@ def _build_context(
             language=entity(language),
             module=entity(module_name),
             relations=number(len(relations)),
-            definitions=number(sum(1 for rel in relations if (rel.label or "").startswith("code/DEFN"))),
+            definitions=number(
+                sum(1 for rel in relations if (rel.label or "").startswith("code/DEFN"))
+            ),
         )
     ]
     for rel in relations[:3]:
@@ -303,23 +315,29 @@ def _parse_generic_params(segment: str) -> list[dict]:
     return params
 
 
-def _outline_relations(language: str, module_name: str, items: list[dict]) -> list[Node]:
+def _outline_relations(
+    language: str, module_name: str, items: list[dict]
+) -> list[Node]:
     rels = []
     for item in items:
         fn_entity = entity(f"code/fn::{language}::{module_name}::{item['name']}")
         params = [
-            struct(tag=entity("code_param"), name=entity(param["name"]), type=text(param.get("type", "")))
+            liu_struct(
+                tag=entity("code_param"),
+                name=entity(param["name"]),
+                type=liu_text(param.get("type", "")),
+            )
             for param in item.get("params", [])
         ]
-        fn_struct = struct(
+        fn_struct = liu_struct(
             tag=entity("code_fn_outline"),
             language=entity(language),
             module=entity(module_name),
             name=entity(item["name"]),
             params=list_node(params),
             param_count=number(len(params)),
-            ret=text(item.get("ret", "")),
-            body=text(item.get("body", "")),
+            ret=liu_text(item.get("ret", "")),
+            body=liu_text(item.get("body", "")),
         )
         rels.append(relation("code/DEFN", fn_entity, fn_struct))
         for param_struct in params:

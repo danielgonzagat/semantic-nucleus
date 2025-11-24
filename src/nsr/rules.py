@@ -4,10 +4,10 @@ Regras e unificação simbólica.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from typing import Dict, Iterable, List, Tuple
 
 from liu import Node, NodeKind
+from .state import Rule
 
 
 Binding = Dict[str, Node]
@@ -42,15 +42,26 @@ def substitute(template: Node, bindings: Binding) -> Node:
         return value
     if template.args:
         new_args = tuple(substitute(arg, bindings) for arg in template.args)
-        return Node(kind=template.kind, label=template.label, args=new_args, fields=template.fields, value=template.value)
+        return Node(
+            kind=template.kind,
+            label=template.label,
+            args=new_args,
+            fields=template.fields,
+            value=template.value,
+        )
     if template.kind is NodeKind.STRUCT:
         new_fields = tuple((k, substitute(v, bindings)) for k, v in template.fields)
-        return Node(kind=template.kind, label=template.label, args=template.args, fields=new_fields, value=template.value)
+        return Node(
+            kind=template.kind,
+            label=template.label,
+            args=template.args,
+            fields=new_fields,
+            value=template.value,
+        )
     return template
 
 
-def apply_rules(facts: Iterable[Node], rules: Iterable["Rule"]) -> List[Node]:
-    from .state import Rule  # avoid cycle
+def apply_rules(facts: Iterable[Node], rules: Iterable[Rule]) -> List[Node]:
 
     produced: List[Node] = []
     fact_list = list(facts)
@@ -61,13 +72,19 @@ def apply_rules(facts: Iterable[Node], rules: Iterable["Rule"]) -> List[Node]:
     return produced
 
 
-def _match_rule(rule: "Rule", facts: List[Node]) -> List[Binding]:
+def _match_rule(rule: Rule, facts: List[Node]) -> List[Binding]:
     results: List[Binding] = []
     _backtrack(rule.if_all, 0, {}, facts, results)
     return results
 
 
-def _backtrack(patterns: Tuple[Node, ...], idx: int, bindings: Binding, facts: List[Node], out: List[Binding]) -> None:
+def _backtrack(
+    patterns: Tuple[Node, ...],
+    idx: int,
+    bindings: Binding,
+    facts: List[Node],
+    out: List[Binding],
+) -> None:
     if idx >= len(patterns):
         out.append(dict(bindings))
         return

@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from metanucleus.core.meta_kernel import MetaKernel
-from metanucleus.testing.calculus_asserts import assert_meta_equivalent, assert_meta_normal_form
+from metanucleus.testing.calculus_asserts import (
+    assert_meta_equivalent,
+    assert_meta_normal_form,
+)
 from metanucleus.testing.semantic_asserts import assert_semantic_label
 
 
@@ -26,7 +29,9 @@ def test_meta_kernel_pipeline_exposes_meta_summary() -> None:
     assert kernel.state.meta_history, "Meta history should mirror NSR summaries."
 
 
-def _check_semantic_frame(kernel: MetaKernel, phrase: str, lang: str, expected_repr: str, issue: str) -> None:
+def _check_semantic_frame(
+    kernel: MetaKernel, phrase: str, lang: str, expected_repr: str, issue: str
+) -> None:
     answer_struct, debug_info = _run_pipeline_and_get_struct(kernel, phrase)
     actual_repr = repr(answer_struct)
     assert_semantic_label(
@@ -67,7 +72,6 @@ def test_runtime_semantics_en_sentence() -> None:
 
 
 def test_runtime_meta_calculus_logging() -> None:
-    kernel = MetaKernel()
     expr = "A + (B + C)"
     nf_real = expr.strip()
     nf_fake = nf_real + " /*fake*/"

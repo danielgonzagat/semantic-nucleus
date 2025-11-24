@@ -11,8 +11,10 @@ def _get_normalize():
     try:
         from metanucleus.core.meta_calculus import normalize  # type: ignore
     except Exception:
+
         def normalize(expr: str) -> str:
             return expr.strip()
+
     return normalize
 
 
@@ -52,7 +54,6 @@ def test_integration_semantics_calculus_auto_evolution_smoke() -> None:
 
 
 def test_integration_forced_mismatches_feed_logs() -> None:
-    kernel = MetaKernel()
     assert_semantic_label(
         text="O carro está andando rápido.",
         expected_label="statement",

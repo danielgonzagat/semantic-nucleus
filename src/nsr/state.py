@@ -6,7 +6,7 @@ from __future__ import annotations
 
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, List, Mapping, Sequence, Tuple, TYPE_CHECKING
+from typing import Deque, List, Mapping, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
@@ -24,10 +24,10 @@ class Config:
     enable_contradiction_check: bool = True
     meta_history_limit: int = 64
     calc_mode: str = "hybrid"
-    memory_store_path: str | None = ".nsr_memory/memory.jsonl"
-    memory_persist_limit: int = 256
-    episodes_path: str | None = ".nsr_memory/episodes.jsonl"
-    induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
+    memory_store_path: str | None = None
+    memory_persist_limit: int = 0
+    episodes_path: str | None = None
+    induction_rules_path: str | None = None
     induction_episode_limit: int = 128
     induction_min_support: int = 3
     normalize_aggressive: bool = False

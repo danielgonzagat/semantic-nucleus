@@ -1,3 +1,0 @@
-"""
-Utilidades compartilhadas do Metanúcleo.
-"""

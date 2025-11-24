@@ -1,6 +1,16 @@
 import nsr.runtime as nsr_runtime
 
-from liu import relation, entity, var, struct, list_node, text, number, operation, NodeKind
+from liu import (
+    relation,
+    entity,
+    var,
+    struct,
+    list_node,
+    text,
+    number,
+    operation,
+    NodeKind,
+)
 
 from nsr import (
     run_text,
@@ -19,7 +29,7 @@ from nsr import (
     MetaTransformResult,
 )
 from nsr.operators import apply_operator
-from nsr.runtime import _state_signature, HaltReason
+from nsr.runtime import HaltReason
 from nsr.state import initial_isr
 from nsr.lex import DEFAULT_LEXICON
 from nsr.lc_omega import MetaCalculation
@@ -43,7 +53,12 @@ def _fake_meta_memory():
         reasoning_digest=text("abc"),
         expression_digest=text("xyz"),
     )
-    return struct(tag=entity("meta_memory"), size=number(1), entries=list_node([entry]), digest=text("deadbeef"))
+    return struct(
+        tag=entity("meta_memory"),
+        size=number(1),
+        entries=list_node([entry]),
+        digest=text("deadbeef"),
+    )
 
 
 def test_run_text_simple():
@@ -81,7 +96,10 @@ def test_infer_rule_adds_relation():
         if_all=(relation("PART_OF", x, y),),
         then=relation("HAS", y, x),
     )
-    session = SessionCtx(kb_rules=(rule,), kb_ontology=(relation("PART_OF", entity("roda"), entity("carro")),))
+    session = SessionCtx(
+        kb_rules=(rule,),
+        kb_ontology=(relation("PART_OF", entity("roda"), entity("carro")),),
+    )
     answer, trace = run_text("A roda existe", session)
     assert "Resumo" in answer or "Explicação" in answer or answer
     assert len(trace.steps) >= 1
@@ -91,19 +109,23 @@ def test_map_and_reduce_enrich_context():
     session = SessionCtx()
     base = struct(subject=entity("carro"))
     isr = initial_isr(base, session)
-    mapped = apply_operator(isr, operation("MAP", list_node([text("a"), text("b")])), session)
+    mapped = apply_operator(
+        isr, operation("MAP", list_node([text("a"), text("b")])), session
+    )
     assert len(mapped.context) > len(isr.context)
-    reduced = apply_operator(mapped, operation("REDUCE", list_node([number(1), number(3)])), session)
+    reduced = apply_operator(
+        mapped, operation("REDUCE", list_node([number(1), number(3)])), session
+    )
     assert any(node.kind is NodeKind.NUMBER for node in reduced.context)
 
 
 def test_runtime_detects_state_variations():
     session = SessionCtx()
     base = struct(subject=entity("carro"))
-    
+
     # Test that different operations produce different execution paths
     result1, trace1 = run_struct(base, session)
-    
+
     # Modify session to create different state progression (extra inference rule)
     rule = Rule(
         if_all=(relation("IS_A", var("?X"), entity("type::veiculo")),),
@@ -111,7 +133,7 @@ def test_runtime_detects_state_variations():
     )
     session_modified = SessionCtx(kb_rules=(rule,))
     result2, trace2 = run_struct(base, session_modified)
-    
+
     # Verify that different configurations lead to detectable differences
     assert trace1.digest != trace2.digest or len(trace1.steps) != len(trace2.steps)
 
@@ -188,10 +210,11 @@ def test_meta_summary_carries_reasoning_digest():
     assert summary_dict["reasoning_step_count"] >= 1
     assert summary_dict["reasoning_trace_digest"]
     assert summary_dict["reasoning_ops"][0]
-    stats = summary_dict["reasoning_operator_stats"]
     ops = summary_dict["reasoning_ops"]
     assert ops
-    assert any("NORMALIZE" in label for label in ops) or any("MEMORY" in label for label in ops)
+    assert any("NORMALIZE" in label for label in ops) or any(
+        "MEMORY" in label for label in ops
+    )
     assert summary_dict["expression_preview"]
     assert summary_dict["expression_quality"] >= 0.0
     assert summary_dict["expression_route"] == "text"
@@ -228,7 +251,9 @@ def test_meta_summary_includes_equation_delta():
     assert summary_dict["equation_trend"] in {"expanding", "regressing", "stable"}
     deltas = summary_dict["equation_section_deltas"]
     assert deltas
-    assert any(entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas)
+    assert any(
+        entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas
+    )
 
 
 def test_meta_memory_includes_equation_trend():
@@ -241,7 +266,12 @@ def test_meta_memory_includes_equation_trend():
     latest = entries.args[-1]
     fields = dict(latest.fields)
     assert fields["equation_digest"].label
-    assert fields["equation_trend"].label in {"initial", "expanding", "stable", "regressing"}
+    assert fields["equation_trend"].label in {
+        "initial",
+        "expanding",
+        "stable",
+        "regressing",
+    }
     assert fields["equation_quality"].label
 
 
@@ -252,7 +282,9 @@ def test_logic_query_generates_proof_summary():
     proof_nodes = [
         node
         for node in outcome.isr.context
-        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "logic_proof"
+        if node.kind is NodeKind.STRUCT
+        and dict(node.fields).get("tag")
+        and dict(node.fields).get("tag").label == "logic_proof"
     ]
     assert proof_nodes
     proof_fields = dict(proof_nodes[-1].fields)
@@ -278,7 +310,9 @@ def test_normalize_operator_deduplicates_relations():
         if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
     ]
     normalize_summary = next(
-        node for node in summary_nodes if dict(node.fields).get("tag").label == "normalize_summary"
+        node
+        for node in summary_nodes
+        if dict(node.fields).get("tag").label == "normalize_summary"
     )
     summary_fields = dict(normalize_summary.fields)
     assert summary_fields["total"].value == 3
@@ -291,7 +325,9 @@ def test_normalize_operator_deduplicates_relations():
 def test_normalize_operator_aggressive_prefers_short_relations():
     session = SessionCtx()
     session.config.normalize_aggressive = True
-    rel_long = relation("DESCRIBE", entity("carro"), text("Carro com quatro rodas e motor potente"))
+    rel_long = relation(
+        "DESCRIBE", entity("carro"), text("Carro com quatro rodas e motor potente")
+    )
     rel_short = relation("DESCRIBE", entity("carro"), text("carro"))
     struct_node = struct(relations=list_node([rel_long, rel_short]))
     isr = initial_isr(struct_node, session)
@@ -301,7 +337,11 @@ def test_normalize_operator_aggressive_prefers_short_relations():
     text_args = [arg.label for arg in remaining.args if arg.kind is NodeKind.TEXT]
     assert text_args and text_args[0].lower() == "carro"
     summary_node = next(
-        node for node in normalized.context if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "normalize_summary"
+        node
+        for node in normalized.context
+        if node.kind is NodeKind.STRUCT
+        and dict(node.fields).get("tag")
+        and dict(node.fields).get("tag").label == "normalize_summary"
     )
     summary_fields = dict(summary_node.fields)
     assert summary_fields["strategy"].label == "aggressive"
@@ -337,7 +377,10 @@ def test_trace_summary_operator_adds_context():
     ]
     assert "trace_summary" in tags
     summary_node = next(
-        node for node in outcome.isr.context if dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "trace_summary"
+        node
+        for node in outcome.isr.context
+        if dict(node.fields).get("tag")
+        and dict(node.fields).get("tag").label == "trace_summary"
     )
     summary_fields = dict(summary_node.fields)
     assert summary_fields["total_steps"].value >= 1
@@ -356,8 +399,7 @@ def test_meta_reasoning_includes_normalize_metrics():
     assert reasoning is not None
     operations = dict(reasoning.fields)["operations"].args
     assert any(
-        "NORMALIZE[" in (dict(step.fields)["label"].label or "")
-        for step in operations
+        "NORMALIZE[" in (dict(step.fields)["label"].label or "") for step in operations
     )
 
 
@@ -393,7 +435,10 @@ def test_session_ctx_accumulates_meta_history():
     for text_value in texts:
         run_text(text_value, session)
     assert len(session.meta_history) == len(texts)
-    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    previews = [
+        meta_summary_to_dict(summary)["input_preview"]
+        for summary in session.meta_history
+    ]
     assert previews == list(texts)
 
 
@@ -404,7 +449,10 @@ def test_meta_history_respects_limit():
     run_text("O carro tem roda", session)
     run_text("O carro anda rapido", session)
     assert len(session.meta_history) == 2
-    previews = [meta_summary_to_dict(summary)["input_preview"] for summary in session.meta_history]
+    previews = [
+        meta_summary_to_dict(summary)["input_preview"]
+        for summary in session.meta_history
+    ]
     assert previews == ["O carro tem roda", "O carro anda rapido"]
 
 
@@ -417,7 +465,9 @@ def test_text_route_trace_logs_phi_plan(monkeypatch):
         "maybe_route_code",
         "maybe_route_text",
     ):
-        monkeypatch.setattr(f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None)
+        monkeypatch.setattr(
+            f"nsr.meta_transformer.{target}", lambda *args, **kwargs: None
+        )
     outcome = run_text_full("como você está?", session)
     assert outcome.trace.steps[0].startswith("1:Φ_PLAN[STATE_QUERY")
 
@@ -536,7 +586,9 @@ def test_invariant_failure_triggers_halt(monkeypatch):
     session = SessionCtx()
 
     def fake_validate(self, previous=None, quality_tolerance=1e-3):
-        return EquationInvariantStatus(ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5)
+        return EquationInvariantStatus(
+            ok=False, failures=("forced",), quality_regression=True, quality_delta=-0.5
+        )
 
     monkeypatch.setattr(EquationSnapshotStats, "validate", fake_validate)
     outcome = run_text_full("Um carro existe", session)
@@ -608,7 +660,9 @@ def test_run_text_handles_spanish_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("El coche tiene una rueda", session)
     answer_lower = answer.lower()
-    assert any(prefix in answer_lower for prefix in ("relações:", "relaciones:", "relations:"))
+    assert any(
+        prefix in answer_lower for prefix in ("relações:", "relaciones:", "relations:")
+    )
     assert "carro has roda" in answer.lower()
 
 
@@ -616,7 +670,9 @@ def test_run_text_handles_french_relation_sentence():
     session = SessionCtx()
     answer, _ = run_text("La voiture a une roue", session)
     answer_lower = answer.lower()
-    assert any(prefix in answer_lower for prefix in ("relações:", "relations :", "relations:"))
+    assert any(
+        prefix in answer_lower for prefix in ("relações:", "relations :", "relations:")
+    )
     assert "carro has roda" in answer.lower()
 
 
@@ -658,7 +714,11 @@ def soma(x, y):
     assert meta_dict["code_summary_function_count"] >= 1
     assert meta_dict["code_summary_digest"]
     assert "soma" in meta_dict["code_summary_functions"]
-    detail = next(item for item in meta_dict["code_summary_function_details"] if item["name"] == "soma")
+    detail = next(
+        item
+        for item in meta_dict["code_summary_function_details"]
+        if item["name"] == "soma"
+    )
     assert detail["param_count"] == 2
     assert detail["parameters"][:2] == ["x", "y"]
 
@@ -728,7 +788,6 @@ def test_run_text_handles_french_health_question():
 
 
 def test_run_text_handles_french_verbose_health_question():
-    session = SessionCtx()
     answer, trace = run_text("bonjour, comment ça va?")
     assert answer == "je vais bien, et toi?"
     assert any("IAN[QUESTION_HEALTH_VERBOSE_FR" in step for step in trace.steps)
@@ -776,7 +835,6 @@ def test_ian_reply_language_spanish():
 
 
 def test_ian_reply_language_french():
-    session = SessionCtx()
     outcome = run_text_full("bonjour, comment ça va?")
     reply_fields = _extract_ian_reply(outcome)
     assert reply_fields is not None
@@ -826,7 +884,9 @@ def test_language_hint_controls_non_ian_renderer(monkeypatch):
     session.language_hint = "en"
 
     def fake_detect(text_value: str):
-        return LanguageDetectionResult(category="text", language=None, confidence=0.0, dialect=None, hints=())
+        return LanguageDetectionResult(
+            category="text", language=None, confidence=0.0, dialect=None, hints=()
+        )
 
     monkeypatch.setattr("nsr.meta_transformer.detect_language_profile", fake_detect)
     answer, _ = run_text("O carro tem roda", session)

@@ -37,11 +37,32 @@ def _base_charset() -> Tuple[str, ...]:
         "Ç",
     )
     digits = tuple("0123456789")
-    punct = (" ", ",", ".", "?", "!", ";", ":", "'", "(", ")", "+", "-", "*", "/", "^", "%", "¿", "¡")
+    punct = (
+        " ",
+        ",",
+        ".",
+        "?",
+        "!",
+        ";",
+        ":",
+        "'",
+        "(",
+        ")",
+        "+",
+        "-",
+        "*",
+        "/",
+        "^",
+        "%",
+        "¿",
+        "¡",
+    )
     return letters + accented + digits + punct
 
 
-def _build_char_tables(sequence: Sequence[str]) -> Tuple[Dict[str, int], Dict[int, str]]:
+def _build_char_tables(
+    sequence: Sequence[str],
+) -> Tuple[Dict[str, int], Dict[int, str]]:
     char_to_code: Dict[str, int] = {}
     code_to_char: Dict[int, str] = {}
     for idx, char in enumerate(sequence, start=1):
@@ -124,7 +145,9 @@ def decode_codes(codes: Sequence[int], table: Mapping[int, str] | None = None) -
     return "".join(chars)
 
 
-def word_signature(word: str, base: int = 257, table: Mapping[str, int] | None = None) -> int:
+def word_signature(
+    word: str, base: int = 257, table: Mapping[str, int] | None = None
+) -> int:
     """
     Reduz uma palavra a um único inteiro, preservando ordem dos símbolos (Gödel-like).
     """
@@ -154,7 +177,9 @@ def _normalize_char(char: str, table: Mapping[str, int] | None = None) -> str | 
     return upper if upper in table else None
 
 
-def conjugate(lemma: str, tense: str = "pres", person: int = 1, number: str = "sing") -> str:
+def conjugate(
+    lemma: str, tense: str = "pres", person: int = 1, number: str = "sing"
+) -> str:
     key = (lemma.lower(), tense.lower(), str(person), number.lower())
     if key not in CONJUGATION_TABLE:
         raise ValueError(f"Conjugation not defined for {key}")
@@ -163,7 +188,12 @@ def conjugate(lemma: str, tense: str = "pres", person: int = 1, number: str = "s
 
 def _register_conjugations(entries) -> None:
     for entry in entries:
-        key = (entry.lemma.lower(), entry.tense.lower(), str(entry.person), entry.number.lower())
+        key = (
+            entry.lemma.lower(),
+            entry.tense.lower(),
+            str(entry.person),
+            entry.number.lower(),
+        )
         CONJUGATION_TABLE.setdefault(key, entry.form)
 
 
@@ -329,7 +359,9 @@ class IANInstinct:
         tokens = self.tokenize(text)
         role, semantics = self._infer_role(tokens)
         language = self._infer_language(role, tokens)
-        return Utterance(role=role, semantics=semantics, language=language, tokens=tokens)
+        return Utterance(
+            role=role, semantics=semantics, language=language, tokens=tokens
+        )
 
     def reply(self, text: str) -> ReplyPlan:
         utterance = self.analyze(text)
@@ -340,7 +372,9 @@ class IANInstinct:
         for rule in self.dialog_rules:
             if rule.matches(utterance):
                 materialized = self._materialize_rule_tokens(rule)
-                codes = tuple(self._encode_token_surface(token) for token in materialized)
+                codes = tuple(
+                    self._encode_token_surface(token) for token in materialized
+                )
                 return ReplyPlan(
                     role=rule.reply_role,
                     semantics=rule.reply_semantics,
@@ -372,7 +406,9 @@ class IANInstinct:
 
     def _infer_role(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
         content_tokens = tuple(token for token in tokens if not token.is_punctuation)
-        semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in content_tokens]
+        semantics_seq = [
+            t.lexeme.semantics if t.lexeme else None for t in content_tokens
+        ]
         verbose_role = self._matches_verbose_health_question(tokens, semantics_seq)
         if verbose_role:
             return verbose_role, "STATE_QUERY"
@@ -425,7 +461,18 @@ class IANInstinct:
             return "it"
         if role.endswith("_PT") or "_PT_" in role:
             return "pt"
-        if role in {"GREETING_SIMPLE", "QUESTION_HEALTH", "QUESTION_HEALTH_VERBOSE", "STATE_POSITIVE", "STATE_NEGATIVE", "THANKS", "QUESTION_FACT", "COMMAND", "FAREWELL", "CONFIRM"}:
+        if role in {
+            "GREETING_SIMPLE",
+            "QUESTION_HEALTH",
+            "QUESTION_HEALTH_VERBOSE",
+            "STATE_POSITIVE",
+            "STATE_NEGATIVE",
+            "THANKS",
+            "QUESTION_FACT",
+            "COMMAND",
+            "FAREWELL",
+            "CONFIRM",
+        }:
             return "pt"
         return "und"
 
@@ -441,38 +488,59 @@ class IANInstinct:
         if not has_question_mark or len(filtered) < 2:
             return None
         head = tuple(filtered[:3])
-        first_surface = (self._first_surface_with_semantics(tokens, "QUESTION_HOW") or "").upper()
+        first_surface = (
+            self._first_surface_with_semantics(tokens, "QUESTION_HOW") or ""
+        ).upper()
         if head == PT_VERBOSE_SEQUENCE:
             if self._contains_french_verbose_marker(tokens):
                 return "QUESTION_HEALTH_VERBOSE_FR"
             return "QUESTION_HEALTH_VERBOSE"
         if head == EN_VERBOSE_SEQUENCE:
             return "QUESTION_HEALTH_VERBOSE_EN"
-        if (head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG) and first_surface in {"COMO", "CÓMO"}:
+        if (
+            head[:2] == ES_VERBOSE_SEQUENCE_SHORT or head == ES_VERBOSE_SEQUENCE_LONG
+        ) and first_surface in {"COMO", "CÓMO"}:
             return "QUESTION_HEALTH_VERBOSE_ES"
-        if (head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG) and first_surface == "COME":
+        if (
+            head[:2] == IT_VERBOSE_SEQUENCE_SHORT or head == IT_VERBOSE_SEQUENCE_LONG
+        ) and first_surface == "COME":
             return "QUESTION_HEALTH_VERBOSE_IT"
         return None
 
     @staticmethod
     def _is_english_greeting(tokens: Sequence[IANToken]) -> bool:
-        return any((not token.is_punctuation) and token.normalized in EN_GREETING_SURFACES for token in tokens)
+        return any(
+            (not token.is_punctuation) and token.normalized in EN_GREETING_SURFACES
+            for token in tokens
+        )
 
     @staticmethod
     def _is_spanish_greeting(tokens: Sequence[IANToken]) -> bool:
-        return any((not token.is_punctuation) and token.normalized in ES_GREETING_SURFACES for token in tokens)
+        return any(
+            (not token.is_punctuation) and token.normalized in ES_GREETING_SURFACES
+            for token in tokens
+        )
 
     @staticmethod
     def _is_french_greeting(tokens: Sequence[IANToken]) -> bool:
-        return any((not token.is_punctuation) and token.normalized in FR_GREETING_SURFACES for token in tokens)
+        return any(
+            (not token.is_punctuation) and token.normalized in FR_GREETING_SURFACES
+            for token in tokens
+        )
 
     @staticmethod
     def _is_italian_greeting(tokens: Sequence[IANToken]) -> bool:
-        return any((not token.is_punctuation) and token.normalized in IT_GREETING_SURFACES for token in tokens)
+        return any(
+            (not token.is_punctuation) and token.normalized in IT_GREETING_SURFACES
+            for token in tokens
+        )
 
     @staticmethod
     def _contains_french_verbose_marker(tokens: Sequence[IANToken]) -> bool:
-        return any((not token.is_punctuation) and token.normalized in FR_VERBOSE_KEYWORDS for token in tokens)
+        return any(
+            (not token.is_punctuation) and token.normalized in FR_VERBOSE_KEYWORDS
+            for token in tokens
+        )
 
     def _greeting_role(self, tokens: Sequence[IANToken]) -> str:
         if self._is_english_greeting(tokens):
@@ -488,7 +556,9 @@ class IANInstinct:
     def _thanks_role(self, tokens: Sequence[IANToken]) -> str | None:
         for token in tokens:
             if token.lexeme and token.lexeme.semantics == "THANKS":
-                return self._role_from_surface(token.normalized, THANKS_SURFACES, "THANKS")
+                return self._role_from_surface(
+                    token.normalized, THANKS_SURFACES, "THANKS"
+                )
         return None
 
     def _command_role(self, tokens: Sequence[IANToken]) -> str | None:
@@ -496,26 +566,34 @@ class IANInstinct:
             if token.is_punctuation:
                 continue
             if token.lexeme and token.lexeme.semantics == "COMMAND":
-                return self._role_from_surface(token.normalized, COMMAND_SURFACES, "COMMAND")
+                return self._role_from_surface(
+                    token.normalized, COMMAND_SURFACES, "COMMAND"
+                )
             break
         return None
 
     def _farewell_role(self, tokens: Sequence[IANToken]) -> str | None:
         for token in tokens:
             if token.lexeme and token.lexeme.semantics == "FAREWELL":
-                return self._role_from_surface(token.normalized, FAREWELL_SURFACES, "FAREWELL")
+                return self._role_from_surface(
+                    token.normalized, FAREWELL_SURFACES, "FAREWELL"
+                )
         return None
 
     def _confirm_role(self, tokens: Sequence[IANToken]) -> str | None:
         for token in tokens:
             if token.lexeme and token.lexeme.semantics == "CONFIRM":
-                return self._role_from_surface(token.normalized, CONFIRM_SURFACES, "CONFIRM")
+                return self._role_from_surface(
+                    token.normalized, CONFIRM_SURFACES, "CONFIRM"
+                )
         return None
 
     def _fact_question_role(self, tokens: Sequence[IANToken]) -> str | None:
         for token in tokens:
             if token.lexeme and token.lexeme.semantics == "QUESTION_FACT":
-                return self._role_from_surface(token.normalized, FACT_SURFACES, "QUESTION_FACT")
+                return self._role_from_surface(
+                    token.normalized, FACT_SURFACES, "QUESTION_FACT"
+                )
         return None
 
     def _health_question_role(
@@ -530,7 +608,6 @@ class IANInstinct:
             if semantics_seq[next_idx] != "STATE_GOOD":
                 continue
             first_surface = tokens[idx].normalized
-            second_surface = tokens[next_idx].normalized
             if first_surface.startswith("TODO"):
                 return "QUESTION_HEALTH_ES"
             if first_surface == "TOUT":
@@ -541,7 +618,9 @@ class IANInstinct:
         return None
 
     @staticmethod
-    def _next_semantic_index(semantics_seq: Sequence[str | None], start: int) -> int | None:
+    def _next_semantic_index(
+        semantics_seq: Sequence[str | None], start: int
+    ) -> int | None:
         for idx in range(start, len(semantics_seq)):
             semantic = semantics_seq[idx]
             if semantic is None or semantic == "BE_STATE":
@@ -554,23 +633,32 @@ class IANInstinct:
         semantics = [t.lexeme.semantics if t.lexeme else None for t in tokens]
         if any(sem == "STATE_BAD" for sem in semantics):
             return "NEGATIVE"
-        if any(sem == "NEGATE" for sem in semantics) and any(sem == "STATE_GOOD" for sem in semantics):
+        if any(sem == "NEGATE" for sem in semantics) and any(
+            sem == "STATE_GOOD" for sem in semantics
+        ):
             return "NEGATIVE"
         if any(sem == "STATE_GOOD" for sem in semantics):
-            has_self = any((t.lexeme and t.lexeme.semantics in {"SELF", "BE_STATE"}) for t in tokens)
+            has_self = any(
+                (t.lexeme and t.lexeme.semantics in {"SELF", "BE_STATE"})
+                for t in tokens
+            )
             if has_self:
                 return "POSITIVE"
         return None
 
     @staticmethod
-    def _role_from_surface(surface: str, lookup: Mapping[str, frozenset[str]], base: str) -> str:
+    def _role_from_surface(
+        surface: str, lookup: Mapping[str, frozenset[str]], base: str
+    ) -> str:
         for code, values in lookup.items():
             if surface in values:
                 return f"{base}_{code.upper()}"
         return base
 
     @staticmethod
-    def _first_surface_with_semantics(tokens: Sequence[IANToken], semantics: str) -> str | None:
+    def _first_surface_with_semantics(
+        tokens: Sequence[IANToken], semantics: str
+    ) -> str | None:
         for token in tokens:
             if token.lexeme and token.lexeme.semantics == semantics:
                 return token.normalized
@@ -654,7 +742,11 @@ def _render_tokens(tokens: Sequence[str]) -> str:
         if token in ",.?!;:":
             result = result.rstrip() + token
         else:
-            if result and not result.endswith((" ", "\n")) and result[-1] not in ",.?!;:":
+            if (
+                result
+                and not result.endswith((" ", "\n"))
+                and result[-1] not in ",.?!;:"
+            ):
                 result += " "
             elif result and result[-1] in ",.?!;:":
                 result += " "

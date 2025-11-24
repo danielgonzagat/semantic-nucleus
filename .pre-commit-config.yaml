@@ -1,3 +1,10 @@
+exclude: |
+  (?x)(
+    ^build/
+    |^\.hypothesis/
+    |^src/nucleo_originario\.egg-info/
+  )
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.5
@@ -10,7 +17,7 @@ repos:
       - id: black
         language_version: python3
   - repo: https://github.com/tox-dev/pyproject-fmt
-    rev: v1.9.0
+    rev: 0.13.1
     hooks:
       - id: pyproject-fmt
   - repo: https://github.com/pre-commit/pre-commit-hooks
