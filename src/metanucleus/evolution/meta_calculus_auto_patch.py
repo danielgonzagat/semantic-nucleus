@@ -25,12 +25,13 @@ class CalcRuleFailure:
     count: int
 
 
-def _load_calc_rule_failures(max_items: int = 1000) -> List[CalcRuleFailure]:
+def _iter_calc_rule_records(records: List[Dict] | None):
+    if records is not None:
+        for record in records:
+            yield record
+        return
     if not _LOG_PATH.exists():
-        return []
-
-    counter: Counter[str] = Counter()
-    consumed = 0
+        return
     with _LOG_PATH.open("r", encoding="utf-8") as fh:
         for line in fh:
             line = line.strip()
@@ -40,16 +41,25 @@ def _load_calc_rule_failures(max_items: int = 1000) -> List[CalcRuleFailure]:
                 data = json.loads(line)
             except json.JSONDecodeError:
                 continue
-            if data.get("type") != "calc_rule_mismatch":
-                continue
-            rule_id = str(data.get("rule_id") or "").strip()
-            if not rule_id:
-                continue
-            counter[rule_id] += 1
-            consumed += 1
-            if consumed >= max_items:
-                break
+            yield data
 
+
+def _load_calc_rule_failures(
+    max_items: int = 1000,
+    records: List[Dict] | None = None,
+) -> List[CalcRuleFailure]:
+    counter: Counter[str] = Counter()
+    consumed = 0
+    for data in _iter_calc_rule_records(records):
+        if data.get("type") != "calc_rule_mismatch":
+            continue
+        rule_id = str(data.get("rule_id") or "").strip()
+        if not rule_id:
+            continue
+        counter[rule_id] += 1
+        consumed += 1
+        if max_items and consumed >= max_items:
+            break
     return [CalcRuleFailure(rule_id=k, count=v) for k, v in counter.items()]
 
 
@@ -70,8 +80,11 @@ def _serialize_rules_config(cfg: Dict) -> str:
     return json.dumps(cfg, indent=2, ensure_ascii=False, sort_keys=True)
 
 
-def suggest_meta_calculus_patches(max_mismatches: int = 1000) -> List[EvolutionPatch]:
-    failures = _load_calc_rule_failures(max_items=max_mismatches)
+def suggest_meta_calculus_patches(
+    max_mismatches: int = 1000,
+    records: List[Dict] | None = None,
+) -> List[EvolutionPatch]:
+    failures = _load_calc_rule_failures(max_items=max_mismatches, records=records)
     if not failures:
         return []
 

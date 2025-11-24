@@ -7,6 +7,7 @@ from __future__ import annotations
 import json
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
 
 from liu import to_json
@@ -20,6 +21,10 @@ from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
 from metanucleus.evolution.semantic_frames_auto_patch import suggest_frame_patches
 from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
 from metanucleus.evolution.types import EvolutionPatch
+from metanucleus.evolution.intent_mismatch_log import INTENT_MISMATCH_LOG_PATH
+from metanucleus.evolution.rule_mismatch_log import RULE_MISMATCH_LOG_PATH
+from metanucleus.evolution.semantic_mismatch_log import SEMANTIC_MISMATCH_LOG_PATH
+from metanucleus.utils.project import get_project_root
 
 if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
@@ -37,6 +42,7 @@ class AutoEvolutionConfig:
     enable_calculus: bool = True
     max_new_intent_rules: int = 10
     max_new_calculus_rules: int = 10
+    log_limit: int | None = 500
 
 
 @dataclass(slots=True)
@@ -64,6 +70,7 @@ class MetaKernel:
     state: MetaState = field(default_factory=MetaState)
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)
     nsr_session: SessionCtx = field(default_factory=SessionCtx)
+    last_evolution_stats: List[Dict[str, str]] = field(default_factory=list, init=False)
 
     @classmethod
     def bootstrap(cls) -> MetaKernel:
@@ -175,17 +182,101 @@ class MetaKernel:
         """
         normalized = _normalize_domains(domains)
         patches: List[EvolutionPatch] = []
+        self.last_evolution_stats = []
 
-        if "intent" in normalized and self.config.auto_evolution.enable_intent:
-            patches.extend(self._suggest_intent_patches())
-        if "rules" in normalized:
-            patches.extend(self._suggest_rule_patches())
-        if "semantics" in normalized or "language" in normalized:
-            patches.extend(self._suggest_semantic_patches())
+        def record(domain: str, status: str, reason: str = "") -> None:
+            self.last_evolution_stats.append(
+                {"domain": domain, "status": status, "reason": reason}
+            )
+
+        def remaining_capacity() -> Optional[int]:
+            if max_patches is None:
+                return None
+            return max(0, max_patches - len(patches))
+
+        log_limit = self.config.auto_evolution.log_limit
+        meta_types: List[str] = []
         if "semantic_frames" in normalized:
-            patches.extend(self._suggest_semantic_frame_patches())
+            meta_types.append("frame_mismatch")
+        if "meta_calculus" in normalized and self.config.auto_evolution.enable_calculus:
+            meta_types.append("calc_rule_mismatch")
+        meta_records: Dict[str, List[Dict[str, Any]]] = (
+            _load_meta_mismatch_records(meta_types, log_limit) if meta_types else {}
+        )
+
+        if "intent" in normalized:
+            if not self.config.auto_evolution.enable_intent:
+                record("intent", "disabled", "config flag disabled")
+            else:
+                available = remaining_capacity()
+                if available is not None and available <= 0:
+                    record("intent", "skipped", "max patches reached")
+                elif not _log_has_entries(INTENT_MISMATCH_LOG_PATH):
+                    record("intent", "skipped", "no intent mismatches")
+                else:
+                    limit = self.config.auto_evolution.max_new_intent_rules
+                    if available is not None:
+                        limit = min(limit, available)
+                    if limit <= 0:
+                        record("intent", "skipped", "max patches reached")
+                    else:
+                        new_patches = self._suggest_intent_patches(
+                            max_candidates=limit,
+                            log_limit=log_limit,
+                        )
+                        patches.extend(new_patches)
+                        record("intent", "executed", f"{len(new_patches)} patch(es)")
+
+        if "rules" in normalized:
+            available = remaining_capacity()
+            if available is not None and available <= 0:
+                record("rules", "skipped", "max patches reached")
+            elif not _log_has_entries(RULE_MISMATCH_LOG_PATH):
+                record("rules", "skipped", "no rule mismatches")
+            else:
+                new_patches = self._suggest_rule_patches(max_rules=available)
+                patches.extend(new_patches)
+                record("rules", "executed", f"{len(new_patches)} patch(es)")
+
+        if "semantics" in normalized or "language" in normalized:
+            available = remaining_capacity()
+            if available is not None and available <= 0:
+                record("semantics", "skipped", "max patches reached")
+            elif not _log_has_entries(SEMANTIC_MISMATCH_LOG_PATH):
+                record("semantics", "skipped", "no semantic mismatches")
+            else:
+                new_patches = self._suggest_semantic_patches(max_groups=available)
+                patches.extend(new_patches)
+                record("semantics", "executed", f"{len(new_patches)} patch(es)")
+
+        if "semantic_frames" in normalized:
+            available = remaining_capacity()
+            if available is not None and available <= 0:
+                record("semantic_frames", "skipped", "max patches reached")
+            else:
+                frame_records = meta_records.get("frame_mismatch", [])
+                if not frame_records:
+                    record("semantic_frames", "skipped", "no frame mismatches")
+                else:
+                    new_patches = self._suggest_semantic_frame_patches(records=frame_records)
+                    patches.extend(new_patches)
+                    record("semantic_frames", "executed", f"{len(new_patches)} patch(es)")
+
         if "meta_calculus" in normalized:
-            patches.extend(self._suggest_meta_calculus_patches())
+            if not self.config.auto_evolution.enable_calculus:
+                record("meta_calculus", "disabled", "config flag disabled")
+            else:
+                available = remaining_capacity()
+                if available is not None and available <= 0:
+                    record("meta_calculus", "skipped", "max patches reached")
+                else:
+                    calc_records = meta_records.get("calc_rule_mismatch", [])
+                    if not calc_records:
+                        record("meta_calculus", "skipped", "no calc_rule mismatches")
+                    else:
+                        new_patches = self._suggest_meta_calculus_patches(records=calc_records)
+                        patches.extend(new_patches)
+                        record("meta_calculus", "executed", f"{len(new_patches)} patch(es)")
 
         if max_patches is not None and len(patches) > max_patches:
             patches = patches[:max_patches]
@@ -199,17 +290,29 @@ class MetaKernel:
 
         return patches
 
-    def _suggest_intent_patches(self) -> List[EvolutionPatch]:
-        limit = self.config.auto_evolution.max_new_intent_rules
-        return suggest_intent_patches(max_candidates=limit)
+    def _suggest_intent_patches(
+        self,
+        max_candidates: Optional[int] = None,
+        log_limit: Optional[int] = None,
+    ) -> List[EvolutionPatch]:
+        limit = max_candidates or self.config.auto_evolution.max_new_intent_rules
+        effective_log_limit = log_limit if log_limit is not None else self.config.auto_evolution.log_limit
+        return suggest_intent_patches(
+            max_candidates=limit,
+            log_limit=effective_log_limit,
+        )
 
-    def _suggest_meta_calculus_patches(self) -> List[EvolutionPatch]:
+    def _suggest_meta_calculus_patches(
+        self,
+        records: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[EvolutionPatch]:
         return suggest_meta_calculus_patches(
-            max_mismatches=self.config.auto_evolution.max_new_calculus_rules
+            max_mismatches=self.config.auto_evolution.max_new_calculus_rules,
+            records=records,
         )
 
     def _suggest_rule_patches(self, max_rules: Optional[int] = None) -> List[EvolutionPatch]:
-        generator = RulePatchGenerator()
+        generator = RulePatchGenerator(log_limit=self.config.auto_evolution.log_limit)
         candidates = generator.generate_patches(max_rules=max_rules or 20)
         patches: List[EvolutionPatch] = []
         for cand in candidates:
@@ -225,7 +328,7 @@ class MetaKernel:
         return patches
 
     def _suggest_semantic_patches(self, max_groups: Optional[int] = None) -> List[EvolutionPatch]:
-        generator = SemanticPatchGenerator()
+        generator = SemanticPatchGenerator(log_limit=self.config.auto_evolution.log_limit)
         candidates = generator.generate_patches(max_groups=max_groups or 20)
         patches: List[EvolutionPatch] = []
         for cand in candidates:
@@ -240,8 +343,11 @@ class MetaKernel:
             )
         return patches
 
-    def _suggest_semantic_frame_patches(self) -> List[EvolutionPatch]:
-        return suggest_frame_patches()
+    def _suggest_semantic_frame_patches(
+        self,
+        records: Optional[List[Dict[str, Any]]] = None,
+    ) -> List[EvolutionPatch]:
+        return suggest_frame_patches(records=records)
 
 
 def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
@@ -289,3 +395,53 @@ def _calc_result_to_dict(calc_result: "MetaCalculationResult") -> Dict[str, Any]
     if calc_result.code_summary is not None:
         payload["code_summary"] = json.loads(to_json(calc_result.code_summary))
     return payload
+
+
+_PROJECT_ROOT = get_project_root(Path(__file__))
+_META_MISMATCH_LOG_PATH = _PROJECT_ROOT / ".metanucleus" / "mismatch_log.jsonl"
+
+
+def _log_has_entries(path: Path) -> bool:
+    try:
+        return path.exists() and path.stat().st_size > 0
+    except OSError:
+        return False
+
+
+def _load_meta_mismatch_records(
+    types: Iterable[str],
+    limit: Optional[int],
+) -> Dict[str, List[Dict[str, Any]]]:
+    unique_types = list(dict.fromkeys(types))
+    records: Dict[str, List[Dict[str, Any]]] = {kind: [] for kind in unique_types}
+    if not unique_types or not _META_MISMATCH_LOG_PATH.exists():
+        return records
+
+    remaining: Dict[str, Optional[int]] = {
+        kind: (limit if limit is not None else None) for kind in unique_types
+    }
+    fulfilled = set()
+
+    with _META_MISMATCH_LOG_PATH.open("r", encoding="utf-8") as fh:
+        for line in fh:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                record = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            kind = record.get("type")
+            if kind not in records:
+                continue
+            bucket = records[kind]
+            bucket.append(record)
+            cap = remaining[kind]
+            if cap is not None:
+                cap -= 1
+                remaining[kind] = cap
+                if cap <= 0:
+                    fulfilled.add(kind)
+                    if len(fulfilled) == len(unique_types):
+                        break
+    return records

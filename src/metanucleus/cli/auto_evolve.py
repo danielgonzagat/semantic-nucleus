@@ -115,6 +115,15 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         print(f"[metanucleus-auto-evolve] erro ao executar ciclo: {exc!r}", file=sys.stderr)
         return 3
 
+    stats = getattr(kernel, "last_evolution_stats", [])
+    if stats:
+        print("[metanucleus-auto-evolve] domínios analisados:")
+        for entry in stats:
+            reason = entry.get("reason")
+            suffix = f" ({reason})" if reason else ""
+            print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
+        print()
+
     if not patches:
         print("[metanucleus-auto-evolve] nenhum patch sugerido.")
         return 0

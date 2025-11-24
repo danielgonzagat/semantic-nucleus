@@ -142,6 +142,8 @@ Resumo do fluxo:
 pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
+- `metanucleus-auto-evolve` detecta automaticamente quais domínios têm mismatches nos logs e pula os demais, exibindo um resumo por domínio (`executed`, `skipped`, `disabled`). Isso evita leituras desnecessárias de arquivos grandes e torna o ciclo mais rápido.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.

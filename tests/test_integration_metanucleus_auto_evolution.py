@@ -49,6 +49,10 @@ def test_integration_semantics_calculus_auto_evolution_smoke() -> None:
     for patch in patches:
         assert patch.type in {"intent", "meta_calculus"}
         assert patch.diff
+    stats = kernel.last_evolution_stats
+    assert stats
+    domains = {entry.get("domain") for entry in stats}
+    assert {"intent", "meta_calculus"}.issubset(domains)
 
 
 def test_integration_forced_mismatches_feed_logs() -> None:

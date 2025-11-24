@@ -10,7 +10,7 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Tuple
 
 from metanucleus.kernel.meta_kernel import MetaKernel
 from metanucleus.evolution.types import EvolutionPatch
@@ -71,7 +71,7 @@ def run_auto_patches(
     max_patches: Optional[int],
     apply_changes: bool,
     source: str,
-) -> List[EvolutionPatch]:
+) -> Tuple[List[EvolutionPatch], List[Dict[str, str]]]:
     kernel = MetaKernel()
     patches = kernel.run_auto_evolution_cycle(
         domains=domains,
@@ -79,7 +79,8 @@ def run_auto_patches(
         apply_changes=apply_changes,
         source=source,
     )
-    return patches
+    stats = getattr(kernel, "last_evolution_stats", [])
+    return patches, stats
 
 
 def log_summary(patches: List[EvolutionPatch], pytest_code: Optional[int], branch: Optional[str]) -> None:
@@ -148,12 +149,20 @@ def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
     pytest_code = run_pytest(args.pytest_args, skip=args.skip_tests)
-    patches = run_auto_patches(
+    patches, stats = run_auto_patches(
         args.domains,
         max_patches=args.max_patches,
         apply_changes=not args.dry_run,
         source=args.source,
     )
+
+    if stats:
+        print("[auto-evolve] domínios analisados:")
+        for entry in stats:
+            reason = entry.get("reason")
+            suffix = f" ({reason})" if reason else ""
+            print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
+        print()
 
     if not patches:
         print("[auto-evolve] nenhum patch foi gerado.")

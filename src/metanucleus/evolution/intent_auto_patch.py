@@ -12,12 +12,15 @@ from metanucleus.evolution.types import EvolutionPatch
 from metanucleus.utils.project import get_project_root
 
 
-def suggest_intent_patches(max_candidates: int | None = None) -> List[EvolutionPatch]:
+def suggest_intent_patches(
+    max_candidates: int | None = None,
+    log_limit: int | None = None,
+) -> List[EvolutionPatch]:
     """
     Converte IntentLexiconPatchCandidate em EvolutionPatch padronizados.
     """
     project_root = get_project_root(Path(__file__))
-    generator = IntentLexiconPatchGenerator(project_root=project_root)
+    generator = IntentLexiconPatchGenerator(project_root=project_root, log_limit=log_limit)
     limit = max_candidates or 5
     candidates = generator.generate_patches(max_candidates=limit)
     patches: List[EvolutionPatch] = []

@@ -69,7 +69,9 @@ def _index_patterns(patterns: List[FramePattern]) -> Dict[Tuple[str, str], Frame
     return idx
 
 
-def _load_frame_mismatches() -> List[Dict[str, Any]]:
+def _load_frame_mismatches(records: List[Dict[str, Any]] | None = None) -> List[Dict[str, Any]]:
+    if records is not None:
+        return list(records)
     if not _LOG_PATH.exists():
         return []
     entries: List[Dict[str, Any]] = []
@@ -87,8 +89,8 @@ def _load_frame_mismatches() -> List[Dict[str, Any]]:
     return entries
 
 
-def suggest_frame_patches() -> List[EvolutionPatch]:
-    mismatches = _load_frame_mismatches()
+def suggest_frame_patches(records: List[Dict[str, Any]] | None = None) -> List[EvolutionPatch]:
+    mismatches = _load_frame_mismatches(records)
     if not mismatches:
         return []
 
