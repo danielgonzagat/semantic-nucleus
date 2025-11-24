@@ -87,6 +87,28 @@ def render_report(
     return format_report(summaries, as_json=as_json)
 
 
+def resolve_targets(
+    root: Path,
+    path_args: Sequence[str] | None,
+    glob_args: Sequence[str] | None,
+) -> list[tuple[str, Path]]:
+    targets: list[tuple[str, Path]] = []
+    if path_args:
+        for idx, raw in enumerate(path_args):
+            path = (root / raw).resolve()
+            label = Path(raw).stem or f"target_{idx+1}"
+            targets.append((label, path))
+    if glob_args:
+        for pattern in glob_args:
+            matches = sorted(p for p in root.glob(pattern or "") if p.is_file())
+            for match in matches:
+                rel = match.relative_to(root)
+                targets.append((str(rel), match.resolve()))
+    if not targets:
+        targets = [(label, (root / rel_path).resolve()) for label, rel_path in DEFAULT_TARGETS]
+    return targets
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="nucleo-auto-report",
@@ -101,6 +123,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--paths",
         nargs="*",
         help="Lista personalizada de arquivos JSONL para resumir.",
+    )
+    parser.add_argument(
+        "--glob",
+        action="append",
+        dest="glob_patterns",
+        help="Pattern (relative ao --root) para incluir múltiplos arquivos. Pode repetir.",
     )
     parser.add_argument(
         "--json",
@@ -119,10 +147,7 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     root = Path(args.root).resolve()
-    if args.paths:
-        targets = [(Path(p).stem or f"target_{idx}", Path(p)) for idx, p in enumerate(args.paths)]
-    else:
-        targets = DEFAULT_TARGETS
+    targets = resolve_targets(root, args.paths, args.glob_patterns)
     watch_interval = max(0.0, float(args.watch or 0.0))
     try:
         while True:

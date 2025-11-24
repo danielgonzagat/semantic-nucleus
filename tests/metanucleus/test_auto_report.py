@@ -48,3 +48,16 @@ def test_render_report_returns_string(tmp_path: Path):
         as_json=False,
     )
     assert "[demo]" in output
+
+
+def test_resolve_targets_supports_glob(tmp_path: Path):
+    write_jsonl(tmp_path / "logs/a.jsonl", [{"a": 1}])
+    write_jsonl(tmp_path / "logs/b.jsonl", [{"b": 2}])
+    targets = auto_report.resolve_targets(
+        tmp_path,
+        path_args=None,
+        glob_args=["logs/*.jsonl"],
+    )
+    labels = {label for label, _ in targets}
+    assert "logs/a.jsonl" in labels
+    assert "logs/b.jsonl" in labels

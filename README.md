@@ -153,7 +153,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 - Ideal para loops locais de autocura ou para integrar em jobs de CI que precisem tentar remediação automaticamente antes de falhar.
 - Workflow GitHub [`auto-debug.yml`](.github/workflows/auto-debug.yml) expõe um gatilho `workflow_dispatch`/`workflow_call` para executar o mesmo pipeline direto na nuvem.
 - Use `--report` (e opcionalmente `--report-json` / `--report-path`) para imprimir um resumo dos mismatches entre cada tentativa.
-- Combine com `nucleo-auto-report` para resumir rapidamente `logs/*.jsonl` e `.meta/*.jsonl` após uma execução (use `--watch 5` para reemitir a cada 5s):
+- Combine com `nucleo-auto-report` para resumir rapidamente `logs/*.jsonl` e `.meta/*.jsonl` após uma execução (use `--watch 5` para reemitir a cada 5s ou `--glob "logs/*.jsonl"` para pegar todos os arquivos disponíveis):
   ```bash
   nucleo-auto-report --json
   ```
