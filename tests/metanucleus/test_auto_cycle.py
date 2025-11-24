@@ -48,3 +48,38 @@ def test_auto_cycle_prunes_on_failure_when_requested(monkeypatch):
     rc = auto_cycle.main(["--post-report", "--prune-on-fail"])
     assert rc == 1
     assert any(cmd[0] == "nucleo-auto-prune" for cmd in spy.commands)
+
+
+def test_auto_cycle_focus_only_enables_auto_debug_flag(monkeypatch):
+    spy = SpyRunner([0, 0])
+    monkeypatch.setattr(auto_cycle, "_run", spy)
+    rc = auto_cycle.main(["--focus", "--skip-prune"])
+    assert rc == 0
+    debug_cmd = spy.commands[0]
+    assert "nucleo-auto-debug" == debug_cmd[0]
+    assert "--focus" in debug_cmd
+    assert all(cmd[0] != "nucleo-auto-focus" for cmd in spy.commands)
+
+
+def test_auto_cycle_runs_post_focus_step(monkeypatch):
+    spy = SpyRunner([0, 0, 0])
+    monkeypatch.setattr(auto_cycle, "_run", spy)
+    rc = auto_cycle.main(
+        [
+            "--post-focus",
+            "--report-snapshot",
+            "reports/latest.json",
+            "--focus-format",
+            "command",
+            "--focus-base-command",
+            "python -m pytest",
+        ]
+    )
+    assert rc == 0
+    debug_cmd = spy.commands[0]
+    assert "--focus" in debug_cmd
+    focus_cmd = next(cmd for cmd in spy.commands if cmd[0] == "nucleo-auto-focus")
+    assert "--report" in focus_cmd
+    assert "reports/latest.json" in focus_cmd
+    assert "--format" in focus_cmd
+    assert "--base-command" in focus_cmd

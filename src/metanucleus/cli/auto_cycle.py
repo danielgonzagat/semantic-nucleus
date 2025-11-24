@@ -46,6 +46,32 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--prune-archive-dir", help="Diretório para salvar entradas removidas.")
     parser.add_argument("--prune-dry-run", action="store_true", help="Não altera arquivos ao podar.")
 
+    parser.add_argument(
+        "--focus",
+        action="store_true",
+        help="Passa --focus para o nucleo-auto-debug e imprime sugestões inline.",
+    )
+    parser.add_argument(
+        "--post-focus",
+        action="store_true",
+        help="Executa nucleo-auto-focus após o auto-debug (usa snapshots JSON).",
+    )
+    parser.add_argument(
+        "--focus-report",
+        help="Snapshot JSON consumido por nucleo-auto-focus (default: --report-snapshot ou ci-artifacts/auto-report.json).",
+    )
+    parser.add_argument(
+        "--focus-format",
+        choices=["text", "json", "command"],
+        default="text",
+        help="Formato de saída do nucleo-auto-focus (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--focus-base-command",
+        default="pytest",
+        help="Comando base usado quando --focus-format=command (default: %(default)s).",
+    )
+
     return parser.parse_args(argv)
 
 
@@ -74,7 +100,8 @@ def _build_auto_debug_cmd(args: argparse.Namespace) -> List[str]:
         cmd.append("--keep-memory")
     if args.skip_auto_evolve:
         cmd.append("--skip-auto-evolve")
-    if args.report or args.report_paths or args.report_snapshot or args.report_diff:
+    focus_enabled = args.focus or args.post_focus
+    if args.report or args.report_paths or args.report_snapshot or args.report_diff or focus_enabled:
         cmd.append("--report")
         if args.report_json:
             cmd.append("--report-json")
@@ -84,6 +111,11 @@ def _build_auto_debug_cmd(args: argparse.Namespace) -> List[str]:
             cmd.extend(["--report-snapshot", args.report_snapshot])
         if args.report_diff:
             cmd.extend(["--report-diff", args.report_diff])
+    if focus_enabled:
+        cmd.append("--focus")
+        cmd.extend(["--focus-format", args.focus_format])
+        if args.focus_base_command:
+            cmd.extend(["--focus-base-command", args.focus_base_command])
     return cmd
 
 
@@ -113,6 +145,28 @@ def _build_prune_cmd(args: argparse.Namespace) -> List[str]:
     return cmd
 
 
+def _resolve_focus_report(args: argparse.Namespace) -> str:
+    if args.focus_report:
+        return args.focus_report
+    if args.report_snapshot:
+        return args.report_snapshot
+    return "ci-artifacts/auto-report.json"
+
+
+def _build_focus_cmd(args: argparse.Namespace) -> List[str]:
+    report_path = _resolve_focus_report(args)
+    cmd = [
+        "nucleo-auto-focus",
+        "--report",
+        report_path,
+        "--format",
+        args.focus_format,
+    ]
+    if args.focus_format == "command" or args.focus_base_command != "pytest":
+        cmd.extend(["--base-command", args.focus_base_command])
+    return cmd
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     debug_cmd = _build_auto_debug_cmd(args)
@@ -123,13 +177,18 @@ def main(argv: list[str] | None = None) -> int:
         report_cmd = _build_post_report_cmd(args)
         report_rc = _run(report_cmd)
 
+    focus_rc = 0
+    if args.post_focus:
+        focus_cmd = _build_focus_cmd(args)
+        focus_rc = _run(focus_cmd)
+
     prune_rc = 0
     should_prune = not args.skip_prune and (debug_rc == 0 or args.prune_on_fail)
     if should_prune:
         prune_cmd = _build_prune_cmd(args)
         prune_rc = _run(prune_cmd)
 
-    return debug_rc or report_rc or prune_rc
+    return debug_rc or report_rc or focus_rc or prune_rc
 
 
 if __name__ == "__main__":  # pragma: no cover
