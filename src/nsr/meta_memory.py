@@ -45,6 +45,8 @@ def build_meta_memory(
         digest.update((fields.get("answer_preview").label or "").encode("utf-8"))
         digest.update((fields.get("reasoning_digest").label or "").encode("utf-8"))
         digest.update((fields.get("expression_digest").label or "").encode("utf-8"))
+        reflection_digest_node = fields.get("reflection_digest")
+        digest.update(((reflection_digest_node.label if reflection_digest_node else "")).encode("utf-8"))
         equation_digest_node = fields.get("equation_digest")
         equation_trend_node = fields.get("equation_trend")
         digest.update(((equation_digest_node.label if equation_digest_node else "")).encode("utf-8"))
@@ -75,6 +77,7 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
     proof_truth = str(payload.get("logic_proof_truth") or "")
     proof_query = str(payload.get("logic_proof_query") or "")
     proof_digest = str(payload.get("logic_proof_digest") or "")
+    reflection_digest = str(payload.get("reflection_digest") or "")
     if not preview and not expression_digest and not reasoning_digest and not equation_digest:
         return None
     fields = {
@@ -99,6 +102,8 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
         fields["logic_proof_query"] = liu_text(proof_query)
     if proof_digest:
         fields["logic_proof_digest"] = liu_text(proof_digest)
+    if reflection_digest:
+        fields["reflection_digest"] = liu_text(reflection_digest)
     return liu_struct(**fields)
 
 

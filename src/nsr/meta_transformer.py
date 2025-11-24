@@ -437,6 +437,7 @@ def build_meta_summary(
     halt_reason: str,
     calc_result: "MetaCalculationResult | None" = None,
     meta_reasoning: Node | None = None,
+    meta_reflection: Node | None = None,
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
@@ -467,6 +468,8 @@ def build_meta_summary(
             nodes.append(exec_node)
     if meta_reasoning is not None:
         nodes.append(meta_reasoning)
+    if meta_reflection is not None:
+        nodes.append(meta_reflection)
     if meta_expression is not None:
         nodes.append(meta_expression)
     if meta_memory is not None:
@@ -631,6 +634,23 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                   )
               if stats_list:
                   result["reasoning_operator_stats"] = stats_list
+    reflection_node = nodes.get("meta_reflection")
+    if reflection_node is not None:
+        reflection_fields = _fields(reflection_node)
+        phase_count_node = reflection_fields.get("phase_count")
+        decision_count_node = reflection_fields.get("decision_count")
+        result["reflection_phase_count"] = int(_value(phase_count_node)) if phase_count_node else 0
+        result["reflection_decision_count"] = (
+            int(_value(decision_count_node)) if decision_count_node else 0
+        )
+        result["reflection_phase_chain"] = _label(reflection_fields.get("phase_chain"))
+        result["reflection_dominant_phase"] = _label(reflection_fields.get("dominant_phase"))
+        result["reflection_digest"] = _label(reflection_fields.get("digest"))
+        alert_node = reflection_fields.get("alert_phases")
+        if alert_node is not None and alert_node.kind.name == "LIST":
+            result["reflection_alert_phases"] = [
+                _label(entry) for entry in alert_node.args if _label(entry)
+            ]
     expression_node = nodes.get("meta_expression")
     if expression_node is not None:
         expression_fields = _fields(expression_node)

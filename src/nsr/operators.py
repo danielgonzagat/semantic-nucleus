@@ -250,6 +250,16 @@ def _op_trace_summary(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     return _update(isr, context=context, quality=quality)
 
 
+def _op_trace_reflection(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    reflection_node = args[0] if args else None
+    summary = _build_reflection_summary(reflection_node)
+    if summary is None:
+        return isr
+    context = isr.context + (summary,)
+    quality = min(1.0, max(isr.quality, 0.63))
+    return _update(isr, context=context, quality=quality)
+
+
 def _op_memory_recall(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     if not args:
         return isr
@@ -457,6 +467,7 @@ _HANDLERS: Dict[str, Handler] = {
     "STABILIZE": _op_stabilize,
     "CODE/EVAL_PURE": _op_code_eval_pure,
     "TRACE_SUMMARY": _op_trace_summary,
+    "TRACE_REFLECTION": _op_trace_reflection,
     "MEMORY_RECALL": _op_memory_recall,
     "MEMORY_LINK": _op_memory_link,
     "PROVE": _op_prove,
@@ -474,6 +485,15 @@ def _node_text(node: Node | None) -> str:
     if node.value is not None:
         return str(node.value)
     return ""
+
+
+def _node_numeric_value(node: Node | None) -> float:
+    if node is None or node.value is None:
+        return 0.0
+    try:
+        return float(node.value)
+    except (TypeError, ValueError):
+        return 0.0
 
 
 def _build_trace_summary(reasoning: Node | None) -> Node | None:
@@ -529,6 +549,39 @@ def _build_trace_summary(reasoning: Node | None) -> Node | None:
         summary_fields["reasoning_digest"] = text(digest_label)
     elif reasoning is not None:
         summary_fields["reasoning_digest"] = text(fingerprint(reasoning))
+    return struct(**summary_fields)
+
+
+def _build_reflection_summary(reflection: Node | None) -> Node | None:
+    if reflection is None or reflection.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(reflection.fields)
+    tag_node = fields.get("tag")
+    if not tag_node or (tag_node.label or "").lower() != "meta_reflection":
+        return None
+    phase_count = _node_numeric_value(fields.get("phase_count"))
+    decision_count = _node_numeric_value(fields.get("decision_count"))
+    chain_node = fields.get("phase_chain")
+    digest_node = fields.get("digest")
+    dominant_node = fields.get("dominant_phase")
+    alert_node = fields.get("alert_phases")
+    summary_fields: Dict[str, Node] = {
+        "tag": entity("reflection_summary"),
+        "phase_count": number(phase_count),
+        "decision_count": number(decision_count),
+    }
+    if chain_node is not None:
+        summary_fields["phase_chain"] = chain_node
+    if digest_node is not None:
+        summary_fields["reflection_digest"] = (
+            digest_node if digest_node.kind is not NodeKind.TEXT else digest_node
+        )
+    if dominant_node is not None:
+        summary_fields["dominant_phase"] = dominant_node
+    if alert_node is not None and alert_node.kind is NodeKind.LIST and alert_node.args:
+        summary_fields["alerts"] = alert_node
+    elif alert_node is not None:
+        summary_fields["alerts"] = alert_node
     return struct(**summary_fields)
 
 

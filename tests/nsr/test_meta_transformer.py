@@ -335,6 +335,18 @@ def test_meta_summary_includes_meta_calculation(monkeypatch):
     assert len(summary_dict["meta_digest"]) == 32
 
 
+def test_meta_summary_includes_meta_reflection():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    summary = outcome.meta_summary
+    assert summary is not None
+    summary_dict = meta_summary_to_dict(summary)
+    assert summary_dict["reflection_phase_chain"]
+    assert summary_dict["reflection_digest"]
+    assert summary_dict["reflection_phase_count"] >= 1
+    assert summary_dict["reflection_decision_count"] >= 1
+
+
 def test_meta_summary_includes_plan_metadata_for_math():
     session = SessionCtx()
     transformer = MetaTransformer(session)

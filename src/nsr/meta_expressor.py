@@ -9,6 +9,7 @@ from typing import Optional
 
 from liu import (
     Node,
+    NodeKind,
     entity,
     number,
     list_node,
@@ -30,6 +31,7 @@ def build_meta_expression(
     answer: Node | None,
     *,
     reasoning: Node | None,
+    reflection: Node | None = None,
     quality: float,
     halt_reason: str,
     route: MetaRoute | None,
@@ -61,6 +63,10 @@ def build_meta_expression(
         reasoning_digest = _extract_reasoning_digest(reasoning)
         if reasoning_digest:
             fields["reasoning_digest"] = liu_text(reasoning_digest)
+    if reflection is not None:
+        reflection_digest = _extract_reflection_digest(reflection)
+        if reflection_digest:
+            fields["reflection_digest"] = liu_text(reflection_digest)
     memory_context_nodes = _memory_context(memory_refs)
     if memory_context_nodes:
         fields["memory_context"] = list_node(memory_context_nodes)
@@ -89,6 +95,16 @@ def _extract_reasoning_digest(reasoning: Node) -> Optional[str]:
     if digest_node and (digest_node.label or ""):
         return digest_node.label
     return fingerprint(reasoning)
+
+
+def _extract_reflection_digest(reflection: Node) -> Optional[str]:
+    if reflection.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(reflection.fields)
+    digest_node = fields.get("digest")
+    if digest_node and (digest_node.label or ""):
+        return digest_node.label
+    return fingerprint(reflection)
 
 
 def _memory_context(memory_refs: tuple[Node, ...] | None) -> list[Node]:

@@ -26,6 +26,7 @@ from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculat
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
+from .meta_reflection import build_meta_reflection
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
 from .meta_equation import build_meta_equation_node
@@ -111,6 +112,7 @@ class RunOutcome:
     explanation: str
     meta_summary: Tuple[Node, ...] | None = None
     meta_reasoning: Node | None = None
+    meta_reflection: Node | None = None
     meta_expression: Node | None = None
     meta_memory: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
@@ -265,7 +267,9 @@ def run_struct_full(
         _maybe_attach_calc_answer(isr, calc_result, meta_info)
         snapshot = snapshot_equation(struct_node, isr)
         reasoning_node = build_meta_reasoning(trace.steps)
+        reflection_node = build_meta_reflection(reasoning_node)
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+        isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
         language = _resolve_language(meta_info, session)
         memory_refs = tuple(node for node in session.meta_buffer if node is not None)
         if (
@@ -278,6 +282,7 @@ def run_struct_full(
         meta_expression = build_meta_expression(
             isr.answer,
             reasoning=reasoning_node,
+            reflection=reflection_node,
             quality=isr.quality,
             halt_reason=HaltReason.QUALITY_THRESHOLD.value,
             route=meta_info.route if meta_info else None,
@@ -296,6 +301,7 @@ def run_struct_full(
             answer_text,
             meta_expression,
             reasoning_node,
+            reflection_node,
             equation_node,
             logic_proof_node,
         )
@@ -308,6 +314,7 @@ def run_struct_full(
                 HaltReason.QUALITY_THRESHOLD.value,
                 calc_result,
                 meta_reasoning=reasoning_node,
+                meta_reflection=reflection_node,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
                 meta_equation=equation_node,
@@ -332,6 +339,7 @@ def run_struct_full(
             explanation=render_explanation(isr, struct_node),
             meta_summary=summary,
             meta_reasoning=reasoning_node if meta_info else None,
+            meta_reflection=reflection_node if meta_info else None,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
             calc_plan=calc_plan,
@@ -459,12 +467,15 @@ def run_struct_full(
         last_snapshot = None
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    reflection_node = build_meta_reflection(reasoning_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+    isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
     language = _resolve_language(meta_info, session)
     memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
         isr.answer,
         reasoning=reasoning_node,
+        reflection=reflection_node,
         quality=isr.quality,
         halt_reason=halt_reason.value,
         route=meta_info.route if meta_info else None,
@@ -482,6 +493,7 @@ def run_struct_full(
         answer_text,
         meta_expression,
         reasoning_node,
+        reflection_node,
         equation_node,
         logic_proof_node,
     )
@@ -494,6 +506,7 @@ def run_struct_full(
             halt_reason.value,
             calc_result,
             meta_reasoning=reasoning_node,
+            meta_reflection=reflection_node,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
             meta_equation=equation_node,
@@ -523,6 +536,7 @@ def run_struct_full(
         explanation=render_explanation(isr, struct_node),
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node if meta_info else None,
+        meta_reflection=reflection_node if meta_info else None,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         calc_plan=calc_plan,
@@ -652,6 +666,19 @@ def _apply_trace_summary_if_needed(
     return updated
 
 
+def _apply_reflection_summary_if_needed(
+    isr: ISR,
+    session: SessionCtx,
+    reflection_node: Node | None,
+    trace: Trace,
+) -> ISR:
+    if reflection_node is None:
+        return isr
+    updated = apply_operator(isr, operation("TRACE_REFLECTION", reflection_node), session)
+    trace.add("Φ_META[TRACE_REFLECTION]", updated.quality, len(updated.relations), len(updated.context))
+    return updated
+
+
 def _apply_memory_recall_if_needed(isr: ISR, session: SessionCtx, trace: Trace) -> ISR:
     recall_ops = [
         node
@@ -719,6 +746,7 @@ def _memory_entry_payload(
     answer_text: str,
     meta_expression: Node | None,
     reasoning_node: Node | None,
+    reflection_node: Node | None,
     meta_equation: Node | None,
     logic_proof: Node | None = None,
 ) -> dict[str, object]:
@@ -729,6 +757,8 @@ def _memory_entry_payload(
         "expression_preview": _node_field_label(meta_expression, "preview"),
         "expression_answer_digest": _node_field_label(meta_expression, "answer_digest"),
         "reasoning_trace_digest": _node_field_label(reasoning_node, "digest"),
+        "reflection_digest": _node_field_label(reflection_node, "digest"),
+        "reflection_phase_chain": _node_field_label(reflection_node, "phase_chain"),
     }
     if meta_equation is not None:
         payload["equation_digest"] = _node_field_label(meta_equation, "digest")
@@ -863,12 +893,15 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         logic_proof_node = _latest_logic_proof(isr.context)
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
+    reflection_node = build_meta_reflection(reasoning_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
+    isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
     language = _resolve_language(meta, session)
     memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
         isr.answer,
         reasoning=reasoning_node,
+        reflection=reflection_node,
         quality=isr.quality,
         halt_reason=HaltReason.PLAN_EXECUTED.value,
         route=meta.route,
@@ -882,6 +915,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         answer_text,
         meta_expression,
         reasoning_node,
+        reflection_node,
         equation_node,
         logic_proof_node,
     )
@@ -893,6 +927,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         HaltReason.PLAN_EXECUTED.value,
         calc_result,
         meta_reasoning=reasoning_node,
+        meta_reflection=reflection_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         meta_equation=equation_node,
@@ -918,6 +953,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         explanation=render_explanation(isr, meta.struct_node),
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node,
+        meta_reflection=reflection_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         calc_plan=plan,

@@ -2,15 +2,18 @@ from liu import struct, text
 
 from nsr.meta_expressor import build_meta_expression
 from nsr.meta_reasoner import build_meta_reasoning
+from nsr.meta_reflection import build_meta_reflection
 from nsr.meta_transformer import MetaRoute
 
 
 def test_meta_expressor_generates_preview_and_digests():
     answer = struct(answer=text("Resposta determinística do núcleo."))
     reasoning = build_meta_reasoning(["1:NORMALIZE q=0.30 rel=1 ctx=1"])
+    reflection = build_meta_reflection(reasoning)
     node = build_meta_expression(
         answer,
         reasoning=reasoning,
+        reflection=reflection,
         quality=0.82,
         halt_reason="QUALITY_THRESHOLD",
         route=MetaRoute.TEXT,
@@ -26,6 +29,7 @@ def test_meta_expressor_generates_preview_and_digests():
     assert fields["language"].label == "pt"
     assert fields["answer_digest"].label
     assert "reasoning_digest" in fields
+    assert "reflection_digest" in fields
 
 
 def test_meta_expressor_returns_none_without_answer():
@@ -33,6 +37,7 @@ def test_meta_expressor_returns_none_without_answer():
     node = build_meta_expression(
         empty_answer,
         reasoning=None,
+        reflection=None,
         quality=0.5,
         halt_reason="OPS_QUEUE_EMPTY",
         route=MetaRoute.TEXT,
