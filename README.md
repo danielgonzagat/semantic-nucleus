@@ -160,6 +160,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   nucleo-auto-report --json
   ```
 - Gere snapshots para auditoria e diffs automáticos: `nucleo-auto-report --snapshot reports/latest.json --diff reports/baseline.json`.
+- Acrescente `--focus` ao `nucleo-auto-debug` para que cada relatório gere sugestões de suites (`--focus-format command` imprime o comando completo, `--focus-format json` retorna um payload estruturado). O mapeamento padrão cobre labels `semantic`, `rule`, `meta_calculus`, `logic` e `meta_memory`.
 - Manter os logs enxutos: `nucleo-auto-prune --glob "logs/*.jsonl" --archive-dir logs/archive --max-entries 200` remove entradas antigas, arquivando-as para auditoria.
 - Depois de gerar um snapshot (`ci-artifacts/auto-report.json`, por exemplo), use `nucleo-auto-focus` para sugerir subconjuntos do `pytest` alinhados aos labels dos mismatches:
   ```bash

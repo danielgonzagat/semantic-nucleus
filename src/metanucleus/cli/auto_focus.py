@@ -113,6 +113,15 @@ def render_json(selected: Sequence[str], unknown: Sequence[str]) -> str:
     return json.dumps(payload, ensure_ascii=False, indent=2)
 
 
+def build_command(selected: Sequence[str], base_command: str) -> str:
+    parts: List[str] = [base_command]
+    if selected:
+        parts.extend(selected)
+    else:
+        parts.append("tests")
+    return " ".join(parts)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     args = _parse_args(argv)
     report_path = Path(args.report)
@@ -128,11 +137,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     elif args.format == "json":
         print(render_json(ordered_selected, ordered_unknown))
     elif args.format == "command":
-        if ordered_selected:
-            cmd = [args.base_command, *ordered_selected]
-        else:
-            cmd = [args.base_command, "tests"]
-        print(" ".join(cmd))
+        print(build_command(ordered_selected, args.base_command))
     return 0
 
 

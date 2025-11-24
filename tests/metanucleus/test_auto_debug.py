@@ -140,3 +140,49 @@ def test_auto_debug_report_context_handles_snapshot_and_diff(monkeypatch, tmp_pa
     assert rc == 1
     assert snapshot_calls
     assert diff_calls
+
+
+def test_auto_debug_focus_emits_suggestions(monkeypatch, capsys):
+    payload = [{"label": "semantic"}]
+
+    class DummyReport:
+        def __init__(self):
+            self.calls = 0
+
+        def emit(self):
+            self.calls += 1
+            return payload
+
+    dummy_context = DummyReport()
+
+    def fake_select(entries, mapping):
+        assert entries == payload
+        return {"tests/nsr/test_meta_*"}, set()
+
+    def fake_render(selected, unknown):
+        assert selected == ["tests/nsr/test_meta_*"]
+        assert unknown == []
+        return "FOCUS"
+
+    monkeypatch.setattr(auto_debug.auto_focus, "select_targets", fake_select)
+    monkeypatch.setattr(auto_debug.auto_focus, "render_text", fake_render)
+
+    focus = auto_debug.FocusConfig(fmt="text", base_command="pytest")
+
+    def always_fail(cmd, env):
+        return 1
+
+    rc = auto_debug.run_cycle(
+        pytest_args=[],
+        domains=["all"],
+        max_cycles=1,
+        skip_auto_evolve=True,
+        keep_memory=False,
+        report_context=dummy_context,
+        focus_config=focus,
+        runner=always_fail,
+    )
+    assert rc == 1
+    output = capsys.readouterr().out
+    assert "focus suggestions" in output
+    assert "FOCUS" in output

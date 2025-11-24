@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
-from . import auto_report
+from . import auto_focus, auto_report
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -72,6 +72,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         "--report-diff",
         help="Compara o relatório atual com um snapshot JSON anterior e imprime o delta.",
     )
+    parser.add_argument(
+        "--focus",
+        action="store_true",
+        help="Gera sugestões de pytest com base no relatório atual (implica --report).",
+    )
+    parser.add_argument(
+        "--focus-format",
+        choices=["text", "json", "command"],
+        default="text",
+        help="Formato das sugestões emitidas por --focus (default: %(default)s).",
+    )
+    parser.add_argument(
+        "--focus-base-command",
+        default="pytest",
+        help="Comando base usado quando --focus-format=command (default: %(default)s).",
+    )
     return parser.parse_args(argv)
 
 
@@ -130,7 +146,7 @@ class ReportContext:
             baseline=baseline,
         )
 
-    def emit(self) -> None:
+    def emit(self) -> list[dict]:
         text, payload = auto_report.render_report(
             self.root,
             self.targets,
@@ -147,6 +163,26 @@ class ReportContext:
             auto_report.write_snapshot(self.snapshot_path, payload)
             if self.diff_path and self.diff_path == self.snapshot_path:
                 self.baseline = payload
+        return payload
+
+
+@dataclass
+class FocusConfig:
+    fmt: str
+    base_command: str
+
+    def emit(self, payload: Sequence[dict]) -> None:
+        selected, unknown = auto_focus.select_targets(payload, auto_focus.CATEGORY_TESTS)
+        ordered_selected = sorted(selected)
+        ordered_unknown = sorted(unknown)
+        if self.fmt == "json":
+            text = auto_focus.render_json(ordered_selected, ordered_unknown)
+        elif self.fmt == "command":
+            text = auto_focus.build_command(ordered_selected, self.base_command)
+        else:
+            text = auto_focus.render_text(ordered_selected, ordered_unknown)
+        print("[auto-debug] focus suggestions:", flush=True)
+        print(text, flush=True)
 
 
 def run_cycle(
@@ -157,6 +193,7 @@ def run_cycle(
     skip_auto_evolve: bool,
     keep_memory: bool,
     report_context: ReportContext | None = None,
+    focus_config: FocusConfig | None = None,
     runner=_run_command,
 ) -> int:
     env = _build_env(disable_memory=not keep_memory)
@@ -168,7 +205,9 @@ def run_cycle(
     while attempt < max_cycles:
         attempt += 1
         if report_context:
-            report_context.emit()
+            payload = report_context.emit()
+            if focus_config and payload:
+                focus_config.emit(payload)
         print(f"[auto-debug] pytest attempt {attempt}/{max_cycles}", flush=True)
         if runner(pytest_cmd, env) == 0:
             print("[auto-debug] pytest succeeded ✅", flush=True)
@@ -182,7 +221,9 @@ def run_cycle(
             print("[auto-debug] metanucleus-auto-evolve failed; aborting cycle.", flush=True)
             return auto_code
         if report_context:
-            report_context.emit()
+            payload = report_context.emit()
+            if focus_config and payload:
+                focus_config.emit(payload)
     return 1
 
 
@@ -196,8 +237,10 @@ def main(argv: list[str] | None = None) -> int:
             path = Path(raw)
             label = path.stem or f"custom_{idx+1}"
             report_targets.append((label, path))
+    if args.focus:
+        args.report = True
     report_ctx: ReportContext | None = None
-    if args.report or report_targets:
+    if args.report or report_targets or args.focus:
         if not report_targets:
             report_targets = [(label, Path(path)) for label, path in auto_report.DEFAULT_TARGETS]
         report_ctx = ReportContext.build(
@@ -206,6 +249,9 @@ def main(argv: list[str] | None = None) -> int:
             snapshot_path=args.report_snapshot,
             diff_path=args.report_diff,
         )
+    focus_config: FocusConfig | None = None
+    if args.focus:
+        focus_config = FocusConfig(fmt=args.focus_format, base_command=args.focus_base_command)
     return run_cycle(
         pytest_args,
         domains,
@@ -213,6 +259,7 @@ def main(argv: list[str] | None = None) -> int:
         skip_auto_evolve=args.skip_auto_evolve,
         keep_memory=args.keep_memory,
         report_context=report_ctx,
+        focus_config=focus_config,
     )
 
 
