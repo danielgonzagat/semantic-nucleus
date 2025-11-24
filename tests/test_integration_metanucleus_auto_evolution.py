@@ -53,6 +53,7 @@ def test_integration_semantics_calculus_auto_evolution_smoke() -> None:
     assert stats
     domains = {entry.get("domain") for entry in stats}
     assert {"intent", "meta_calculus"}.issubset(domains)
+    assert any("entries_scanned" in entry for entry in stats)
 
 
 def test_integration_forced_mismatches_feed_logs() -> None:

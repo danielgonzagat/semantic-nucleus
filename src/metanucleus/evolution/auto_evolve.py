@@ -161,11 +161,14 @@ def main(argv: Optional[List[str]] = None) -> None:
         for entry in stats:
             reason = entry.get("reason")
             duration = entry.get("duration_ms")
+            entries_scanned = entry.get("entries_scanned")
             details = []
             if reason:
                 details.append(reason)
             if duration is not None:
                 details.append(f"{duration} ms")
+            if entries_scanned is not None:
+                details.append(f"{entries_scanned} entradas")
             suffix = f" ({'; '.join(details)})" if details else ""
             print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
         print()

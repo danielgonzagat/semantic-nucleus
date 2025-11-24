@@ -203,7 +203,13 @@ class MetaKernel:
         patches: List[EvolutionPatch] = []
         self.last_evolution_stats = []
 
-        def record(domain: str, status: str, reason: str = "", start_time: float | None = None) -> None:
+        def record(
+            domain: str,
+            status: str,
+            reason: str = "",
+            start_time: float | None = None,
+            entries_scanned: Optional[int] = None,
+        ) -> None:
             duration_ms = None
             if start_time is not None:
                 duration_ms = round((perf_counter() - start_time) * 1000, 2)
@@ -213,6 +219,7 @@ class MetaKernel:
                     "status": status,
                     "reason": reason,
                     "duration_ms": duration_ms,
+                    "entries_scanned": entries_scanned,
                 }.items() if v not in (None, "")}
             )
 
@@ -227,9 +234,10 @@ class MetaKernel:
             meta_types.append("frame_mismatch")
         if "meta_calculus" in normalized and self.config.auto_evolution.enable_calculus:
             meta_types.append("calc_rule_mismatch")
-        meta_records: Dict[str, List[Dict[str, Any]]] = (
-            _load_meta_mismatch_records(meta_types, log_limit) if meta_types else {}
-        )
+        meta_records: Dict[str, List[Dict[str, Any]]] = {}
+        meta_counts: Dict[str, int] = {}
+        if meta_types:
+            meta_records, meta_counts = _load_meta_mismatch_records(meta_types, log_limit)
 
         if "intent" in normalized:
             start = perf_counter()
@@ -240,20 +248,27 @@ class MetaKernel:
                 if available is not None and available <= 0:
                     record("intent", "skipped", "max patches reached", start)
                 elif not _log_has_entries(INTENT_MISMATCH_LOG_PATH):
-                    record("intent", "skipped", "no intent mismatches", start)
+                    record("intent", "skipped", "no intent mismatches", start, entries_scanned=0)
                 else:
+                    intent_entries = _count_log_entries(INTENT_MISMATCH_LOG_PATH, log_limit)
                     limit = self.config.auto_evolution.max_new_intent_rules
                     if available is not None:
                         limit = min(limit, available)
                     if limit <= 0:
-                        record("intent", "skipped", "max patches reached", start)
+                        record("intent", "skipped", "max patches reached", start, entries_scanned=intent_entries)
                     else:
                         new_patches = self._suggest_intent_patches(
                             max_candidates=limit,
                             log_limit=log_limit,
                         )
                         patches.extend(new_patches)
-                        record("intent", "executed", f"{len(new_patches)} patch(es)", start)
+                        record(
+                            "intent",
+                            "executed",
+                            f"{len(new_patches)} patch(es)",
+                            start,
+                            entries_scanned=intent_entries,
+                        )
 
         if "rules" in normalized:
             start = perf_counter()
@@ -261,11 +276,18 @@ class MetaKernel:
             if available is not None and available <= 0:
                 record("rules", "skipped", "max patches reached", start)
             elif not _log_has_entries(RULE_MISMATCH_LOG_PATH):
-                record("rules", "skipped", "no rule mismatches", start)
+                record("rules", "skipped", "no rule mismatches", start, entries_scanned=0)
             else:
+                rule_entries = _count_log_entries(RULE_MISMATCH_LOG_PATH, log_limit)
                 new_patches = self._suggest_rule_patches(max_rules=available)
                 patches.extend(new_patches)
-                record("rules", "executed", f"{len(new_patches)} patch(es)", start)
+                record(
+                    "rules",
+                    "executed",
+                    f"{len(new_patches)} patch(es)",
+                    start,
+                    entries_scanned=rule_entries,
+                )
 
         if "semantics" in normalized or "language" in normalized:
             start = perf_counter()
@@ -273,11 +295,18 @@ class MetaKernel:
             if available is not None and available <= 0:
                 record("semantics", "skipped", "max patches reached", start)
             elif not _log_has_entries(SEMANTIC_MISMATCH_LOG_PATH):
-                record("semantics", "skipped", "no semantic mismatches", start)
+                record("semantics", "skipped", "no semantic mismatches", start, entries_scanned=0)
             else:
+                semantic_entries = _count_log_entries(SEMANTIC_MISMATCH_LOG_PATH, log_limit)
                 new_patches = self._suggest_semantic_patches(max_groups=available)
                 patches.extend(new_patches)
-                record("semantics", "executed", f"{len(new_patches)} patch(es)", start)
+                record(
+                    "semantics",
+                    "executed",
+                    f"{len(new_patches)} patch(es)",
+                    start,
+                    entries_scanned=semantic_entries,
+                )
 
         if "semantic_frames" in normalized:
             start = perf_counter()
@@ -287,11 +316,17 @@ class MetaKernel:
             else:
                 frame_records = meta_records.get("frame_mismatch", [])
                 if not frame_records:
-                    record("semantic_frames", "skipped", "no frame mismatches", start)
+                    record("semantic_frames", "skipped", "no frame mismatches", start, entries_scanned=meta_counts.get("frame_mismatch"))
                 else:
                     new_patches = self._suggest_semantic_frame_patches(records=frame_records)
                     patches.extend(new_patches)
-                    record("semantic_frames", "executed", f"{len(new_patches)} patch(es)", start)
+                    record(
+                        "semantic_frames",
+                        "executed",
+                        f"{len(new_patches)} patch(es)",
+                        start,
+                        entries_scanned=meta_counts.get("frame_mismatch"),
+                    )
 
         if "meta_calculus" in normalized:
             start = perf_counter()
@@ -304,11 +339,23 @@ class MetaKernel:
                 else:
                     calc_records = meta_records.get("calc_rule_mismatch", [])
                     if not calc_records:
-                        record("meta_calculus", "skipped", "no calc_rule mismatches", start)
+                        record(
+                            "meta_calculus",
+                            "skipped",
+                            "no calc_rule mismatches",
+                            start,
+                            entries_scanned=meta_counts.get("calc_rule_mismatch"),
+                        )
                     else:
                         new_patches = self._suggest_meta_calculus_patches(records=calc_records)
                         patches.extend(new_patches)
-                        record("meta_calculus", "executed", f"{len(new_patches)} patch(es)", start)
+                        record(
+                            "meta_calculus",
+                            "executed",
+                            f"{len(new_patches)} patch(es)",
+                            start,
+                            entries_scanned=meta_counts.get("calc_rule_mismatch"),
+                        )
 
         if max_patches is not None and len(patches) > max_patches:
             patches = patches[:max_patches]
@@ -440,14 +487,32 @@ def _log_has_entries(path: Path) -> bool:
         return False
 
 
+def _count_log_entries(path: Path, limit: Optional[int]) -> int:
+    if not path.exists():
+        return 0
+    count = 0
+    try:
+        with path.open("r", encoding="utf-8") as fh:
+            for line in fh:
+                if not line.strip():
+                    continue
+                count += 1
+                if limit is not None and count >= limit:
+                    break
+    except OSError:
+        return 0
+    return count
+
+
 def _load_meta_mismatch_records(
     types: Iterable[str],
     limit: Optional[int],
-) -> Dict[str, List[Dict[str, Any]]]:
+) -> tuple[Dict[str, List[Dict[str, Any]]], Dict[str, int]]:
     unique_types = list(dict.fromkeys(types))
     records: Dict[str, List[Dict[str, Any]]] = {kind: [] for kind in unique_types}
+    counts: Dict[str, int] = {kind: 0 for kind in unique_types}
     if not unique_types or not _META_MISMATCH_LOG_PATH.exists():
-        return records
+        return records, counts
 
     remaining: Dict[str, Optional[int]] = {
         kind: (limit if limit is not None else None) for kind in unique_types
@@ -468,6 +533,7 @@ def _load_meta_mismatch_records(
                 continue
             bucket = records[kind]
             bucket.append(record)
+            counts[kind] += 1
             cap = remaining[kind]
             if cap is not None:
                 cap -= 1
@@ -476,4 +542,4 @@ def _load_meta_mismatch_records(
                     fulfilled.add(kind)
                     if len(fulfilled) == len(unique_types):
                         break
-    return records
+    return records, counts

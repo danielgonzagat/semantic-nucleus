@@ -126,6 +126,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 details.append(reason)
             if duration is not None:
                 details.append(f"{duration} ms")
+            entries = entry.get("entries_scanned")
+            if entries is not None:
+                details.append(f"{entries} entradas")
             suffix = f" ({'; '.join(details)})" if details else ""
             print(f"  - {entry.get('domain')}: {entry.get('status')}{suffix}")
         print()
