@@ -5,30 +5,19 @@ Assembler/Disassembler textual para a ΣVM.
 from __future__ import annotations
 
 import shlex
-from typing import Iterable, List, Sequence, Set
+from typing import Iterable, List, Sequence
 
 from .bytecode import Instruction
 from .opcodes import Opcode
-
-_CONST_OPERANDS: Set[Opcode] = {
-    Opcode.PUSH_TEXT,
-    Opcode.PUSH_CONST,
-    Opcode.PUSH_KEY,
-    Opcode.PUSH_NUMBER,
-    Opcode.PUSH_BOOL,
-}
-_REG_OPERANDS: Set[Opcode] = {Opcode.LOAD_REG, Opcode.STORE_REG}
-_COUNT_OPERANDS: Set[Opcode] = {
-    Opcode.NEW_STRUCT,
-    Opcode.BUILD_STRUCT,
-    Opcode.BEGIN_STRUCT,
-    Opcode.NEW_LIST,
-    Opcode.NEW_REL,
-    Opcode.NEW_OP,
-}
-_TARGET_OPERANDS: Set[Opcode] = {Opcode.JMP, Opcode.CALL}
-_OPTIONAL_OPERANDS: Set[Opcode] = {Opcode.TRAP}
-_REQUIRE_OPERAND: Set[Opcode] = _CONST_OPERANDS | _REG_OPERANDS | _COUNT_OPERANDS | _TARGET_OPERANDS
+from .opcode_traits import (
+    CONST_OPERAND_OPS,
+    REG_OPERAND_OPS,
+    COUNT_OPERAND_OPS,
+    TARGET_OPERAND_OPS,
+    OPTIONAL_OPERAND_OPS,
+    REQUIRE_OPERAND_OPS,
+    MAX_REGISTER_INDEX,
+)
 
 
 def assemble(source: str) -> List[Instruction]:
@@ -46,32 +35,32 @@ def assemble(source: str) -> List[Instruction]:
 
 
 def _parse_operand(opcode: Opcode, parts: Sequence[str]) -> int:
-    if opcode in _CONST_OPERANDS:
+    if opcode in CONST_OPERAND_OPS:
         if len(parts) != 2:
             raise ValueError(f"{opcode.name} requires constant index operand")
         return int(parts[1])
-    if opcode in _REG_OPERANDS:
+    if opcode in REG_OPERAND_OPS:
         if len(parts) != 2:
             raise ValueError(f"{opcode.name} requires register operand")
         operand = int(parts[1])
-        if not 0 <= operand <= 7:
+        if not 0 <= operand <= MAX_REGISTER_INDEX:
             raise ValueError("register index must be between 0 and 7")
         return operand
-    if opcode in _COUNT_OPERANDS:
+    if opcode in COUNT_OPERAND_OPS:
         if len(parts) != 2:
             raise ValueError(f"{opcode.name} requires count operand")
         operand = int(parts[1])
         if operand < 0:
             raise ValueError(f"{opcode.name} count operand must be non-negative")
         return operand
-    if opcode in _TARGET_OPERANDS:
+    if opcode in TARGET_OPERAND_OPS:
         if len(parts) != 2:
             raise ValueError(f"{opcode.name} requires target operand")
         operand = int(parts[1])
         if operand < 0:
             raise ValueError("target operand must be non-negative")
         return operand
-    if opcode in _OPTIONAL_OPERANDS:
+    if opcode in OPTIONAL_OPERAND_OPS:
         if len(parts) == 2:
             return int(parts[1])
         if len(parts) > 2:
@@ -85,7 +74,7 @@ def _parse_operand(opcode: Opcode, parts: Sequence[str]) -> int:
 def disassemble(insts: Iterable[Instruction]) -> str:
     lines: List[str] = []
     for inst in insts:
-        if inst.opcode in _REQUIRE_OPERAND or inst.operand:
+        if inst.opcode in REQUIRE_OPERAND_OPS or inst.operand:
             lines.append(f"{inst.opcode.name} {inst.operand}")
         else:
             lines.append(inst.opcode.name)

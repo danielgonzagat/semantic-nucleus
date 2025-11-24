@@ -81,6 +81,16 @@ def _build_parser() -> argparse.ArgumentParser:
         help="Inclui o resumo de código (`code_ast_summary`) serializado quando disponível.",
     )
     parser.add_argument(
+        "--include-equation-trend",
+        action="store_true",
+        help="Inclui resumo determinístico da meta-equação (digests, trend e deltas estruturais).",
+    )
+    parser.add_argument(
+        "--include-proof",
+        action="store_true",
+        help="Inclui o bloco meta_proof (Φ_PROVE) com verdade/query/digest determinísticos quando disponível.",
+    )
+    parser.add_argument(
         "--calc-mode",
         choices=("hybrid", "plan_only", "skip"),
         default=None,
@@ -121,6 +131,10 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     session = SessionCtx()
+    session.config.memory_store_path = None
+    session.config.episodes_path = None
+    session.config.induction_rules_path = None
+    session.meta_buffer = tuple()
     if args.disable_contradictions:
         session.config.enable_contradiction_check = False
     elif args.enable_contradictions:
@@ -210,6 +224,16 @@ def main(argv: list[str] | None = None) -> int:
         payload["lc_meta"] = to_json(outcome.lc_meta)
     if args.include_code_summary and outcome.code_summary is not None:
         payload["code_summary"] = to_json(outcome.code_summary)
+    if args.include_equation_trend:
+        equation_meta = _extract_equation_trend_data(outcome)
+        if equation_meta is None:
+            raise SystemExit("--include-equation-trend requer meta_summary (use --include-meta).")
+        payload["equation_trend_detail"] = equation_meta
+    if args.include_proof:
+        proof_meta = _extract_logic_proof_data(outcome)
+        if proof_meta is None:
+            raise SystemExit("--include-proof requer meta_summary e uma consulta lógica (use --include-meta).")
+        payload["proof_detail"] = proof_meta
 
     serialized = json.dumps(payload, ensure_ascii=False, separators=(",", ":"))
     if args.output:
@@ -326,3 +350,49 @@ def _extract_code_summary_data(outcome) -> dict[str, object] | None:
                 "function_details": function_details,
             }
     return None
+
+
+def _extract_equation_trend_data(outcome) -> dict[str, object] | None:
+    if not outcome.meta_summary:
+        return None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    digest = summary_dict.get("equation_digest")
+    if not digest:
+        return None
+    eq_data: dict[str, object] = {
+        "digest": digest,
+        "input_digest": summary_dict.get("equation_input_digest"),
+        "answer_digest": summary_dict.get("equation_answer_digest"),
+        "quality": summary_dict.get("equation_quality"),
+        "trend": summary_dict.get("equation_trend"),
+    }
+    delta_quality = summary_dict.get("equation_delta_quality")
+    if delta_quality is not None:
+        eq_data["delta_quality"] = delta_quality
+    sections = summary_dict.get("equation_sections")
+    if sections:
+        eq_data["sections"] = sections
+    delta_sections = summary_dict.get("equation_section_deltas")
+    if delta_sections:
+        eq_data["section_deltas"] = delta_sections
+    return eq_data
+
+
+def _extract_logic_proof_data(outcome) -> dict[str, object] | None:
+    if not outcome.meta_summary:
+        return None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    proof_payload = summary_dict.get("logic_proof")
+    truth = summary_dict.get("logic_proof_truth")
+    query = summary_dict.get("logic_proof_query")
+    digest = summary_dict.get("logic_proof_digest")
+    if not (proof_payload or truth or query or digest):
+        return None
+    proof_data: dict[str, object] = {
+        "truth": truth or "unknown",
+        "query": query or "",
+        "digest": digest or "",
+    }
+    if proof_payload:
+        proof_data["proof"] = proof_payload
+    return proof_data

@@ -14,6 +14,7 @@ from ontology import code as code_ontology
 
 if TYPE_CHECKING:
     from .logic_engine import LogicEngine
+    from .equation import EquationSnapshotStats
 
 
 @dataclass(slots=True)
@@ -29,6 +30,7 @@ class Config:
     induction_rules_path: str | None = ".nsr_memory/rule_suggestions.jsonl"
     induction_episode_limit: int = 128
     induction_min_support: int = 3
+    normalize_aggressive: bool = False
 
 
 @dataclass(slots=True)
@@ -105,6 +107,7 @@ class SessionCtx:
     meta_history: List[Tuple[Node, ...]] = field(default_factory=list)
     meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
     memory_loaded: bool = False
+    last_equation_stats: "EquationSnapshotStats | None" = None
 
 
 @dataclass(slots=True)

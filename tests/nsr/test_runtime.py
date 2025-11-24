@@ -204,6 +204,110 @@ def test_meta_summary_carries_reasoning_digest():
     assert outcome.meta_memory is not None
 
 
+def test_meta_summary_includes_equation_snapshot():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe", session)
+    assert outcome.meta_summary is not None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["equation_digest"]
+    assert summary_dict["equation_input_digest"]
+    assert summary_dict["equation_answer_digest"]
+    sections = summary_dict["equation_sections"]
+    assert sections
+    assert any(section["name"] == "relations" for section in sections)
+    assert summary_dict["equation_trend"] == "initial"
+
+
+def test_meta_summary_includes_equation_delta():
+    session = SessionCtx()
+    run_text_full("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.meta_summary is not None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert "equation_delta_quality" in summary_dict
+    assert summary_dict["equation_trend"] in {"expanding", "regressing", "stable"}
+    deltas = summary_dict["equation_section_deltas"]
+    assert deltas
+    assert any(entry["name"] == "relations" and entry["delta_count"] != 0 for entry in deltas)
+
+
+def test_meta_memory_includes_equation_trend():
+    session = SessionCtx()
+    run_text_full("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    meta_memory = outcome.meta_memory
+    assert meta_memory is not None
+    entries = dict(meta_memory.fields)["entries"]
+    latest = entries.args[-1]
+    fields = dict(latest.fields)
+    assert fields["equation_digest"].label
+    assert fields["equation_trend"].label in {"initial", "expanding", "stable", "regressing"}
+    assert fields["equation_quality"].label
+
+
+def test_logic_query_generates_proof_summary():
+    session = SessionCtx()
+    run_text_full("FACT carro is veiculo", session)
+    outcome = run_text_full("QUERY carro is veiculo", session)
+    proof_nodes = [
+        node
+        for node in outcome.isr.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "logic_proof"
+    ]
+    assert proof_nodes
+    proof_fields = dict(proof_nodes[-1].fields)
+    assert proof_fields["truth"].label in {"true", "false", "unknown"}
+    facts_node = proof_fields["facts"]
+    assert facts_node.kind.name == "LIST"
+    assert facts_node.args
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict.get("logic_proof_truth") == "true"
+    assert summary_dict.get("logic_proof_query")
+
+
+def test_normalize_operator_deduplicates_relations():
+    session = SessionCtx()
+    dup = relation("IS_A", entity("carro"), entity("coisa"))
+    struct_node = struct(relations=list_node([dup, dup, dup]))
+    isr = initial_isr(struct_node, session)
+    normalized = apply_operator(isr, operation("NORMALIZE"), session)
+    assert len(normalized.relations) == 1
+    summary_nodes = [
+        node
+        for node in normalized.context
+        if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag")
+    ]
+    normalize_summary = next(
+        node for node in summary_nodes if dict(node.fields).get("tag").label == "normalize_summary"
+    )
+    summary_fields = dict(normalize_summary.fields)
+    assert summary_fields["total"].value == 3
+    assert summary_fields["deduped"].value == 1
+    assert summary_fields["removed"].value == 2
+    assert summary_fields["strategy"].label == "standard"
+    assert "aggressive_removed" not in summary_fields
+
+
+def test_normalize_operator_aggressive_prefers_short_relations():
+    session = SessionCtx()
+    session.config.normalize_aggressive = True
+    rel_long = relation("DESCRIBE", entity("carro"), text("Carro com quatro rodas e motor potente"))
+    rel_short = relation("DESCRIBE", entity("carro"), text("carro"))
+    struct_node = struct(relations=list_node([rel_long, rel_short]))
+    isr = initial_isr(struct_node, session)
+    normalized = apply_operator(isr, operation("NORMALIZE"), session)
+    assert len(normalized.relations) == 1
+    remaining = normalized.relations[0]
+    text_args = [arg.label for arg in remaining.args if arg.kind is NodeKind.TEXT]
+    assert text_args and text_args[0].lower() == "carro"
+    summary_node = next(
+        node for node in normalized.context if node.kind is NodeKind.STRUCT and dict(node.fields).get("tag") and dict(node.fields).get("tag").label == "normalize_summary"
+    )
+    summary_fields = dict(summary_node.fields)
+    assert summary_fields["strategy"].label == "aggressive"
+    assert summary_fields["aggressive_removed"].value >= 1
+
+
 def test_run_outcome_exposes_meta_reasoning_node():
     session = SessionCtx()
     outcome = run_text_full("O carro tem roda", session)
@@ -213,6 +317,9 @@ def test_run_outcome_exposes_meta_reasoning_node():
     operations = fields["operations"]
     assert operations.kind.name == "LIST"
     assert len(operations.args) >= 1
+    first_step_fields = dict(operations.args[0].fields)
+    assert "delta_quality" in first_step_fields
+    assert "delta_relations" in first_step_fields
     assert outcome.meta_expression is not None
     expr_fields = dict(outcome.meta_expression.fields)
     assert expr_fields["tag"].label == "meta_expression"
@@ -236,6 +343,22 @@ def test_trace_summary_operator_adds_context():
     assert summary_fields["total_steps"].value >= 1
     assert summary_fields["unique_ops"].value >= 1
     assert summary_fields["reasoning_digest"].label
+
+
+def test_meta_reasoning_includes_normalize_metrics():
+    session = SessionCtx()
+    session.config.normalize_aggressive = True
+    session.config.memory_store_path = None
+    session.config.episodes_path = None
+    session.meta_buffer = tuple()
+    outcome = run_text_full("Um carro existe", session)
+    reasoning = outcome.meta_reasoning
+    assert reasoning is not None
+    operations = dict(reasoning.fields)["operations"].args
+    assert any(
+        "NORMALIZE[" in (dict(step.fields)["label"].label or "")
+        for step in operations
+    )
 
 
 def test_meta_memory_is_seeded_into_next_turn_context():

@@ -4,6 +4,7 @@ from .vm import SigmaVM, Program, build_program_from_assembly
 from .assembler import assemble, disassemble
 from .bytecode import encode, decode
 from .opcodes import Opcode
+from .verifier import verify_program, VerificationError
 from .snapshots import (
     SNAPSHOT_VERSION,
     SnapshotSignature,
@@ -29,6 +30,8 @@ __all__ = [
     "encode",
     "decode",
     "Opcode",
+    "verify_program",
+    "VerificationError",
     "SNAPSHOT_VERSION",
     "SnapshotSignature",
     "SVMSnapshot",

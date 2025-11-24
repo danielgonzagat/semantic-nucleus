@@ -143,6 +143,8 @@ class SigmaVM:
             self._apply_phi("MEMORY_RECALL")
         elif opcode is Opcode.PHI_MEMORY_LINK:
             self._apply_phi("MEMORY_LINK")
+        elif opcode is Opcode.PHI_PROVE:
+            self._apply_phi("PROVE")
         elif opcode is Opcode.JMP:
             self._instr_jmp(inst.operand)
         elif opcode is Opcode.CALL:

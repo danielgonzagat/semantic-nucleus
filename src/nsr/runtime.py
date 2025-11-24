@@ -28,6 +28,7 @@ from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
+from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
 
@@ -235,6 +236,7 @@ def run_struct_full(
         isr.quality = preseed_quality
     plan_label = _prime_ops_from_meta_calc(isr, struct_node, meta_info)
     trace = Trace(steps=[])
+    logic_proof_node: Node | None = None
     if trace_hint:
         trace.add(trace_hint, isr.quality, len(isr.relations), len(isr.context))
     if plan_label:
@@ -266,6 +268,13 @@ def run_struct_full(
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         language = _resolve_language(meta_info, session)
         memory_refs = tuple(node for node in session.meta_buffer if node is not None)
+        if (
+            meta_info
+            and meta_info.route is MetaRoute.LOGIC
+            and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
+        ):
+            isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+            logic_proof_node = _latest_logic_proof(isr.context)
         meta_expression = build_meta_expression(
             isr.answer,
             reasoning=reasoning_node,
@@ -276,7 +285,20 @@ def run_struct_full(
             memory_refs=memory_refs,
         )
         answer_text = _answer_text(isr)
-        memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+        equation_node = (
+            build_meta_equation_node(snapshot, session.last_equation_stats)
+            if meta_info
+            else None
+        )
+        equation_stats = snapshot.stats()
+        memory_entry = _memory_entry_payload(
+            meta_info,
+            answer_text,
+            meta_expression,
+            reasoning_node,
+            equation_node,
+            logic_proof_node,
+        )
         meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
             build_meta_summary(
@@ -288,6 +310,8 @@ def run_struct_full(
                 meta_reasoning=reasoning_node,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
+                meta_equation=equation_node,
+                meta_proof=logic_proof_node,
             )
             if meta_info
             else None
@@ -296,6 +320,7 @@ def run_struct_full(
             tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
         )
         _persist_meta_memory(session, meta_memory)
+        session.last_equation_stats = equation_stats
         outcome = RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -350,7 +375,10 @@ def run_struct_full(
         op = isr.ops_queue.popleft()
         op_label = op.label or "NOOP"
         isr = apply_operator(isr, op, session)
-        trace.add(op_label, isr.quality, len(isr.relations), len(isr.context))
+        label_for_trace = op_label
+        if op_label.upper() == "NORMALIZE":
+            label_for_trace = _format_normalize_trace_label(op_label, isr.context)
+        trace.add(label_for_trace, isr.quality, len(isr.relations), len(isr.context))
         snapshot_step, stats_step, invariant_status = _audit_state(
             struct_node, isr, trace, last_stats, op_label
         )
@@ -404,6 +432,13 @@ def run_struct_full(
             if status is not None and not status.ok:
                 halt_reason = HaltReason.INVARIANT_FAILURE
     trace.halt(halt_reason, isr, finalized)
+    if (
+        meta_info
+        and meta_info.route is MetaRoute.LOGIC
+        and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
+    ):
+        isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+        logic_proof_node = _latest_logic_proof(isr.context)
     answer_text = _answer_text(isr)
     if session.logic_engine:
         session.logic_serialized = serialize_logic_engine(session.logic_engine)
@@ -436,7 +471,20 @@ def run_struct_full(
         language=language,
         memory_refs=memory_refs,
     )
-    memory_entry = _memory_entry_payload(meta_info, answer_text, meta_expression, reasoning_node)
+    equation_node = (
+        build_meta_equation_node(snapshot, session.last_equation_stats)
+        if meta_info
+        else None
+    )
+    equation_stats = snapshot.stats()
+    memory_entry = _memory_entry_payload(
+        meta_info,
+        answer_text,
+        meta_expression,
+        reasoning_node,
+        equation_node,
+        logic_proof_node,
+    )
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = (
         build_meta_summary(
@@ -448,6 +496,8 @@ def run_struct_full(
             meta_reasoning=reasoning_node,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
+            meta_equation=equation_node,
+            meta_proof=logic_proof_node,
         )
         if meta_info
         else None
@@ -456,6 +506,7 @@ def run_struct_full(
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
     _persist_meta_memory(session, meta_memory)
+    session.last_equation_stats = equation_stats
     if meta_summary is not None:
         session.meta_history.append(meta_summary)
         limit = getattr(session.config, "meta_history_limit", 0)
@@ -640,20 +691,55 @@ def _apply_memory_link_if_needed(isr: ISR, session: SessionCtx, trace: Trace) ->
     return isr
 
 
+def _format_normalize_trace_label(base_label: str, context: Tuple[Node, ...]) -> str:
+    summary = _latest_tagged_struct(context, "normalize_summary")
+    if summary is None:
+        return base_label
+    fields = dict(summary.fields)
+    total = _node_numeric(fields.get("total"))
+    deduped = _node_numeric(fields.get("deduped"))
+    removed = _node_numeric(fields.get("removed"))
+    aggressive = _node_numeric(fields.get("aggressive_removed"))
+    parts = []
+    if total is not None:
+        parts.append(f"tot={total}")
+    if deduped is not None:
+        parts.append(f"dedup={deduped}")
+    if removed is not None:
+        parts.append(f"rem={removed}")
+    if aggressive:
+        parts.append(f"agg={aggressive}")
+    if not parts:
+        return base_label
+    return f"{base_label}[{','.join(parts)}]"
+
+
 def _memory_entry_payload(
     meta_info: MetaTransformResult | None,
     answer_text: str,
     meta_expression: Node | None,
     reasoning_node: Node | None,
+    meta_equation: Node | None,
+    logic_proof: Node | None = None,
 ) -> dict[str, object]:
     route = meta_info.route.value if meta_info else ""
-    return {
+    payload = {
         "route": route,
         "answer": answer_text,
         "expression_preview": _node_field_label(meta_expression, "preview"),
         "expression_answer_digest": _node_field_label(meta_expression, "answer_digest"),
         "reasoning_trace_digest": _node_field_label(reasoning_node, "digest"),
     }
+    if meta_equation is not None:
+        payload["equation_digest"] = _node_field_label(meta_equation, "digest")
+        payload["equation_quality"] = _node_field_label(meta_equation, "quality")
+        payload["equation_trend"] = _node_field_label(meta_equation, "trend")
+        payload["equation_delta_quality"] = _node_field_label(meta_equation, "delta_quality")
+    if logic_proof is not None:
+        payload["logic_proof_truth"] = _node_field_label(logic_proof, "truth")
+        payload["logic_proof_query"] = _node_field_label(logic_proof, "query")
+        payload["logic_proof_digest"] = fingerprint(logic_proof)
+    return payload
 
 
 def _node_field_label(node: Node | None, field: str) -> str:
@@ -667,6 +753,31 @@ def _node_field_label(node: Node | None, field: str) -> str:
     if value.value is not None:
         return str(value.value)
     return ""
+
+
+def _node_numeric(node: Node | None) -> int | None:
+    if node is None or node.value is None:
+        return None
+    try:
+        return int(node.value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
+    tag_lower = tag_name.lower()
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if tag_field and (tag_field.label or "").lower() == tag_lower:
+            return node
+    return None
+
+
+def _latest_logic_proof(context: Tuple[Node, ...]) -> Node | None:
+    return _latest_tagged_struct(context, "logic_proof")
 
 
 def _ensure_memory_loaded(session: SessionCtx) -> None:
@@ -746,6 +857,10 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     _maybe_attach_calc_answer(isr, calc_result, meta)
     trace.halt(HaltReason.PLAN_EXECUTED, isr, finalized=True)
     snapshot = snapshot_equation(meta.struct_node, isr)
+    logic_proof_node: Node | None = None
+    if (meta.trace_label or "").startswith("LOGIC[QUERY"):
+        isr = apply_operator(isr, operation("PROVE", meta.struct_node), session)
+        logic_proof_node = _latest_logic_proof(isr.context)
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
@@ -760,7 +875,16 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         language=language,
         memory_refs=memory_refs,
     )
-    memory_entry = _memory_entry_payload(meta, answer_text, meta_expression, reasoning_node)
+    equation_node = build_meta_equation_node(snapshot, session.last_equation_stats)
+    equation_stats = snapshot.stats()
+    memory_entry = _memory_entry_payload(
+        meta,
+        answer_text,
+        meta_expression,
+        reasoning_node,
+        equation_node,
+        logic_proof_node,
+    )
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = build_meta_summary(
         meta,
@@ -771,6 +895,8 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_reasoning=reasoning_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
+        meta_equation=equation_node,
+        meta_proof=logic_proof_node,
     )
     session.meta_history.append(meta_summary)
     limit = getattr(session.config, "meta_history_limit", 0)
@@ -780,6 +906,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         tuple(meta_ctx for meta_ctx in session.meta_buffer if meta_ctx is not None) + ((meta_memory,) if meta_memory else tuple())
     )
     _persist_meta_memory(session, meta_memory)
+    session.last_equation_stats = equation_stats
     outcome = RunOutcome(
         answer=answer_text,
         trace=trace,
