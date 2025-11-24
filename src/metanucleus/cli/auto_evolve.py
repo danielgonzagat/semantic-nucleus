@@ -4,7 +4,9 @@ import argparse
 import sys
 from typing import Iterable, List, Optional
 
-from metanucleus.kernel.meta_kernel import MetaKernel
+from datetime import datetime, timezone
+
+from metanucleus.kernel.meta_kernel import MetaKernel, AutoEvolutionFilters
 
 
 def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
@@ -41,6 +43,16 @@ def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Limita o número de patches retornados.",
     )
     parser.add_argument(
+        "--log-since",
+        help="Considera apenas mismatches registrados a partir deste timestamp ISO (ex.: 2025-01-01T00:00:00Z).",
+    )
+    parser.add_argument(
+        "--frame-language",
+        action="append",
+        default=None,
+        help="Filtra frame_mismatch por idioma (pode repetir).",
+    )
+    parser.add_argument(
         "--source",
         default="cli",
         help="Identificador da origem deste ciclo (default: cli).",
@@ -52,6 +64,20 @@ def _parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Exibe os diffs completos dos patches.",
     )
     return parser.parse_args(list(argv) if argv is not None else None)
+
+
+def _parse_iso8601(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned).astimezone(timezone.utc)
+    except ValueError:
+        raise SystemExit(f"[metanucleus-auto-evolve] Timestamp inválido: {value!r}")
 
 
 def _normalize_domains(domains: Iterable[str]) -> List[str]:
@@ -104,12 +130,20 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     print()
 
     kernel = MetaKernel()
+    log_since = _parse_iso8601(args.log_since)
+    frame_languages = {code.lower() for code in (args.frame_language or []) if code}
+    filters = AutoEvolutionFilters(
+        log_since=log_since,
+        frame_languages=frame_languages or None,
+    )
+
     try:
         patches = kernel.run_auto_evolution_cycle(
             domains=domains,
             max_patches=args.max_patches,
             apply_changes=apply_changes,
             source=args.source,
+            filters=filters,
         )
     except Exception as exc:  # pragma: no cover - surfaced to CLI
         print(f"[metanucleus-auto-evolve] erro ao executar ciclo: {exc!r}", file=sys.stderr)

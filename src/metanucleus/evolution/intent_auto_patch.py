@@ -5,7 +5,8 @@ Facilitador para gerar EvolutionPatch focados em intents.
 from __future__ import annotations
 
 from pathlib import Path
-from typing import List
+from typing import List, Optional, Tuple
+from datetime import datetime
 
 from metanucleus.evolution.intent_patch_generator import IntentLexiconPatchGenerator
 from metanucleus.evolution.types import EvolutionPatch
@@ -15,12 +16,17 @@ from metanucleus.utils.project import get_project_root
 def suggest_intent_patches(
     max_candidates: int | None = None,
     log_limit: int | None = None,
-) -> List[EvolutionPatch]:
+    log_since: Optional[datetime] = None,
+) -> Tuple[List[EvolutionPatch], int]:
     """
     Converte IntentLexiconPatchCandidate em EvolutionPatch padronizados.
     """
     project_root = get_project_root(Path(__file__))
-    generator = IntentLexiconPatchGenerator(project_root=project_root, log_limit=log_limit)
+    generator = IntentLexiconPatchGenerator(
+        project_root=project_root,
+        log_limit=log_limit,
+        log_since=log_since,
+    )
     limit = max_candidates or 5
     candidates = generator.generate_patches(max_candidates=limit)
     patches: List[EvolutionPatch] = []
@@ -34,7 +40,7 @@ def suggest_intent_patches(
                 meta={"source": "intent_auto_patch"},
             )
         )
-    return patches
+    return patches, generator.processed_entries
 
 
 __all__ = ["suggest_intent_patches"]

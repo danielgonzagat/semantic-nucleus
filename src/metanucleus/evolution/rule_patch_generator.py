@@ -6,7 +6,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
+from datetime import datetime
 
 from metanucleus.evolution.diff_utils import make_unified_diff
 from metanucleus.evolution.rule_mismatch_log import RuleMismatch, load_rule_mismatches
@@ -30,14 +31,18 @@ class RulePatchGenerator:
         project_root: Path | None = None,
         suggestions_path: Path | None = None,
         log_limit: int | None = None,
+        log_since: Optional[datetime] = None,
     ) -> None:
         self.project_root = project_root or get_project_root(Path(__file__))
         default_path = self.project_root / "src" / "metanucleus" / "data" / "rule_suggestions.md"
         self.suggestions_path = suggestions_path or default_path
         self.log_limit = log_limit
+        self.log_since = log_since
+        self.processed_entries: int = 0
 
     def generate_patches(self, max_rules: int = 20) -> List[RulePatchCandidate]:
-        mismatches = load_rule_mismatches(limit=self.log_limit)
+        mismatches = load_rule_mismatches(limit=self.log_limit, since=self.log_since)
+        self.processed_entries = len(mismatches)
         if not mismatches:
             return []
 

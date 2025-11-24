@@ -43,7 +43,11 @@ def append_rule_mismatch(entry: RuleMismatch, path: Path = RULE_MISMATCH_LOG_PAT
     enforce_log_limit(path, _MAX_RULE_LOG_LINES)
 
 
-def load_rule_mismatches(path: Path = RULE_MISMATCH_LOG_PATH, limit: Optional[int] = None) -> List[RuleMismatch]:
+def load_rule_mismatches(
+    path: Path = RULE_MISMATCH_LOG_PATH,
+    limit: Optional[int] = None,
+    since: Optional[datetime] = None,
+) -> List[RuleMismatch]:
     if not path.exists():
         return []
     entries: List[RuleMismatch] = []
@@ -55,6 +59,9 @@ def load_rule_mismatches(path: Path = RULE_MISMATCH_LOG_PATH, limit: Optional[in
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            ts = _parse_timestamp(data.get("timestamp"))
+            if since is not None and ts is not None and ts < since:
                 continue
             entries.append(
                 RuleMismatch(
@@ -74,7 +81,7 @@ def load_rule_mismatches(path: Path = RULE_MISMATCH_LOG_PATH, limit: Optional[in
     return entries
 
 
-__all__ = ["RuleMismatch", "append_rule_mismatch", "load_rule_mismatches", "RULE_MISMATCH_LOG_PATH"]
+__all__ = ["RuleMismatch", "append_rule_mismatch", "load_rule_mismatches", "RULE_MISMATCH_LOG_PATH", "configure_rule_log_limit"]
 
 
 def configure_rule_log_limit(limit: int | None) -> None:
@@ -83,3 +90,17 @@ def configure_rule_log_limit(limit: int | None) -> None:
         _MAX_RULE_LOG_LINES = MAX_RULE_LOG_LINES_DEFAULT
     else:
         _MAX_RULE_LOG_LINES = limit
+
+
+def _parse_timestamp(value: object) -> Optional[datetime]:
+    if not value or not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return None

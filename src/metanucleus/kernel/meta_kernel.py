@@ -8,8 +8,9 @@ import json
 
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional, TYPE_CHECKING
+from typing import Any, Dict, Iterable, List, Optional, Set, Tuple, TYPE_CHECKING
 from time import perf_counter
+from datetime import datetime, timezone
 
 from liu import to_json
 from nsr import SessionCtx, run_text_full, meta_summary_to_dict
@@ -60,6 +61,12 @@ class AutoEvolutionConfig:
 @dataclass(slots=True)
 class MetaKernelConfig:
     auto_evolution: AutoEvolutionConfig = field(default_factory=AutoEvolutionConfig)
+
+
+@dataclass(slots=True)
+class AutoEvolutionFilters:
+    log_since: Optional[datetime] = None
+    frame_languages: Optional[Set[str]] = None
 
 
 @dataclass(slots=True)
@@ -195,6 +202,7 @@ class MetaKernel:
         max_patches: Optional[int] = None,
         apply_changes: bool = False,
         source: str = "cli",
+        filters: Optional[AutoEvolutionFilters] = None,
     ) -> List[EvolutionPatch]:
         """
         Executa uma rodada de autoevolução agregando patches por domínio.
@@ -202,6 +210,7 @@ class MetaKernel:
         normalized = _normalize_domains(domains)
         patches: List[EvolutionPatch] = []
         self.last_evolution_stats = []
+        filters = filters or AutoEvolutionFilters()
 
         def record(
             domain: str,
@@ -229,6 +238,7 @@ class MetaKernel:
             return max(0, max_patches - len(patches))
 
         log_limit = self.config.auto_evolution.log_limit
+        log_since = filters.log_since
         meta_types: List[str] = []
         if "semantic_frames" in normalized:
             meta_types.append("frame_mismatch")
@@ -237,7 +247,12 @@ class MetaKernel:
         meta_records: Dict[str, List[Dict[str, Any]]] = {}
         meta_counts: Dict[str, int] = {}
         if meta_types:
-            meta_records, meta_counts = _load_meta_mismatch_records(meta_types, log_limit)
+            meta_records, meta_counts = _load_meta_mismatch_records(
+                meta_types,
+                log_limit,
+                since=log_since,
+                frame_languages=filters.frame_languages,
+            )
 
         if "intent" in normalized:
             start = perf_counter()
@@ -250,16 +265,17 @@ class MetaKernel:
                 elif not _log_has_entries(INTENT_MISMATCH_LOG_PATH):
                     record("intent", "skipped", "no intent mismatches", start, entries_scanned=0)
                 else:
-                    intent_entries = _count_log_entries(INTENT_MISMATCH_LOG_PATH, log_limit)
+                    intent_entries = _count_log_entries(INTENT_MISMATCH_LOG_PATH, log_limit, log_since)
                     limit = self.config.auto_evolution.max_new_intent_rules
                     if available is not None:
                         limit = min(limit, available)
                     if limit <= 0:
                         record("intent", "skipped", "max patches reached", start, entries_scanned=intent_entries)
                     else:
-                        new_patches = self._suggest_intent_patches(
+                        new_patches, processed_count = self._suggest_intent_patches(
                             max_candidates=limit,
                             log_limit=log_limit,
+                            log_since=log_since,
                         )
                         patches.extend(new_patches)
                         record(
@@ -267,7 +283,7 @@ class MetaKernel:
                             "executed",
                             f"{len(new_patches)} patch(es)",
                             start,
-                            entries_scanned=intent_entries,
+                            entries_scanned=processed_count or intent_entries,
                         )
 
         if "rules" in normalized:
@@ -278,15 +294,18 @@ class MetaKernel:
             elif not _log_has_entries(RULE_MISMATCH_LOG_PATH):
                 record("rules", "skipped", "no rule mismatches", start, entries_scanned=0)
             else:
-                rule_entries = _count_log_entries(RULE_MISMATCH_LOG_PATH, log_limit)
-                new_patches = self._suggest_rule_patches(max_rules=available)
+                rule_entries = _count_log_entries(RULE_MISMATCH_LOG_PATH, log_limit, log_since)
+                new_patches, processed_rules = self._suggest_rule_patches(
+                    max_rules=available,
+                    log_since=log_since,
+                )
                 patches.extend(new_patches)
                 record(
                     "rules",
                     "executed",
                     f"{len(new_patches)} patch(es)",
                     start,
-                    entries_scanned=rule_entries,
+                    entries_scanned=processed_rules or rule_entries,
                 )
 
         if "semantics" in normalized or "language" in normalized:
@@ -297,15 +316,18 @@ class MetaKernel:
             elif not _log_has_entries(SEMANTIC_MISMATCH_LOG_PATH):
                 record("semantics", "skipped", "no semantic mismatches", start, entries_scanned=0)
             else:
-                semantic_entries = _count_log_entries(SEMANTIC_MISMATCH_LOG_PATH, log_limit)
-                new_patches = self._suggest_semantic_patches(max_groups=available)
+                semantic_entries = _count_log_entries(SEMANTIC_MISMATCH_LOG_PATH, log_limit, log_since)
+                new_patches, processed_semantics = self._suggest_semantic_patches(
+                    max_groups=available,
+                    log_since=log_since,
+                )
                 patches.extend(new_patches)
                 record(
                     "semantics",
                     "executed",
                     f"{len(new_patches)} patch(es)",
                     start,
-                    entries_scanned=semantic_entries,
+                    entries_scanned=processed_semantics or semantic_entries,
                 )
 
         if "semantic_frames" in normalized:
@@ -373,12 +395,14 @@ class MetaKernel:
         self,
         max_candidates: Optional[int] = None,
         log_limit: Optional[int] = None,
-    ) -> List[EvolutionPatch]:
+        log_since: Optional[datetime] = None,
+    ) -> Tuple[List[EvolutionPatch], int]:
         limit = max_candidates or self.config.auto_evolution.max_new_intent_rules
         effective_log_limit = log_limit if log_limit is not None else self.config.auto_evolution.log_limit
         return suggest_intent_patches(
             max_candidates=limit,
             log_limit=effective_log_limit,
+            log_since=log_since,
         )
 
     def _suggest_meta_calculus_patches(
@@ -390,8 +414,15 @@ class MetaKernel:
             records=records,
         )
 
-    def _suggest_rule_patches(self, max_rules: Optional[int] = None) -> List[EvolutionPatch]:
-        generator = RulePatchGenerator(log_limit=self.config.auto_evolution.log_limit)
+    def _suggest_rule_patches(
+        self,
+        max_rules: Optional[int] = None,
+        log_since: Optional[datetime] = None,
+    ) -> Tuple[List[EvolutionPatch], int]:
+        generator = RulePatchGenerator(
+            log_limit=self.config.auto_evolution.log_limit,
+            log_since=log_since,
+        )
         candidates = generator.generate_patches(max_rules=max_rules or 20)
         patches: List[EvolutionPatch] = []
         for cand in candidates:
@@ -404,10 +435,17 @@ class MetaKernel:
                     meta={"source": "MetaKernel._suggest_rule_patches"},
                 )
             )
-        return patches
+        return patches, generator.processed_entries
 
-    def _suggest_semantic_patches(self, max_groups: Optional[int] = None) -> List[EvolutionPatch]:
-        generator = SemanticPatchGenerator(log_limit=self.config.auto_evolution.log_limit)
+    def _suggest_semantic_patches(
+        self,
+        max_groups: Optional[int] = None,
+        log_since: Optional[datetime] = None,
+    ) -> Tuple[List[EvolutionPatch], int]:
+        generator = SemanticPatchGenerator(
+            log_limit=self.config.auto_evolution.log_limit,
+            log_since=log_since,
+        )
         candidates = generator.generate_patches(max_groups=max_groups or 20)
         patches: List[EvolutionPatch] = []
         for cand in candidates:
@@ -420,7 +458,7 @@ class MetaKernel:
                     meta={"source": "MetaKernel._suggest_semantic_patches"},
                 )
             )
-        return patches
+        return patches, generator.processed_entries
 
     def _suggest_semantic_frame_patches(
         self,
@@ -457,7 +495,7 @@ def _normalize_domains(domains: Optional[Iterable[str]]) -> List[str]:
     return normalized or ["intent", "meta_calculus"]
 
 
-__all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult"]
+__all__ = ["MetaKernel", "MetaKernelConfig", "AutoEvolutionConfig", "MetaKernelTurnResult", "AutoEvolutionFilters"]
 
 
 def _calc_result_to_dict(calc_result: "MetaCalculationResult") -> Dict[str, Any]:
@@ -487,7 +525,7 @@ def _log_has_entries(path: Path) -> bool:
         return False
 
 
-def _count_log_entries(path: Path, limit: Optional[int]) -> int:
+def _count_log_entries(path: Path, limit: Optional[int], since: Optional[datetime] = None) -> int:
     if not path.exists():
         return 0
     count = 0
@@ -496,6 +534,14 @@ def _count_log_entries(path: Path, limit: Optional[int]) -> int:
             for line in fh:
                 if not line.strip():
                     continue
+                if since is not None:
+                    try:
+                        data = json.loads(line)
+                        ts = _parse_timestamp(data.get("timestamp"))
+                        if ts is not None and ts < since:
+                            continue
+                    except json.JSONDecodeError:
+                        pass
                 count += 1
                 if limit is not None and count >= limit:
                     break
@@ -504,15 +550,32 @@ def _count_log_entries(path: Path, limit: Optional[int]) -> int:
     return count
 
 
+def _parse_timestamp(value: object) -> Optional[datetime]:
+    if not value or not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return None
+
+
 def _load_meta_mismatch_records(
     types: Iterable[str],
     limit: Optional[int],
+    since: Optional[datetime] = None,
+    frame_languages: Optional[Set[str]] = None,
 ) -> tuple[Dict[str, List[Dict[str, Any]]], Dict[str, int]]:
     unique_types = list(dict.fromkeys(types))
     records: Dict[str, List[Dict[str, Any]]] = {kind: [] for kind in unique_types}
     counts: Dict[str, int] = {kind: 0 for kind in unique_types}
     if not unique_types or not _META_MISMATCH_LOG_PATH.exists():
         return records, counts
+    normalized_frame_langs = {code.lower() for code in frame_languages} if frame_languages else None
 
     remaining: Dict[str, Optional[int]] = {
         kind: (limit if limit is not None else None) for kind in unique_types
@@ -531,6 +594,14 @@ def _load_meta_mismatch_records(
             kind = record.get("type")
             if kind not in records:
                 continue
+            if since is not None:
+                ts = _parse_timestamp(record.get("timestamp"))
+                if ts is not None and ts < since:
+                    continue
+            if kind == "frame_mismatch" and normalized_frame_langs:
+                lang = str(record.get("language") or "").lower()
+                if lang not in normalized_frame_langs:
+                    continue
             bucket = records[kind]
             bucket.append(record)
             counts[kind] += 1

@@ -8,6 +8,7 @@ import json
 from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any, Dict, Literal, Optional
+from datetime import datetime, timezone
 
 from metanucleus.utils.project import get_project_root
 from metanucleus.utils.log_rotation import enforce_log_limit
@@ -32,6 +33,7 @@ def _ensure_log_dir() -> None:
 
 def _append_record(record: Dict[str, Any]) -> None:
     _ensure_log_dir()
+    record.setdefault("timestamp", datetime.now(timezone.utc).isoformat())
     with _LOG_FILE.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
     enforce_log_limit(_LOG_FILE, _MAX_LOG_LINES)
@@ -44,8 +46,11 @@ class IntentMismatch:
     language: str
     expected_intent: str
     predicted_intent: str
+    timestamp: str = ""
 
     def log(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
         _append_record(asdict(self))
 
 
@@ -58,8 +63,11 @@ class FrameMismatch:
     expected_roles: Dict[str, str]
     predicted_roles: Dict[str, str]
     note: Optional[str] = None
+    timestamp: str = ""
 
     def log(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
         _append_record(asdict(self))
 
 
@@ -71,7 +79,11 @@ class CalcRuleMismatch:
     expected: str
     predicted: str
 
+    timestamp: str = ""
+
     def log(self) -> None:
+        if not self.timestamp:
+            self.timestamp = datetime.now(timezone.utc).isoformat()
         _append_record(asdict(self))
 
 

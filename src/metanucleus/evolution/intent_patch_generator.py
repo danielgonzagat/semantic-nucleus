@@ -8,6 +8,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple
+from datetime import datetime
 
 from metanucleus.evolution.diff_utils import make_unified_diff
 from metanucleus.evolution.intent_mismatch_log import (
@@ -41,6 +42,7 @@ class IntentLexiconPatchGenerator:
         lexicon_path: Optional[Path] = None,
         log_path: Optional[Path] = None,
         log_limit: Optional[int] = None,
+        log_since: Optional[datetime] = None,
         default_lang: str = "pt",
     ) -> None:
         self.project_root = project_root or get_project_root(Path(__file__))
@@ -49,7 +51,9 @@ class IntentLexiconPatchGenerator:
         )
         self.log_path = log_path or INTENT_MISMATCH_LOG_PATH
         self.log_limit = log_limit
+        self.log_since = log_since
         self.default_lang = default_lang
+        self.processed_entries: int = 0
 
     # ------------------------------------------------------------------
     # API pública
@@ -57,7 +61,12 @@ class IntentLexiconPatchGenerator:
 
     def generate_patches(self, max_candidates: int = 1) -> List[IntentLexiconPatchCandidate]:
         lexicon = load_intent_lexicon(self.lexicon_path)
-        mismatches = load_intent_mismatch_logs(limit=self.log_limit, path=self.log_path)
+        mismatches = load_intent_mismatch_logs(
+            limit=self.log_limit,
+            path=self.log_path,
+            since=self.log_since,
+        )
+        self.processed_entries = len(mismatches)
         if not mismatches:
             return []
 

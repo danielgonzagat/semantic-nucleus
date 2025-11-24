@@ -69,6 +69,7 @@ def load_intent_mismatch_logs(
     *,
     limit: Optional[int] = None,
     path: Path = INTENT_MISMATCH_LOG_PATH,
+    since: Optional[datetime] = None,
 ) -> List[IntentMismatchLogEntry]:
     if not path.exists():
         return []
@@ -81,6 +82,9 @@ def load_intent_mismatch_logs(
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            ts = _parse_timestamp(data.get("timestamp"))
+            if since is not None and ts is not None and ts < since:
                 continue
             entries.append(
                 IntentMismatchLogEntry(
@@ -103,4 +107,19 @@ __all__ = [
     "INTENT_MISMATCH_LOG_PATH",
     "log_intent_mismatch",
     "load_intent_mismatch_logs",
+    "configure_intent_log_limit",
 ]
+
+
+def _parse_timestamp(value: object) -> Optional[datetime]:
+    if not value or not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return None

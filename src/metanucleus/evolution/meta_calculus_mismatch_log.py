@@ -64,6 +64,7 @@ def log_meta_calculus_mismatch(
 def load_meta_calculus_mismatches(
     path: Path = META_CALCULUS_MISMATCH_LOG_PATH,
     limit: Optional[int] = None,
+    since: Optional[datetime] = None,
 ) -> List[MetaCalculusMismatchEntry]:
     if not path.exists():
         return []
@@ -76,6 +77,9 @@ def load_meta_calculus_mismatches(
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            ts = _parse_timestamp(data.get("timestamp"))
+            if since is not None and ts is not None and ts < since:
                 continue
             entries.append(
                 MetaCalculusMismatchEntry(
@@ -108,3 +112,17 @@ def configure_meta_calculus_log_limit(limit: int | None) -> None:
         _MAX_META_CALCULUS_LOG_LINES = MAX_META_CALCULUS_LOG_LINES_DEFAULT
     else:
         _MAX_META_CALCULUS_LOG_LINES = limit
+
+
+def _parse_timestamp(value: object) -> Optional[datetime]:
+    if not value or not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return None

@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/utils/diff_apply.py
+# hypothesis_version: 6.148.2
+
+['+', '+++ ', '-', '--- ', './', '/dev/null', '1', '@@', 'DiffApplication', 'DiffApplyError', 'DiffParseError', 'FilePatch', 'Hunk', 'HunkLine', 'a/', 'apply_patch_to_text', 'apply_unified_diff', 'b/', 'diff --git', 'new_len', 'new_start', 'old_len', 'old_start', 'parse_unified_diff', 'utf-8']

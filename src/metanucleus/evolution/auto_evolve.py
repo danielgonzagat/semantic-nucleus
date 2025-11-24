@@ -10,9 +10,9 @@ import sys
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 
-from metanucleus.kernel.meta_kernel import MetaKernel
+from metanucleus.kernel.meta_kernel import MetaKernel, AutoEvolutionFilters
 from metanucleus.evolution.types import EvolutionPatch
 from metanucleus.utils.project import get_project_root
 
@@ -71,6 +71,7 @@ def run_auto_patches(
     max_patches: Optional[int],
     apply_changes: bool,
     source: str,
+    filters: Optional[AutoEvolutionFilters] = None,
 ) -> Tuple[List[EvolutionPatch], List[Dict[str, str]]]:
     kernel = MetaKernel()
     patches = kernel.run_auto_evolution_cycle(
@@ -78,6 +79,7 @@ def run_auto_patches(
         max_patches=max_patches,
         apply_changes=apply_changes,
         source=source,
+        filters=filters,
     )
     stats = getattr(kernel, "last_evolution_stats", [])
     return patches, stats
@@ -107,6 +109,8 @@ class Arguments:
     push: bool
     branch_prefix: str
     commit_message: Optional[str]
+    log_since: Optional[datetime]
+    frame_languages: Set[str]
 
 
 def parse_args(argv: Optional[List[str]] = None) -> Arguments:
@@ -125,6 +129,13 @@ def parse_args(argv: Optional[List[str]] = None) -> Arguments:
     parser.add_argument("--pytest-args", nargs="*", default=None, help="Argumentos extras para pytest.")
     parser.add_argument("--dry-run", action="store_true", help="Não aplica diffs; só mostra os patches.")
     parser.add_argument("--source", default="cli-auto-evolve", help="Identificador de origem registrado no patch.")
+    parser.add_argument("--log-since", help="Filtra logs a partir do timestamp ISO informado.")
+    parser.add_argument(
+        "--frame-language",
+        action="append",
+        default=None,
+        help="Filtra frame_mismatch por idioma (pode repetir).",
+    )
     parser.add_argument("--commit", action="store_true", help="Cria branch/commit automaticamente quando houver mudanças.")
     parser.add_argument("--push", action="store_true", help="Se combinado com --commit, faz git push origin <branch>.")
     parser.add_argument("--branch-prefix", default="auto-evolve", help="Prefixo para a branch automática (default: auto-evolve).")
@@ -142,18 +153,41 @@ def parse_args(argv: Optional[List[str]] = None) -> Arguments:
         push=args_ns.push,
         branch_prefix=args_ns.branch_prefix,
         commit_message=args_ns.commit_message,
+        log_since=_parse_iso8601(args_ns.log_since),
+        frame_languages={code.lower() for code in (args_ns.frame_language or []) if code},
     )
+
+
+def _parse_iso8601(value: Optional[str]) -> Optional[datetime]:
+    if not value:
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned).astimezone(timezone.utc)
+    except ValueError:
+        raise SystemExit(f"[auto-evolve] Timestamp inválido: {value!r}")
 
 
 def main(argv: Optional[List[str]] = None) -> None:
     args = parse_args(argv)
 
     pytest_code = run_pytest(args.pytest_args, skip=args.skip_tests)
+    frame_languages = args.frame_languages if args.frame_languages else set()
+    filters = AutoEvolutionFilters(
+        log_since=args.log_since,
+        frame_languages=frame_languages or None,
+    )
+
     patches, stats = run_auto_patches(
         args.domains,
         max_patches=args.max_patches,
         apply_changes=not args.dry_run,
         source=args.source,
+        filters=filters,
     )
 
     if stats:

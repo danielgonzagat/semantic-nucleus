@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/testing/semantic_asserts.py
+# hypothesis_version: 6.148.2
+
+['detect_lang', 'source', 'test', 'tests', 'unknown']

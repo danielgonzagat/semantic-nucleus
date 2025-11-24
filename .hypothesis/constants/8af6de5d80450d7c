@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/core/evolution.py
+# hypothesis_version: 6.148.2
+
+[1e-09, 1.0, ' > ', ', ', '/', 'CONST', 'EvolutionRequest', 'EvolutionResult', 'MetaAnalysis', 'MetaEvolution', 'PatchExplanation', 'RegressionReport', 'RegressionSample', '\\', 'after', 'before', 'candidate_output', 'constant_folding', 'cost', 'delta', 'explanation_to_dict', 'inputs', 'kind', 'liu_signature', 'matched', 'operations', 'optimization_found', 'original_output', 'passed', 'redundant_terms', 'regression', 'regression_failed', 'samples', 'summary', 'utf-8']

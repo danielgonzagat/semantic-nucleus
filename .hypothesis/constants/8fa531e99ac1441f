@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/testing/mismatch_logger.py
+# hypothesis_version: 6.148.2
+
+[5000, '.metanucleus', 'MismatchType', 'a', 'calc_rule_mismatch', 'frame_mismatch', 'intent_mismatch', 'log_frame_mismatch', 'log_intent_mismatch', 'mismatch_log.jsonl', 'timestamp', 'utf-8']

@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/evolution/semantic_frames_auto_patch.py
+# hypothesis_version: 6.148.2
+
+['(unknown)', '.metanucleus', 'expected_roles', 'frame_mismatch', 'frame_patterns.json', 'frames', 'language', 'mismatch_log.jsonl', 'mismatches', 'new_patterns', 'predicate', 'r', 'roles', 'semantic_frames', 'type', 'unknown', 'updated_roles', 'utf-8']

@@ -43,7 +43,11 @@ def append_semantic_mismatch(entry: SemanticMismatch, path: Path = SEMANTIC_MISM
     enforce_log_limit(path, _MAX_SEMANTIC_LOG_LINES)
 
 
-def load_semantic_mismatches(path: Path = SEMANTIC_MISMATCH_LOG_PATH, limit: Optional[int] = None) -> List[SemanticMismatch]:
+def load_semantic_mismatches(
+    path: Path = SEMANTIC_MISMATCH_LOG_PATH,
+    limit: Optional[int] = None,
+    since: Optional[datetime] = None,
+) -> List[SemanticMismatch]:
     if not path.exists():
         return []
     entries: List[SemanticMismatch] = []
@@ -55,6 +59,9 @@ def load_semantic_mismatches(path: Path = SEMANTIC_MISMATCH_LOG_PATH, limit: Opt
             try:
                 data = json.loads(line)
             except json.JSONDecodeError:
+                continue
+            ts = _parse_timestamp(record.get("timestamp"))
+            if since is not None and ts is not None and ts < since:
                 continue
             entries.append(
                 SemanticMismatch(
@@ -83,3 +90,17 @@ def configure_semantic_log_limit(limit: int | None) -> None:
         _MAX_SEMANTIC_LOG_LINES = MAX_SEMANTIC_LOG_LINES_DEFAULT
     else:
         _MAX_SEMANTIC_LOG_LINES = limit
+
+
+def _parse_timestamp(value: object) -> Optional[datetime]:
+    if not value or not isinstance(value, str):
+        return None
+    cleaned = value.strip()
+    if not cleaned:
+        return None
+    if cleaned.endswith("Z"):
+        cleaned = cleaned[:-1] + "+00:00"
+    try:
+        return datetime.fromisoformat(cleaned)
+    except ValueError:
+        return None

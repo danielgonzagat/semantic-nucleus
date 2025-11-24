@@ -2,7 +2,9 @@ from __future__ import annotations
 
 import pytest
 
-from metanucleus.core.meta_kernel import MetaKernel
+from datetime import datetime, timezone
+
+from metanucleus.core.meta_kernel import MetaKernel, AutoEvolutionFilters
 from metanucleus.testing.calculus_asserts import assert_meta_equivalent
 from metanucleus.testing.semantic_asserts import assert_semantic_label
 
@@ -79,3 +81,16 @@ def test_integration_forced_mismatches_feed_logs() -> None:
         source="integration-forced-mismatch",
     )
     assert True
+
+
+def test_auto_evolution_respects_filters() -> None:
+    kernel = MetaKernel()
+    filters = AutoEvolutionFilters(
+        log_since=datetime.now(timezone.utc),
+        frame_languages={"pt"},
+    )
+    patches = kernel.run_auto_evolution_cycle(
+        domains=["intent"],
+        filters=filters,
+    )
+    assert isinstance(patches, list)

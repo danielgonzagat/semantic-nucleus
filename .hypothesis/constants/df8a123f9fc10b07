@@ -1,0 +1,4 @@
+# file: /workspace/src/frontend_elixir/compiler.py
+# hypothesis_version: 6.148.2
+
+['body', 'code/DEFN', 'code/MODULE', 'compile_module', 'functions', 'name', 'params']

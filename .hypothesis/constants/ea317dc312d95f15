@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/__init__.py
+# hypothesis_version: 6.148.2
+
+['CodeHook', 'Config', 'EquationSnapshot', 'HaltReason', 'IANInstinct', 'InstinctHook', 'Lexicon', 'LogicBridgeResult', 'LogicEngine', 'LogicHook', 'LogicRule', 'MathInstinct', 'MetaCalculationPlan', 'MetaRoute', 'MetaTransformResult', 'MetaTransformer', 'Rule', 'RunOutcome', 'SessionCtx', 'Trace', 'analyze_utterance', 'build_lc_meta_struct', 'build_math_ast_node', 'build_meta_memory', 'build_rust_ast_meta', 'build_struct', 'compose_lexicon', 'execute_meta_plan', 'ian_conjugate', 'ian_decode_codes', 'ian_encode_word', 'ian_word_signature', 'lc_term_to_node', 'load_lexicon_file', 'logic_negate', 'logic_normalize', 'logic_route', 'maybe_route_code', 'maybe_route_math', 'maybe_route_text', 'meta_summary_to_dict', 'plan_reply', 'render_explanation', 'render_struct_node', 'reply_plan_to_answer', 'respond', 'run_struct', 'run_struct_full', 'run_text', 'run_text_full', 'tokenize', 'utterance_to_struct']

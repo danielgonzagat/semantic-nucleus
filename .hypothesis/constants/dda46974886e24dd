@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/runtime/__init__.py
+# hypothesis_version: 6.148.2
+
+['?', 'AGENT', 'MetaRuntime', 'MetanucleusRuntime', 'MetanucleusSession', 'PATIENT', 'barrier', 'bater', 'car', 'carro', 'command', 'en', 'frame', 'greeting', 'hello', 'hi', 'hit', 'intent', 'language', 'muro', 'oi', 'olá', 'parede', 'please', 'pt', 'quero', 'question', 'resuma', 'rápido', 'statement', 'summarize', 'tchau', 'unknown', 'wall']
