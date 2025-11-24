@@ -159,6 +159,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   nucleo-auto-report --json
   ```
 - Gere snapshots para auditoria e diffs automáticos: `nucleo-auto-report --snapshot reports/latest.json --diff reports/baseline.json`.
+- Manter os logs enxutos: `nucleo-auto-prune --glob "logs/*.jsonl" --archive-dir logs/archive --max-entries 200` remove entradas antigas, arquivando-as para auditoria.
 
 ## Camadas principais
 
