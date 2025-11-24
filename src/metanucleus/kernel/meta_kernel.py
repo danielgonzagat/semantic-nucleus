@@ -18,13 +18,23 @@ from metanucleus.core.sandbox import MetaSandbox
 from metanucleus.core.state import MetaState
 from metanucleus.evolution.intent_auto_patch import suggest_intent_patches
 from metanucleus.evolution.meta_calculus_auto_patch import suggest_meta_calculus_patches
+from metanucleus.evolution.meta_calculus_mismatch_log import configure_meta_calculus_log_limit
 from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
 from metanucleus.evolution.semantic_frames_auto_patch import suggest_frame_patches
 from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
 from metanucleus.evolution.types import EvolutionPatch
-from metanucleus.evolution.intent_mismatch_log import INTENT_MISMATCH_LOG_PATH
-from metanucleus.evolution.rule_mismatch_log import RULE_MISMATCH_LOG_PATH
-from metanucleus.evolution.semantic_mismatch_log import SEMANTIC_MISMATCH_LOG_PATH
+from metanucleus.evolution.intent_mismatch_log import (
+    INTENT_MISMATCH_LOG_PATH,
+    configure_intent_log_limit,
+)
+from metanucleus.evolution.rule_mismatch_log import (
+    RULE_MISMATCH_LOG_PATH,
+    configure_rule_log_limit,
+)
+from metanucleus.evolution.semantic_mismatch_log import (
+    SEMANTIC_MISMATCH_LOG_PATH,
+    configure_semantic_log_limit,
+)
 from metanucleus.utils.project import get_project_root
 
 if TYPE_CHECKING:
@@ -44,6 +54,7 @@ class AutoEvolutionConfig:
     max_new_intent_rules: int = 10
     max_new_calculus_rules: int = 10
     log_limit: int | None = 500
+    log_rotation_limit: int | None = 5000
 
 
 @dataclass(slots=True)
@@ -72,6 +83,13 @@ class MetaKernel:
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)
     nsr_session: SessionCtx = field(default_factory=SessionCtx)
     last_evolution_stats: List[Dict[str, str]] = field(default_factory=list, init=False)
+
+    def __post_init__(self) -> None:
+        rotation_limit = self.config.auto_evolution.log_rotation_limit
+        configure_intent_log_limit(rotation_limit)
+        configure_rule_log_limit(rotation_limit)
+        configure_semantic_log_limit(rotation_limit)
+        configure_meta_calculus_log_limit(rotation_limit)
 
     @classmethod
     def bootstrap(cls) -> MetaKernel:

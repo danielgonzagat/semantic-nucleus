@@ -15,7 +15,8 @@ from metanucleus.utils.log_rotation import enforce_log_limit
 _ROOT = get_project_root(Path(__file__))
 _LOG_DIR = _ROOT / ".metanucleus"
 _LOG_FILE = _LOG_DIR / "mismatch_log.jsonl"
-_MAX_LOG_LINES = 5000
+_MAX_LOG_LINES_DEFAULT = 5000
+_MAX_LOG_LINES = _MAX_LOG_LINES_DEFAULT
 
 MismatchType = Literal[
     "intent_mismatch",
@@ -131,4 +132,13 @@ __all__ = [
     "log_frame_mismatch",
     "log_calc_rule_mismatch",
     "MismatchType",
+    "configure_mismatch_log_limit",
 ]
+
+
+def configure_mismatch_log_limit(limit: int | None) -> None:
+    global _MAX_LOG_LINES
+    if limit is None or limit <= 0:
+        _MAX_LOG_LINES = _MAX_LOG_LINES_DEFAULT
+    else:
+        _MAX_LOG_LINES = limit

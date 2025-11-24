@@ -17,7 +17,8 @@ _PROJECT_ROOT = get_project_root(Path(__file__))
 _META_DIR = _PROJECT_ROOT / ".meta"
 _META_DIR.mkdir(parents=True, exist_ok=True)
 INTENT_MISMATCH_LOG_PATH = _META_DIR / "intent_mismatches.jsonl"
-MAX_INTENT_LOG_LINES = 5000
+MAX_INTENT_LOG_LINES_DEFAULT = 5000
+_MAX_INTENT_LOG_LINES = MAX_INTENT_LOG_LINES_DEFAULT
 
 
 @dataclass(slots=True)
@@ -53,7 +54,15 @@ def log_intent_mismatch(
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(asdict(entry), ensure_ascii=False) + "\n")
-    enforce_log_limit(path, MAX_INTENT_LOG_LINES)
+    enforce_log_limit(path, _MAX_INTENT_LOG_LINES)
+
+
+def configure_intent_log_limit(limit: int | None) -> None:
+    global _MAX_INTENT_LOG_LINES
+    if limit is None or limit <= 0:
+        _MAX_INTENT_LOG_LINES = MAX_INTENT_LOG_LINES_DEFAULT
+    else:
+        _MAX_INTENT_LOG_LINES = limit
 
 
 def load_intent_mismatch_logs(

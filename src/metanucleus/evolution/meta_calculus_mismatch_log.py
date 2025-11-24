@@ -17,7 +17,8 @@ _PROJECT_ROOT = get_project_root(Path(__file__))
 _META_DIR = _PROJECT_ROOT / ".meta"
 _META_DIR.mkdir(parents=True, exist_ok=True)
 META_CALCULUS_MISMATCH_LOG_PATH = _META_DIR / "meta_calculus_mismatches.jsonl"
-MAX_META_CALCULUS_LOG_LINES = 5000
+MAX_META_CALCULUS_LOG_LINES_DEFAULT = 5000
+_MAX_META_CALCULUS_LOG_LINES = MAX_META_CALCULUS_LOG_LINES_DEFAULT
 
 
 @dataclass(slots=True)
@@ -57,7 +58,7 @@ def log_meta_calculus_mismatch(
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(entry.to_json() + "\n")
-    enforce_log_limit(path, MAX_META_CALCULUS_LOG_LINES)
+    enforce_log_limit(path, _MAX_META_CALCULUS_LOG_LINES)
 
 
 def load_meta_calculus_mismatches(
@@ -97,4 +98,13 @@ __all__ = [
     "META_CALCULUS_MISMATCH_LOG_PATH",
     "log_meta_calculus_mismatch",
     "load_meta_calculus_mismatches",
+    "configure_meta_calculus_log_limit",
 ]
+
+
+def configure_meta_calculus_log_limit(limit: int | None) -> None:
+    global _MAX_META_CALCULUS_LOG_LINES
+    if limit is None or limit <= 0:
+        _MAX_META_CALCULUS_LOG_LINES = MAX_META_CALCULUS_LOG_LINES_DEFAULT
+    else:
+        _MAX_META_CALCULUS_LOG_LINES = limit

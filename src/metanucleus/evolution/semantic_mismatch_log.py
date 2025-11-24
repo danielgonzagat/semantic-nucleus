@@ -17,7 +17,8 @@ _PROJECT_ROOT = get_project_root(Path(__file__))
 _LOGS_DIR = _PROJECT_ROOT / "logs"
 _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 SEMANTIC_MISMATCH_LOG_PATH = _LOGS_DIR / "semantic_mismatches.jsonl"
-MAX_SEMANTIC_LOG_LINES = 5000
+MAX_SEMANTIC_LOG_LINES_DEFAULT = 5000
+_MAX_SEMANTIC_LOG_LINES = MAX_SEMANTIC_LOG_LINES_DEFAULT
 
 
 @dataclass(slots=True)
@@ -39,7 +40,7 @@ def append_semantic_mismatch(entry: SemanticMismatch, path: Path = SEMANTIC_MISM
     payload["extra"] = payload.get("extra") or {}
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
-    enforce_log_limit(path, MAX_SEMANTIC_LOG_LINES)
+    enforce_log_limit(path, _MAX_SEMANTIC_LOG_LINES)
 
 
 def load_semantic_mismatches(path: Path = SEMANTIC_MISMATCH_LOG_PATH, limit: Optional[int] = None) -> List[SemanticMismatch]:
@@ -73,4 +74,12 @@ def load_semantic_mismatches(path: Path = SEMANTIC_MISMATCH_LOG_PATH, limit: Opt
     return entries
 
 
-__all__ = ["SemanticMismatch", "append_semantic_mismatch", "load_semantic_mismatches", "SEMANTIC_MISMATCH_LOG_PATH"]
+__all__ = ["SemanticMismatch", "append_semantic_mismatch", "load_semantic_mismatches", "SEMANTIC_MISMATCH_LOG_PATH", "configure_semantic_log_limit"]
+
+
+def configure_semantic_log_limit(limit: int | None) -> None:
+    global _MAX_SEMANTIC_LOG_LINES
+    if limit is None or limit <= 0:
+        _MAX_SEMANTIC_LOG_LINES = MAX_SEMANTIC_LOG_LINES_DEFAULT
+    else:
+        _MAX_SEMANTIC_LOG_LINES = limit
