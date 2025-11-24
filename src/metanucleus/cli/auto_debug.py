@@ -7,7 +7,10 @@ import os
 import shlex
 import subprocess
 import sys
-from typing import Iterable, List
+from pathlib import Path
+from typing import Iterable, List, Sequence
+
+from . import auto_report
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -44,6 +47,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Keep NSR memory/episodes persistence enabled (disabled by default for determinism).",
     )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Imprime um resumo dos arquivos de mismatch antes de cada tentativa.",
+    )
+    parser.add_argument(
+        "--report-json",
+        action="store_true",
+        help="Formata o relatório em JSON ao usar --report.",
+    )
+    parser.add_argument(
+        "--report-path",
+        action="append",
+        dest="report_paths",
+        help="Arquivo JSONL adicional para aparecer no relatório (pode repetir).",
+    )
     return parser.parse_args(argv)
 
 
@@ -71,6 +90,20 @@ def _run_command(cmd: list[str], env: dict[str, str]) -> int:
     return result.returncode
 
 
+def _emit_report(
+    targets: Sequence[tuple[str, Path]] | None,
+    *,
+    as_json: bool,
+    root: Path | None = None,
+) -> None:
+    if not targets:
+        return
+    root = root or Path.cwd()
+    summaries = auto_report.build_report(root, targets)
+    print("[auto-debug] mismatch summary:", flush=True)
+    print(auto_report.format_report(summaries, as_json=as_json), flush=True)
+
+
 def run_cycle(
     pytest_args: Iterable[str],
     domains: Iterable[str],
@@ -78,6 +111,8 @@ def run_cycle(
     *,
     skip_auto_evolve: bool,
     keep_memory: bool,
+    report_targets: Sequence[tuple[str, Path]] | None = None,
+    report_json: bool = False,
     runner=_run_command,
 ) -> int:
     env = _build_env(disable_memory=not keep_memory)
@@ -88,6 +123,7 @@ def run_cycle(
     attempt = 0
     while attempt < max_cycles:
         attempt += 1
+        _emit_report(report_targets, as_json=report_json)
         print(f"[auto-debug] pytest attempt {attempt}/{max_cycles}", flush=True)
         if runner(pytest_cmd, env) == 0:
             print("[auto-debug] pytest succeeded ✅", flush=True)
@@ -100,6 +136,7 @@ def run_cycle(
         if auto_code != 0:
             print("[auto-debug] metanucleus-auto-evolve failed; aborting cycle.", flush=True)
             return auto_code
+        _emit_report(report_targets, as_json=report_json)
     return 1
 
 
@@ -107,12 +144,25 @@ def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
     pytest_args = shlex.split(args.pytest_args)
     domains = _split_items(args.auto_evolve_domains) or ["all"]
+    report_targets: list[tuple[str, Path]] = []
+    if args.report_paths:
+        for idx, raw in enumerate(args.report_paths):
+            path = Path(raw)
+            label = path.stem or f"custom_{idx+1}"
+            report_targets.append((label, path))
+    if args.report or report_targets:
+        if not report_targets:
+            report_targets = [(label, Path(path)) for label, path in auto_report.DEFAULT_TARGETS]
+    else:
+        report_targets = None
     return run_cycle(
         pytest_args,
         domains,
         args.max_cycles,
         skip_auto_evolve=args.skip_auto_evolve,
         keep_memory=args.keep_memory,
+        report_targets=report_targets,
+        report_json=args.report_json,
     )
 
 

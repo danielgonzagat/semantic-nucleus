@@ -152,6 +152,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 - Ajuste `--max-cycles` para controlar quantas tentativas executar, `--skip-auto-evolve` para apenas rodar os testes ou `--keep-memory` quando quiser reaproveitar o estado simbólico entre ciclos.
 - Ideal para loops locais de autocura ou para integrar em jobs de CI que precisem tentar remediação automaticamente antes de falhar.
 - Workflow GitHub [`auto-debug.yml`](.github/workflows/auto-debug.yml) expõe um gatilho `workflow_dispatch`/`workflow_call` para executar o mesmo pipeline direto na nuvem.
+- Use `--report` (e opcionalmente `--report-json` / `--report-path`) para imprimir um resumo dos mismatches entre cada tentativa.
 - Combine com `nucleo-auto-report` para resumir rapidamente `logs/*.jsonl` e `.meta/*.jsonl` após uma execução:
   ```bash
   nucleo-auto-report --json

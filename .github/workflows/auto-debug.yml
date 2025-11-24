@@ -19,6 +19,18 @@ on:
         description: Set to true to keep NSR persistence enabled
         required: false
         default: "false"
+      report:
+        description: Set to true to print mismatch summaries between attempts
+        required: false
+        default: "false"
+      report_json:
+        description: Emit the mismatch summary in JSON when report is enabled
+        required: false
+        default: "false"
+      report_paths:
+        description: Optional space-separated list of extra JSONL files to include
+        required: false
+        default: ""
   workflow_call:
     inputs:
       pytest_args:
@@ -37,6 +49,18 @@ on:
         required: false
         type: string
         default: "false"
+      report:
+        required: false
+        type: string
+        default: "false"
+      report_json:
+        required: false
+        type: string
+        default: "false"
+      report_paths:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   auto-debug:
@@ -61,21 +85,46 @@ jobs:
           WF_DOMAINS: ${{ inputs.domains || github.event.inputs.domains || 'all' }}
           WF_MAX_CYCLES: ${{ inputs.max_cycles || github.event.inputs.max_cycles || '2' }}
           WF_KEEP_MEMORY: ${{ inputs.keep_memory || github.event.inputs.keep_memory || 'false' }}
+          WF_REPORT: ${{ inputs.report || github.event.inputs.report || 'false' }}
+          WF_REPORT_JSON: ${{ inputs.report_json || github.event.inputs.report_json || 'false' }}
+          WF_REPORT_PATHS: ${{ inputs.report_paths || github.event.inputs.report_paths || '' }}
         run: |
           set -euo pipefail
           PYTEST_ARGS="${WF_PYTEST_ARGS}"
           DOMAINS="${WF_DOMAINS}"
           MAX_CYCLES="${WF_MAX_CYCLES}"
           KEEP_MEMORY="${WF_KEEP_MEMORY}"
+          REPORT="${WF_REPORT}"
+          REPORT_JSON="${WF_REPORT_JSON}"
+          REPORT_PATHS="${WF_REPORT_PATHS}"
           if [ "${KEEP_MEMORY,,}" = "true" ]; then
             KEEP_FLAG="--keep-memory"
           else
             KEEP_FLAG=""
+          fi
+          if [ "${REPORT,,}" = "true" ]; then
+            REPORT_FLAG="--report"
+          else
+            REPORT_FLAG=""
+          fi
+          if [ "${REPORT_JSON,,}" = "true" ]; then
+            REPORT_JSON_FLAG="--report-json"
+          else
+            REPORT_JSON_FLAG=""
+          fi
+          REPORT_PATH_FLAGS=""
+          if [ -n "${REPORT_PATHS}" ]; then
+            for path in ${REPORT_PATHS}; do
+              REPORT_PATH_FLAGS="${REPORT_PATH_FLAGS} --report-path ${path}"
+            done
           fi
           echo "::group::nucleo-auto-debug output"
           nucleo-auto-debug \
             --pytest-args "${PYTEST_ARGS}" \
             --auto-evolve-domains "${DOMAINS}" \
             --max-cycles "${MAX_CYCLES}" \
-            ${KEEP_FLAG}
+            ${KEEP_FLAG} \
+            ${REPORT_FLAG} \
+            ${REPORT_JSON_FLAG} \
+            ${REPORT_PATH_FLAGS}
           echo "::endgroup::"

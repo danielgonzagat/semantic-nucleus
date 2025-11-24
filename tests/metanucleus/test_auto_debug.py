@@ -1,4 +1,5 @@
 import sys
+from pathlib import Path
 
 from metanucleus.cli import auto_debug
 
@@ -61,3 +62,35 @@ def test_auto_debug_respects_skip_auto_evolve(monkeypatch):
         runner=always_fail,
     )
     assert rc == 1
+
+
+def test_auto_debug_reports_when_enabled(monkeypatch):
+    report_calls = []
+
+    def fake_build(root, targets):
+        report_calls.append(("build", tuple(targets)))
+        return ["summary"]
+
+    def fake_format(entries, as_json):
+        report_calls.append(("format", as_json))
+        return "REPORT"
+
+    monkeypatch.setattr(auto_debug.auto_report, "build_report", fake_build)
+    monkeypatch.setattr(auto_debug.auto_report, "format_report", fake_format)
+
+    def fail_once(cmd, env):
+        return 1
+
+    rc = auto_debug.run_cycle(
+        pytest_args=[],
+        domains=["all"],
+        max_cycles=1,
+        skip_auto_evolve=True,
+        keep_memory=False,
+        report_targets=[("demo", Path("foo.jsonl"))],
+        report_json=True,
+        runner=fail_once,
+    )
+    assert rc == 1
+    assert report_calls[0][0] == "build"
+    assert report_calls[1] == ("format", True)
