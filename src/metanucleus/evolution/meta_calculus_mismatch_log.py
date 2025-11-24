@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from metanucleus.utils.project import get_project_root
+from metanucleus.utils.log_rotation import enforce_log_limit
 
 _PROJECT_ROOT = get_project_root(Path(__file__))
 _META_DIR = _PROJECT_ROOT / ".meta"
 _META_DIR.mkdir(parents=True, exist_ok=True)
 META_CALCULUS_MISMATCH_LOG_PATH = _META_DIR / "meta_calculus_mismatches.jsonl"
+MAX_META_CALCULUS_LOG_LINES = 5000
 
 
 @dataclass(slots=True)
@@ -55,6 +57,7 @@ def log_meta_calculus_mismatch(
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("a", encoding="utf-8") as fh:
         fh.write(entry.to_json() + "\n")
+    enforce_log_limit(path, MAX_META_CALCULUS_LOG_LINES)
 
 
 def load_meta_calculus_mismatches(

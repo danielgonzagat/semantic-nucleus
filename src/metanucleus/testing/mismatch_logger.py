@@ -10,10 +10,12 @@ from pathlib import Path
 from typing import Any, Dict, Literal, Optional
 
 from metanucleus.utils.project import get_project_root
+from metanucleus.utils.log_rotation import enforce_log_limit
 
 _ROOT = get_project_root(Path(__file__))
 _LOG_DIR = _ROOT / ".metanucleus"
 _LOG_FILE = _LOG_DIR / "mismatch_log.jsonl"
+_MAX_LOG_LINES = 5000
 
 MismatchType = Literal[
     "intent_mismatch",
@@ -31,6 +33,7 @@ def _append_record(record: Dict[str, Any]) -> None:
     _ensure_log_dir()
     with _LOG_FILE.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(record, ensure_ascii=False) + "\n")
+    enforce_log_limit(_LOG_FILE, _MAX_LOG_LINES)
 
 
 @dataclass

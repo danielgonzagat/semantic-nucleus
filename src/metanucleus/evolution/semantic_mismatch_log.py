@@ -11,11 +11,13 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from metanucleus.utils.project import get_project_root
+from metanucleus.utils.log_rotation import enforce_log_limit
 
 _PROJECT_ROOT = get_project_root(Path(__file__))
 _LOGS_DIR = _PROJECT_ROOT / "logs"
 _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 SEMANTIC_MISMATCH_LOG_PATH = _LOGS_DIR / "semantic_mismatches.jsonl"
+MAX_SEMANTIC_LOG_LINES = 5000
 
 
 @dataclass(slots=True)
@@ -37,6 +39,7 @@ def append_semantic_mismatch(entry: SemanticMismatch, path: Path = SEMANTIC_MISM
     payload["extra"] = payload.get("extra") or {}
     with path.open("a", encoding="utf-8") as fh:
         fh.write(json.dumps(payload, ensure_ascii=False) + "\n")
+    enforce_log_limit(path, MAX_SEMANTIC_LOG_LINES)
 
 
 def load_semantic_mismatches(path: Path = SEMANTIC_MISMATCH_LOG_PATH, limit: Optional[int] = None) -> List[SemanticMismatch]:

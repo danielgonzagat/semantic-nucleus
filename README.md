@@ -143,6 +143,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 ```
 
 - `metanucleus-auto-evolve` detecta automaticamente quais domínios têm mismatches nos logs e pula os demais, exibindo um resumo por domínio (`executed`, `skipped`, `disabled`). Isso evita leituras desnecessárias de arquivos grandes e torna o ciclo mais rápido.
+- Os arquivos `.meta/*_mismatches.jsonl`, `logs/*.jsonl` e `.metanucleus/mismatch_log.jsonl` são rotacionados automaticamente (mantêm ~5 000 entradas mais recentes), impedindo crescimento infinito mesmo em execuções 24/7.
 
 ## Camadas principais
 
