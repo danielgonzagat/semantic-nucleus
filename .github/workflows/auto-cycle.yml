@@ -1,0 +1,261 @@
+name: Auto Cycle
+
+on:
+  workflow_dispatch:
+    inputs:
+      pytest_args:
+        description: Extra arguments passed to pytest
+        required: false
+        default: ""
+      domains:
+        description: Space/comma separated list of metanucleus-auto-evolve domains
+        required: false
+        default: "all"
+      max_cycles:
+        description: Number of nucleo-auto-debug attempts
+        required: false
+        default: "2"
+      keep_memory:
+        description: Set to true to keep NSR persistence enabled
+        required: false
+        default: "false"
+      skip_auto_evolve:
+        description: Set to true to skip metanucleus-auto-evolve
+        required: false
+        default: "false"
+      report:
+        description: Enable mismatch summaries during auto-debug
+        required: false
+        default: "false"
+      report_json:
+        description: Emit report summaries as JSON
+        required: false
+        default: "false"
+      report_paths:
+        description: Space separated list of extra report paths
+        required: false
+        default: ""
+      report_snapshot:
+        description: Optional path to store report snapshot JSON
+        required: false
+        default: ""
+      report_diff:
+        description: Optional snapshot path used as baseline for diffing
+        required: false
+        default: ""
+      post_report:
+        description: Run nucleo-auto-report after auto-debug
+        required: false
+        default: "true"
+      post_report_json:
+        description: Emit post-report as JSON
+        required: false
+        default: "false"
+      post_report_glob:
+        description: Space separated globs for post-report
+        required: false
+        default: "logs/*.jsonl"
+      prune_glob:
+        description: Space separated globs for nucleo-auto-prune
+        required: false
+        default: "logs/*.jsonl"
+      prune_max_entries:
+        description: Max entries kept per file
+        required: false
+        default: "200"
+      prune_archive_dir:
+        description: Directory to store archived entries
+        required: false
+        default: "logs/archive"
+      prune_dry_run:
+        description: Set to true to only simulate pruning
+        required: false
+        default: "false"
+      prune_on_fail:
+        description: Run prune even if auto-debug fails
+        required: false
+        default: "true"
+  workflow_call:
+    inputs:
+      pytest_args:
+        required: false
+        type: string
+        default: ""
+      domains:
+        required: false
+        type: string
+        default: "all"
+      max_cycles:
+        required: false
+        type: string
+        default: "2"
+      keep_memory:
+        required: false
+        type: string
+        default: "false"
+      skip_auto_evolve:
+        required: false
+        type: string
+        default: "false"
+      report:
+        required: false
+        type: string
+        default: "false"
+      report_json:
+        required: false
+        type: string
+        default: "false"
+      report_paths:
+        required: false
+        type: string
+        default: ""
+      report_snapshot:
+        required: false
+        type: string
+        default: ""
+      report_diff:
+        required: false
+        type: string
+        default: ""
+      post_report:
+        required: false
+        type: string
+        default: "true"
+      post_report_json:
+        required: false
+        type: string
+        default: "false"
+      post_report_glob:
+        required: false
+        type: string
+        default: "logs/*.jsonl"
+      prune_glob:
+        required: false
+        type: string
+        default: "logs/*.jsonl"
+      prune_max_entries:
+        required: false
+        type: string
+        default: "200"
+      prune_archive_dir:
+        required: false
+        type: string
+        default: "logs/archive"
+      prune_dry_run:
+        required: false
+        type: string
+        default: "false"
+      prune_on_fail:
+        required: false
+        type: string
+        default: "true"
+
+jobs:
+  auto-cycle:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Run nucleo-auto-cycle
+        env:
+          WF_PYTEST_ARGS: ${{ inputs.pytest_args || github.event.inputs.pytest_args || '' }}
+          WF_DOMAINS: ${{ inputs.domains || github.event.inputs.domains || 'all' }}
+          WF_MAX_CYCLES: ${{ inputs.max_cycles || github.event.inputs.max_cycles || '2' }}
+          WF_KEEP_MEMORY: ${{ inputs.keep_memory || github.event.inputs.keep_memory || 'false' }}
+          WF_SKIP_AUTO_EVOLVE: ${{ inputs.skip_auto_evolve || github.event.inputs.skip_auto_evolve || 'false' }}
+          WF_REPORT: ${{ inputs.report || github.event.inputs.report || 'false' }}
+          WF_REPORT_JSON: ${{ inputs.report_json || github.event.inputs.report_json || 'false' }}
+          WF_REPORT_PATHS: ${{ inputs.report_paths || github.event.inputs.report_paths || '' }}
+          WF_REPORT_SNAPSHOT: ${{ inputs.report_snapshot || github.event.inputs.report_snapshot || '' }}
+          WF_REPORT_DIFF: ${{ inputs.report_diff || github.event.inputs.report_diff || '' }}
+          WF_POST_REPORT: ${{ inputs.post_report || github.event.inputs.post_report || 'true' }}
+          WF_POST_REPORT_JSON: ${{ inputs.post_report_json || github.event.inputs.post_report_json || 'false' }}
+          WF_POST_REPORT_GLOB: ${{ inputs.post_report_glob || github.event.inputs.post_report_glob || 'logs/*.jsonl' }}
+          WF_PRUNE_GLOB: ${{ inputs.prune_glob || github.event.inputs.prune_glob || 'logs/*.jsonl' }}
+          WF_PRUNE_MAX: ${{ inputs.prune_max_entries || github.event.inputs.prune_max_entries || '200' }}
+          WF_PRUNE_ARCHIVE: ${{ inputs.prune_archive_dir || github.event.inputs.prune_archive_dir || 'logs/archive' }}
+          WF_PRUNE_DRY_RUN: ${{ inputs.prune_dry_run || github.event.inputs.prune_dry_run || 'false' }}
+          WF_PRUNE_ON_FAIL: ${{ inputs.prune_on_fail || github.event.inputs.prune_on_fail || 'true' }}
+        run: |
+          set -euo pipefail
+          PYTEST_ARGS="${WF_PYTEST_ARGS}"
+          DOMAINS="${WF_DOMAINS}"
+          MAX_CYCLES="${WF_MAX_CYCLES}"
+          KEEP_MEMORY="${WF_KEEP_MEMORY}"
+          SKIP_AUTO_EVOLVE="${WF_SKIP_AUTO_EVOLVE}"
+          REPORT="${WF_REPORT}"
+          REPORT_JSON="${WF_REPORT_JSON}"
+          REPORT_PATHS="${WF_REPORT_PATHS}"
+          REPORT_SNAPSHOT="${WF_REPORT_SNAPSHOT}"
+          REPORT_DIFF="${WF_REPORT_DIFF}"
+          POST_REPORT="${WF_POST_REPORT}"
+          POST_REPORT_JSON="${WF_POST_REPORT_JSON}"
+          POST_REPORT_GLOB="${WF_POST_REPORT_GLOB}"
+          PRUNE_GLOB="${WF_PRUNE_GLOB}"
+          PRUNE_MAX="${WF_PRUNE_MAX}"
+          PRUNE_ARCHIVE="${WF_PRUNE_ARCHIVE}"
+          PRUNE_DRY="${WF_PRUNE_DRY_RUN}"
+          PRUNE_ON_FAIL="${WF_PRUNE_ON_FAIL}"
+
+          cmd=(nucleo-auto-cycle --pytest-args "${PYTEST_ARGS}" --auto-domains "${DOMAINS}" --max-cycles "${MAX_CYCLES}")
+          if [ "${KEEP_MEMORY,,}" = "true" ]; then
+            cmd+=(--keep-memory)
+          fi
+          if [ "${SKIP_AUTO_EVOLVE,,}" = "true" ]; then
+            cmd+=(--skip-auto-evolve)
+          fi
+          if [ "${REPORT,,}" = "true" ]; then
+            cmd+=(--report)
+          fi
+          if [ "${REPORT_JSON,,}" = "true" ]; then
+            cmd+=(--report-json)
+          fi
+          for path in ${REPORT_PATHS}; do
+            [ -z "${path}" ] && continue
+            cmd+=(--report-path "${path}")
+          done
+          if [ -n "${REPORT_SNAPSHOT}" ]; then
+            cmd+=(--report-snapshot "${REPORT_SNAPSHOT}")
+          fi
+          if [ -n "${REPORT_DIFF}" ]; then
+            cmd+=(--report-diff "${REPORT_DIFF}")
+          fi
+          if [ "${POST_REPORT,,}" = "true" ]; then
+            cmd+=(--post-report)
+          fi
+          if [ "${POST_REPORT_JSON,,}" = "true" ]; then
+            cmd+=(--post-report-json)
+          fi
+          for pattern in ${POST_REPORT_GLOB}; do
+            [ -z "${pattern}" ] && continue
+            cmd+=(--post-report-glob "${pattern}")
+          done
+          for pattern in ${PRUNE_GLOB}; do
+            [ -z "${pattern}" ] && continue
+            cmd+=(--prune-glob "${pattern}")
+          done
+          cmd+=(--prune-max-entries "${PRUNE_MAX}")
+          if [ -n "${PRUNE_ARCHIVE}" ]; then
+            cmd+=(--prune-archive-dir "${PRUNE_ARCHIVE}")
+          fi
+          if [ "${PRUNE_DRY,,}" = "true" ]; then
+            cmd+=(--prune-dry-run)
+          fi
+          if [ "${PRUNE_ON_FAIL,,}" = "true" ]; then
+            cmd+=(--prune-on-fail)
+          fi
+
+          echo "::group::nucleo-auto-cycle output"
+          "${cmd[@]}"
+          echo "::endgroup::"
