@@ -37,3 +37,14 @@ def test_format_report_json(tmp_path: Path):
     data = json.loads(report)
     assert data[0]["label"] == "file"
     assert data[0]["count"] == 1
+
+
+def test_render_report_returns_string(tmp_path: Path):
+    path = tmp_path / "logs/semantic_mismatches.jsonl"
+    write_jsonl(path, [{"msg": "ok"}])
+    output = auto_report.render_report(
+        tmp_path,
+        [("demo", Path("logs/semantic_mismatches.jsonl"))],
+        as_json=False,
+    )
+    assert "[demo]" in output

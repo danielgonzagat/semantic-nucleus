@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import json
 from dataclasses import dataclass
+import time
 from pathlib import Path
 from typing import Iterable, List, Sequence
 
@@ -76,6 +77,16 @@ def format_report(entries: Sequence[FileSummary], as_json: bool) -> str:
     return "\n".join(lines)
 
 
+def render_report(
+    root: Path,
+    targets: Sequence[tuple[str, Path]],
+    *,
+    as_json: bool,
+) -> str:
+    summaries = build_report(root, targets)
+    return format_report(summaries, as_json=as_json)
+
+
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         prog="nucleo-auto-report",
@@ -96,6 +107,12 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Emite o relatório em JSON estruturado.",
     )
+    parser.add_argument(
+        "--watch",
+        type=float,
+        default=0.0,
+        help="Quando >0, reexecuta o relatório a cada N segundos até Ctrl+C.",
+    )
     return parser.parse_args(argv)
 
 
@@ -106,8 +123,15 @@ def main(argv: list[str] | None = None) -> int:
         targets = [(Path(p).stem or f"target_{idx}", Path(p)) for idx, p in enumerate(args.paths)]
     else:
         targets = DEFAULT_TARGETS
-    summaries = build_report(root, targets)
-    print(format_report(summaries, as_json=args.json))
+    watch_interval = max(0.0, float(args.watch or 0.0))
+    try:
+        while True:
+            print(render_report(root, targets, as_json=args.json))
+            if watch_interval <= 0.0:
+                break
+            time.sleep(watch_interval)
+    except KeyboardInterrupt:
+        pass
     return 0
 
 
