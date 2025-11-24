@@ -151,6 +151,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 - Persistência do NSR é desativada por padrão (`NSR_MEMORY_STORE_PATH/EPISODES_PATH/INDUCTION_RULES_PATH=""`), evitando que arquivos em `.nsr_memory/` e `.meta/` contaminem depurações determinísticas.
 - Ajuste `--max-cycles` para controlar quantas tentativas executar, `--skip-auto-evolve` para apenas rodar os testes ou `--keep-memory` quando quiser reaproveitar o estado simbólico entre ciclos.
 - Ideal para loops locais de autocura ou para integrar em jobs de CI que precisem tentar remediação automaticamente antes de falhar.
+- Workflow GitHub [`auto-debug.yml`](.github/workflows/auto-debug.yml) expõe um gatilho `workflow_dispatch`/`workflow_call` para executar o mesmo pipeline direto na nuvem.
 
 ## Camadas principais
 
