@@ -38,6 +38,8 @@ from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
+from .bayes_bridge import BayesHook, maybe_route_bayes
+from .bayes_engine import BayesNetwork, BayesVariable
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
@@ -99,6 +101,10 @@ __all__ = [
     "LogicBridgeResult",
     "logic_route",
     "interpret_logic_command",
+    "BayesHook",
+    "BayesNetwork",
+    "BayesVariable",
+    "maybe_route_bayes",
     "MetaTransformer",
     "MetaTransformResult",
     "MetaRoute",

@@ -1,3 +1,4 @@
+import json
 import pytest
 
 from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
@@ -208,6 +209,32 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert len(constants) == 1
     calc_payload = dict(constants[0].fields)["payload"]
     assert dict(calc_payload.fields)["operator"].label == "STATE_QUERY"
+
+
+def test_meta_transformer_routes_bayes():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "variables": [
+            {"name": "Rain", "values": ["yes", "no"]},
+        ],
+        "cpt": {
+            "Rain": [
+                {"distribution": {"yes": 0.2, "no": 0.8}},
+            ]
+        },
+        "query": "Rain",
+    }
+    command = f"BAYES {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.preseed_answer is not None
+    assert result.trace_label == "STAT[BAYES_QUERY]"
+    summary_nodes = build_meta_summary(result, "Rain posterior", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+    assert summary_dict["phi_plan_digest"]
 
 
 def _fake_meta_memory():

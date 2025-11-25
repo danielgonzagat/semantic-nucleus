@@ -30,6 +30,7 @@ from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
+from .bayes_bridge import maybe_route_bayes
 from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
@@ -50,6 +51,7 @@ class MetaRoute(str, Enum):
     CODE = "code"
     INSTINCT = "instinct"
     TEXT = "text"
+    STAT = "stat"
 
 
 @dataclass(frozen=True, slots=True)
@@ -161,6 +163,33 @@ class MetaTransformer:
                 preseed_answer=logic_hook.answer_node,
                 preseed_context=preseed_context,
                 preseed_quality=logic_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        bayes_hook = maybe_route_bayes(text_value)
+        if bayes_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, bayes_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                bayes_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=bayes_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=bayes_hook.trace_label,
+                preseed_answer=bayes_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=bayes_hook.quality,
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,
