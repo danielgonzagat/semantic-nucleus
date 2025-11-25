@@ -32,6 +32,7 @@ from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .bayes_bridge import maybe_route_bayes
 from .markov_bridge import maybe_route_markov
+from .regression_bridge import maybe_route_regression
 from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
@@ -218,6 +219,33 @@ class MetaTransformer:
                 preseed_answer=markov_hook.answer_node,
                 preseed_context=preseed_context,
                 preseed_quality=markov_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        regression_hook = maybe_route_regression(text_value)
+        if regression_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, regression_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                regression_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=regression_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=regression_hook.trace_label,
+                preseed_answer=regression_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=regression_hook.quality,
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,

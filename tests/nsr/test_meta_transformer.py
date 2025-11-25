@@ -264,6 +264,29 @@ def test_meta_transformer_routes_markov():
     assert summary_dict["phi_plan_description"] == "stat_direct_answer"
 
 
+def test_meta_transformer_routes_regression():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "features": ["x1", "x2"],
+        "target": "y",
+        "data": [
+            {"x1": 1, "x2": 1, "y": 3},
+            {"x1": 2, "x2": 0, "y": 2},
+            {"x1": 0, "x2": 3, "y": 6},
+        ],
+    }
+    command = f"REGRESS {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[REGRESSION]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Regression output", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
