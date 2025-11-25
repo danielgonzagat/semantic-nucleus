@@ -1,8 +1,7 @@
 """
-Universal Ontology v1.0 (Parte 1).
+Universal Ontology v1.0 (categorias 1–40).
 
-Representa categorias determinísticas com conceitos, aliases, relações e exemplos
-prontos para alimentar o MultiOntologyManager.
+Fornece conhecimento determinístico para o MultiOntologyManager.
 """
 
 from __future__ import annotations
@@ -12,716 +11,219 @@ from typing import Dict, Iterable, List, Sequence, Tuple
 from liu import Node, entity, relation, text
 
 
+def _concept(
+    name: str,
+    *,
+    aliases: Sequence[str] | None = None,
+    isa: Sequence[str] | None = None,
+    part_of: Sequence[str] | None = None,
+    attributes: Sequence[str] | None = None,
+    examples_pt: Sequence[str] | None = None,
+    examples_en: Sequence[str] | None = None,
+) -> Dict[str, object]:
+    return {
+        "name": name,
+        "aliases": list(aliases or []),
+        "isa": list(isa or []),
+        "part_of": list(part_of or []),
+        "attributes": list(attributes or []),
+        "examples": {
+            "pt": list(examples_pt or []),
+            "en": list(examples_en or []),
+        },
+    }
+
+
 UNIVERSAL_ONTOLOGY_V1_PART1: List[Dict[str, object]] = [
     {
         "category": "existence",
         "concepts": [
-            {
-                "name": "coisa",
-                "aliases": ["objeto", "entidade"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["isso é uma coisa"],
-                    "en": ["this is a thing"],
-                },
-            },
-            {
-                "name": "ser",
-                "aliases": ["existir", "existência"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["um ser vivo"],
-                    "en": ["a living being"],
-                },
-            },
-            {
-                "name": "evento",
-                "aliases": ["ocorrência", "acontecimento"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o evento aconteceu"],
-                    "en": ["the event occurred"],
-                },
-            },
-            {
-                "name": "estado",
-                "aliases": ["condição"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["estado atual"],
-                    "en": ["current state"],
-                },
-            },
-            {
-                "name": "realidade",
-                "aliases": ["mundo", "universo"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["na realidade..."],
-                    "en": ["in reality..."],
-                },
-            },
-            {
-                "name": "identidade",
-                "aliases": ["essência"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["identidade pessoal"],
-                    "en": ["personal identity"],
-                },
-            },
-            {
-                "name": "propriedade",
-                "aliases": ["característica", "atributo"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["cor é uma propriedade"],
-                    "en": ["color is a property"],
-                },
-            },
-            {
-                "name": "tempo",
-                "aliases": ["cronologia"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o tempo passou"],
-                    "en": ["time passed"],
-                },
-            },
-            {
-                "name": "espaço",
-                "aliases": ["localização"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o espaço físico"],
-                    "en": ["physical space"],
-                },
-            },
-            {
-                "name": "mudança",
-                "aliases": ["transformação"],
-                "isa": [],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a mudança ocorreu"],
-                    "en": ["the change occurred"],
-                },
-            },
+            _concept("coisa", aliases=["objeto", "entidade"], examples_pt=["isso é uma coisa"], examples_en=["this is a thing"]),
+            _concept("ser", aliases=["existir", "existência"], examples_pt=["um ser vivo"], examples_en=["a living being"]),
+            _concept("evento", aliases=["ocorrência", "acontecimento"], examples_pt=["o evento aconteceu"], examples_en=["the event occurred"]),
+            _concept("estado", aliases=["condição"], examples_pt=["estado atual"], examples_en=["current state"]),
+            _concept("realidade", aliases=["mundo", "universo"], examples_pt=["na realidade..."], examples_en=["in reality..."]),
+            _concept("identidade", aliases=["essência"], examples_pt=["identidade pessoal"], examples_en=["personal identity"]),
+            _concept("propriedade", aliases=["característica", "atributo"], examples_pt=["cor é uma propriedade"], examples_en=["color is a property"]),
+            _concept("tempo", aliases=["cronologia"], examples_pt=["o tempo passou"], examples_en=["time passed"]),
+            _concept("espaço", aliases=["localização"], examples_pt=["o espaço físico"], examples_en=["physical space"]),
+            _concept("mudança", aliases=["transformação"], examples_pt=["a mudança ocorreu"], examples_en=["the change occurred"]),
         ],
     },
     {
         "category": "people",
         "concepts": [
-            {
-                "name": "pessoa",
-                "aliases": ["indivíduo", "gente"],
-                "isa": ["ser"],
-                "part_of": [],
-                "attributes": ["idade", "nome", "gênero"],
-                "examples": {
-                    "pt": ["a pessoa falou"],
-                    "en": ["the person spoke"],
-                },
-            },
-            {
-                "name": "homem",
-                "aliases": ["masculino"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o homem saiu"],
-                    "en": ["the man left"],
-                },
-            },
-            {
-                "name": "mulher",
-                "aliases": ["feminino"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a mulher chegou"],
-                    "en": ["the woman arrived"],
-                },
-            },
-            {
-                "name": "criança",
-                "aliases": ["menino", "menina"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a criança correu"],
-                    "en": ["the child ran"],
-                },
-            },
-            {
-                "name": "trabalhador",
-                "aliases": ["funcionário"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o trabalhador ajudou"],
-                    "en": ["the worker helped"],
-                },
-            },
-            {
-                "name": "cliente",
-                "aliases": ["consumidor"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o cliente comprou"],
-                    "en": ["the customer bought"],
-                },
-            },
-            {
-                "name": "amigo",
-                "aliases": ["parceiro"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o amigo ligou"],
-                    "en": ["the friend called"],
-                },
-            },
-            {
-                "name": "professor",
-                "aliases": [],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o professor ensinou"],
-                    "en": ["the teacher taught"],
-                },
-            },
-            {
-                "name": "aluno",
-                "aliases": ["estudante"],
-                "isa": ["pessoa"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o aluno estudou"],
-                    "en": ["the student studied"],
-                },
-            },
+            _concept("pessoa", aliases=["indivíduo", "gente"], isa=["ser"], attributes=["idade", "nome", "gênero"], examples_pt=["a pessoa falou"], examples_en=["the person spoke"]),
+            _concept("homem", aliases=["masculino"], isa=["pessoa"], examples_pt=["o homem saiu"], examples_en=["the man left"]),
+            _concept("mulher", aliases=["feminino"], isa=["pessoa"], examples_pt=["a mulher chegou"], examples_en=["the woman arrived"]),
+            _concept("criança", aliases=["menino", "menina"], isa=["pessoa"], examples_pt=["a criança correu"], examples_en=["the child ran"]),
+            _concept("trabalhador", aliases=["funcionário"], isa=["pessoa"], examples_pt=["o trabalhador ajudou"], examples_en=["the worker helped"]),
+            _concept("cliente", aliases=["consumidor"], isa=["pessoa"], examples_pt=["o cliente comprou"], examples_en=["the customer bought"]),
+            _concept("amigo", aliases=["parceiro"], isa=["pessoa"], examples_pt=["o amigo ligou"], examples_en=["the friend called"]),
+            _concept("professor", isa=["pessoa"], examples_pt=["o professor ensinou"], examples_en=["the teacher taught"]),
+            _concept("aluno", aliases=["estudante"], isa=["pessoa"], examples_pt=["o aluno estudou"], examples_en=["the student studied"]),
         ],
     },
     {
         "category": "objects",
         "concepts": [
-            {
-                "name": "carro",
-                "aliases": ["automóvel"],
-                "isa": ["veículo"],
-                "part_of": ["estrada"],
-                "attributes": ["cor", "velocidade"],
-                "examples": {
-                    "pt": ["o carro andou"],
-                    "en": ["the car moved"],
-                },
-            },
-            {
-                "name": "moto",
-                "aliases": ["motocicleta"],
-                "isa": ["veículo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a moto passou"],
-                    "en": ["the motorcycle passed"],
-                },
-            },
-            {
-                "name": "casa",
-                "aliases": ["lar"],
-                "isa": ["construção"],
-                "part_of": ["cidade"],
-                "attributes": ["tamanho"],
-                "examples": {
-                    "pt": ["a casa caiu"],
-                    "en": ["the house fell"],
-                },
-            },
-            {
-                "name": "porta",
-                "aliases": [],
-                "isa": ["objeto"],
-                "part_of": ["casa"],
-                "attributes": ["cor", "material"],
-                "examples": {
-                    "pt": ["a porta abriu"],
-                    "en": ["the door opened"],
-                },
-            },
-            {
-                "name": "janela",
-                "aliases": [],
-                "isa": ["objeto"],
-                "part_of": ["casa"],
-                "attributes": ["vidro"],
-                "examples": {
-                    "pt": ["a janela fechou"],
-                    "en": ["the window closed"],
-                },
-            },
-            {
-                "name": "computador",
-                "aliases": ["pc"],
-                "isa": ["máquina"],
-                "part_of": [],
-                "attributes": ["processador", "memória"],
-                "examples": {
-                    "pt": ["o computador ligou"],
-                    "en": ["the computer turned on"],
-                },
-            },
-            {
-                "name": "telefone",
-                "aliases": ["celular", "smartphone"],
-                "isa": ["dispositivo"],
-                "part_of": [],
-                "attributes": ["bateria"],
-                "examples": {
-                    "pt": ["o telefone tocou"],
-                    "en": ["the phone rang"],
-                },
-            },
+            _concept("carro", aliases=["automóvel"], isa=["veículo"], part_of=["estrada"], attributes=["cor", "velocidade"], examples_pt=["o carro andou"], examples_en=["the car moved"]),
+            _concept("moto", aliases=["motocicleta"], isa=["veículo"], examples_pt=["a moto passou"], examples_en=["the motorcycle passed"]),
+            _concept("casa", aliases=["lar"], isa=["construção"], part_of=["cidade"], attributes=["tamanho"], examples_pt=["a casa caiu"], examples_en=["the house fell"]),
+            _concept("porta", isa=["objeto"], part_of=["casa"], attributes=["cor", "material"], examples_pt=["a porta abriu"], examples_en=["the door opened"]),
+            _concept("janela", isa=["objeto"], part_of=["casa"], attributes=["vidro"], examples_pt=["a janela fechou"], examples_en=["the window closed"]),
+            _concept("computador", aliases=["pc"], isa=["máquina"], attributes=["processador", "memória"], examples_pt=["o computador ligou"], examples_en=["the computer turned on"]),
+            _concept("telefone", aliases=["celular", "smartphone"], isa=["dispositivo"], attributes=["bateria"], examples_pt=["o telefone tocou"], examples_en=["the phone rang"]),
         ],
     },
     {
         "category": "actions",
         "concepts": [
-            {
-                "name": "andar",
-                "aliases": ["caminhar"],
-                "isa": ["movimento"],
-                "part_of": [],
-                "attributes": ["velocidade"],
-                "examples": {
-                    "pt": ["ele andou"],
-                    "en": ["he walked"],
-                },
-            },
-            {
-                "name": "correr",
-                "aliases": ["disparar"],
-                "isa": ["movimento"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele correu"],
-                    "en": ["he ran"],
-                },
-            },
-            {
-                "name": "pular",
-                "aliases": ["saltou"],
-                "isa": ["movimento"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele pulou"],
-                    "en": ["he jumped"],
-                },
-            },
-            {
-                "name": "falar",
-                "aliases": ["dizer"],
-                "isa": ["comunicação"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ela falou"],
-                    "en": ["she spoke"],
-                },
-            },
-            {
-                "name": "ver",
-                "aliases": ["olhar"],
-                "isa": ["percepção"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele viu"],
-                    "en": ["he saw"],
-                },
-            },
-            {
-                "name": "pegar",
-                "aliases": ["agarrar"],
-                "isa": ["ação"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele pegou o objeto"],
-                    "en": ["he grabbed the object"],
-                },
-            },
-            {
-                "name": "bater",
-                "aliases": ["colidir"],
-                "isa": ["impacto"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o carro bateu"],
-                    "en": ["the car hit"],
-                },
-            },
+            _concept("andar", aliases=["caminhar"], isa=["movimento"], attributes=["velocidade"], examples_pt=["ele andou"], examples_en=["he walked"]),
+            _concept("correr", aliases=["disparar"], isa=["movimento"], examples_pt=["ele correu"], examples_en=["he ran"]),
+            _concept("pular", aliases=["saltou"], isa=["movimento"], examples_pt=["ele pulou"], examples_en=["he jumped"]),
+            _concept("falar", aliases=["dizer"], isa=["comunicação"], examples_pt=["ela falou"], examples_en=["she spoke"]),
+            _concept("ver", aliases=["olhar"], isa=["percepção"], examples_pt=["ele viu"], examples_en=["he saw"]),
+            _concept("pegar", aliases=["agarrar"], isa=["ação"], examples_pt=["ele pegou o objeto"], examples_en=["he grabbed the object"]),
+            _concept("bater", aliases=["colidir"], isa=["impacto"], examples_pt=["o carro bateu"], examples_en=["the car hit"]),
         ],
     },
     {
         "category": "places",
         "concepts": [
-            {
-                "name": "cidade",
-                "aliases": [],
-                "isa": ["local"],
-                "part_of": ["estado"],
-                "attributes": ["população"],
-                "examples": {
-                    "pt": ["a cidade cresceu"],
-                    "en": ["the city grew"],
-                },
-            },
-            {
-                "name": "rua",
-                "aliases": ["avenida"],
-                "isa": ["local"],
-                "part_of": ["cidade"],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a rua estava vazia"],
-                    "en": ["the street was empty"],
-                },
-            },
-            {
-                "name": "casa",
-                "aliases": ["lar"],
-                "isa": ["local"],
-                "part_of": ["cidade"],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a casa é branca"],
-                    "en": ["the house is white"],
-                },
-            },
-            {
-                "name": "escola",
-                "aliases": [],
-                "isa": ["local"],
-                "part_of": ["cidade"],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a escola abriu"],
-                    "en": ["the school opened"],
-                },
-            },
+            _concept("cidade", isa=["local"], part_of=["estado"], attributes=["população"], examples_pt=["a cidade cresceu"], examples_en=["the city grew"]),
+            _concept("rua", aliases=["avenida"], isa=["local"], part_of=["cidade"], examples_pt=["a rua estava vazia"], examples_en=["the street was empty"]),
+            _concept("casa", aliases=["lar"], isa=["local"], part_of=["cidade"], examples_pt=["a casa é branca"], examples_en=["the house is white"]),
+            _concept("escola", isa=["local"], part_of=["cidade"], examples_pt=["a escola abriu"], examples_en=["the school opened"]),
         ],
     },
     {
         "category": "time",
         "concepts": [
-            {
-                "name": "hoje",
-                "aliases": [],
-                "isa": ["tempo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["hoje"],
-                    "en": ["today"],
-                },
-            },
-            {
-                "name": "amanhã",
-                "aliases": [],
-                "isa": ["tempo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["amanhã"],
-                    "en": ["tomorrow"],
-                },
-            },
-            {
-                "name": "ontem",
-                "aliases": [],
-                "isa": ["tempo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ontem"],
-                    "en": ["yesterday"],
-                },
-            },
-            {
-                "name": "agora",
-                "aliases": [],
-                "isa": ["tempo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["agora mesmo"],
-                    "en": ["right now"],
-                },
-            },
+            _concept("hoje", isa=["tempo"], examples_pt=["hoje"], examples_en=["today"]),
+            _concept("amanhã", isa=["tempo"], examples_pt=["amanhã"], examples_en=["tomorrow"]),
+            _concept("ontem", isa=["tempo"], examples_pt=["ontem"], examples_en=["yesterday"]),
+            _concept("agora", isa=["tempo"], examples_pt=["agora mesmo"], examples_en=["right now"]),
         ],
     },
     {
         "category": "affect",
         "concepts": [
-            {
-                "name": "feliz",
-                "aliases": ["contente"],
-                "isa": ["estado"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele está feliz"],
-                    "en": ["he is happy"],
-                },
-            },
-            {
-                "name": "triste",
-                "aliases": ["abatido"],
-                "isa": ["estado"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ela está triste"],
-                    "en": ["she is sad"],
-                },
-            },
-            {
-                "name": "raiva",
-                "aliases": ["ira"],
-                "isa": ["estado"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele sentiu raiva"],
-                    "en": ["he felt anger"],
-                },
-            },
+            _concept("feliz", aliases=["contente"], isa=["estado"], examples_pt=["ele está feliz"], examples_en=["he is happy"]),
+            _concept("triste", aliases=["abatido"], isa=["estado"], examples_pt=["ela está triste"], examples_en=["she is sad"]),
+            _concept("raiva", aliases=["ira"], isa=["estado"], examples_pt=["ele sentiu raiva"], examples_en=["he felt anger"]),
         ],
     },
     {
         "category": "properties",
         "concepts": [
-            {
-                "name": "cor",
-                "aliases": [],
-                "isa": ["propriedade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a cor vermelha"],
-                    "en": ["the red color"],
-                },
-            },
-            {
-                "name": "tamanho",
-                "aliases": [],
-                "isa": ["propriedade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["o tamanho grande"],
-                    "en": ["the large size"],
-                },
-            },
-            {
-                "name": "forma",
-                "aliases": ["formato"],
-                "isa": ["propriedade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["a forma redonda"],
-                    "en": ["the round shape"],
-                },
-            },
+            _concept("cor", isa=["propriedade"], examples_pt=["a cor vermelha"], examples_en=["the red color"]),
+            _concept("tamanho", isa=["propriedade"], examples_pt=["o tamanho grande"], examples_en=["the large size"]),
+            _concept("forma", aliases=["formato"], isa=["propriedade"], examples_pt=["a forma redonda"], examples_en=["the round shape"]),
         ],
     },
     {
         "category": "physics",
         "concepts": [
-            {
-                "name": "força",
-                "aliases": ["pressão"],
-                "isa": ["quantidade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["força aplicada"],
-                    "en": ["applied force"],
-                },
-            },
-            {
-                "name": "velocidade",
-                "aliases": [],
-                "isa": ["quantidade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["velocidade alta"],
-                    "en": ["high speed"],
-                },
-            },
-            {
-                "name": "aceleração",
-                "aliases": [],
-                "isa": ["quantidade"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["aceleração constante"],
-                    "en": ["constant acceleration"],
-                },
-            },
+            _concept("força", aliases=["pressão"], isa=["quantidade"], examples_pt=["força aplicada"], examples_en=["applied force"]),
+            _concept("velocidade", isa=["quantidade"], examples_pt=["velocidade alta"], examples_en=["high speed"]),
+            _concept("aceleração", isa=["quantidade"], examples_pt=["aceleração constante"], examples_en=["constant acceleration"]),
         ],
     },
     {
         "category": "mind",
         "concepts": [
-            {
-                "name": "pensar",
-                "aliases": ["raciocinar"],
-                "isa": ["processo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele pensou"],
-                    "en": ["he thought"],
-                },
-            },
-            {
-                "name": "saber",
-                "aliases": ["entender", "compreender"],
-                "isa": ["processo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele soube"],
-                    "en": ["he knew"],
-                },
-            },
-            {
-                "name": "lembrar",
-                "aliases": ["recordar"],
-                "isa": ["processo"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele lembrou"],
-                    "en": ["he remembered"],
-                },
-            },
-            {
-                "name": "dúvida",
-                "aliases": ["incerteza"],
-                "isa": ["estado"],
-                "part_of": [],
-                "attributes": [],
-                "examples": {
-                    "pt": ["ele tinha dúvida"],
-                    "en": ["he had doubt"],
-                },
-            },
+            _concept("pensar", aliases=["raciocinar"], isa=["processo"], examples_pt=["ele pensou"], examples_en=["he thought"]),
+            _concept("saber", aliases=["entender", "compreender"], isa=["processo"], examples_pt=["ele soube"], examples_en=["he knew"]),
+            _concept("lembrar", aliases=["recordar"], isa=["processo"], examples_pt=["ele lembrou"], examples_en=["he remembered"]),
+            _concept("dúvida", aliases=["incerteza"], isa=["estado"], examples_pt=["ele tinha dúvida"], examples_en=["he had doubt"]),
         ],
     },
 ]
 
 
-def build_universal_domain_specs(
-    dataset: Sequence[Dict[str, object]] | None = None,
-) -> Tuple[Dict[str, object], ...]:
-    """
-    Produz especificações (name/version/relations/keywords) prontas para domínios.
-    """
-
-    source = dataset or UNIVERSAL_ONTOLOGY_V1_PART1
-    specs: List[Dict[str, object]] = []
-    for entry in source:
-        category = str(entry["category"])
-        relations: List[Node] = []
-        keywords: set[str] = set()
-        concepts = entry.get("concepts", [])
-        for concept in concepts:
-            concept = dict(concept)
-            name = concept["name"]
-            aliases = _as_list(concept.get("aliases", []))
-            isa_list = _as_list(concept.get("isa", []))
-            part_of_list = _as_list(concept.get("part_of", []))
-            attributes = _as_list(concept.get("attributes", []))
-            relations.append(
-                relation("IN_CATEGORY", entity(name), entity(f"category::{category}"))
-            )
-            keywords.add(name)
-            keywords.update(aliases)
-            for alias in aliases:
-                relations.append(relation("HAS_ALIAS", entity(name), entity(alias)))
-            for parent in isa_list:
-                relations.append(relation("IS_A", entity(name), entity(parent)))
-            for parent in part_of_list:
-                relations.append(relation("PART_OF", entity(name), entity(parent)))
-                relations.append(relation("HAS_PART", entity(parent), entity(name)))
-            for attr in attributes:
-                relations.append(relation("HAS_ATTRIBUTE", entity(name), entity(attr)))
-            examples = concept.get("examples", {}) or {}
-            for sentence in _as_list(examples.get("pt", [])):
-                relations.append(
-                    relation("EXAMPLE_PT", entity(name), text(sentence))
-                )
-            for sentence in _as_list(examples.get("en", [])):
-                relations.append(
-                    relation("EXAMPLE_EN", entity(name), text(sentence))
-                )
-        specs.append(
-            {
-                "name": f"universal::{category}",
-                "version": "universal.v1p1",
-                "relations": tuple(relations),
-                "keywords": tuple(sorted(keywords)),
-            }
-        )
-    return tuple(specs)
-
-
-def _as_list(values: Iterable[str] | None) -> List[str]:
-    if not values:
-        return []
-    return [str(value) for value in values if str(value).strip()]
-
-
-__all__ = [
-    "UNIVERSAL_ONTOLOGY_V1_PART1",
-    "build_universal_domain_specs",
-]
+UNIVERSAL_ONTOLOGY_V1_PART2: List[Dict[str, object]] = [
+    {
+        "category": "relations",
+        "concepts": [
+            _concept("parte_de", aliases=["componente_de"], isa=["relação"], examples_pt=["a roda é parte do carro"], examples_en=["the wheel is part of the car"]),
+            _concept("causa", aliases=["provoca"], isa=["relação"], examples_pt=["o fogo causa calor"], examples_en=["fire causes heat"]),
+            _concept("efeito", aliases=["resultado"], isa=["relação"], examples_pt=["dor é efeito da lesão"], examples_en=["pain is the effect of injury"]),
+            _concept("igual", aliases=["mesmo", "equivalente"], isa=["relação"], examples_pt=["carro = automóvel"], examples_en=["car = automobile"]),
+            _concept("diferente", aliases=["distinto"], isa=["relação"], examples_pt=["dia ≠ noite"], examples_en=["day ≠ night"]),
+            _concept("maior_que", aliases=["superior_a"], isa=["quantitativo"], examples_pt=["10 é maior que 5"], examples_en=["10 is greater than 5"]),
+            _concept("menor_que", aliases=["inferior_a"], isa=["quantitativo"], examples_pt=["3 é menor que 7"], examples_en=["3 is less than 7"]),
+            _concept("pertence", aliases=["contido_em"], isa=["relação"], examples_pt=["o arquivo pertence à pasta"], examples_en=["the file belongs to the folder"]),
+        ],
+    },
+    {
+        "category": "quantities",
+        "concepts": [
+            _concept("número", aliases=["valor"], isa=["quantidade"], examples_pt=["o número 5"], examples_en=["number 5"]),
+            _concept("conta", aliases=["soma"], isa=["operação"], examples_pt=["5 + 5"], examples_en=["5 + 5"]),
+            _concept("zero", aliases=["0"], isa=["número"], examples_pt=["zero itens"], examples_en=["zero items"]),
+            _concept("um", aliases=["1"], isa=["número"], examples_pt=["um item"], examples_en=["one item"]),
+            _concept("dois", aliases=["2"], isa=["número"], examples_pt=["dois itens"], examples_en=["two items"]),
+            _concept("dez", aliases=["10"], isa=["número"], examples_pt=["dez pessoas"], examples_en=["ten people"]),
+            _concept("cento", aliases=["100"], isa=["número"], examples_pt=["cem reais"], examples_en=["one hundred"]),
+            _concept("mil", aliases=["1000"], isa=["número"], examples_pt=["mil unidades"], examples_en=["one thousand"]),
+            _concept("muito", aliases=["quantidade_grande"], isa=["quantidade"], examples_pt=["muito trabalho"], examples_en=["a lot of work"]),
+            _concept("pouco", aliases=["escasso"], isa=["quantidade"], examples_pt=["pouco tempo"], examples_en=["little time"]),
+        ],
+    },
+    {
+        "category": "social_affect",
+        "concepts": [
+            _concept("agrado", aliases=["gostar"], isa=["estado"], examples_pt=["ele gostou"], examples_en=["he liked"]),
+            _concept("desagrado", aliases=["não_gostar"], isa=["estado"], examples_pt=["ele não gostou"], examples_en=["he disliked"]),
+            _concept("medo", aliases=["receio"], isa=["estado"], examples_pt=["ela sentiu medo"], examples_en=["she felt fear"]),
+            _concept("coragem", aliases=["bravura"], isa=["traço"], examples_pt=["ele teve coragem"], examples_en=["he showed courage"]),
+            _concept("empatia", isa=["traço"], examples_pt=["ele demonstrou empatia"], examples_en=["he showed empathy"]),
+            _concept("confiança", isa=["estado"], examples_pt=["ela confiou"], examples_en=["she trusted"]),
+        ],
+    },
+    {
+        "category": "social_relations",
+        "concepts": [
+            _concept("familia", aliases=["parente"], isa=["grupo"], examples_pt=["minha família"], examples_en=["my family"]),
+            _concept("amigo", aliases=["parceiro"], isa=["pessoa"], examples_pt=["meu amigo"], examples_en=["my friend"]),
+            _concept("conhecido", aliases=["contato"], isa=["pessoa"], examples_pt=["um conhecido"], examples_en=["an acquaintance"]),
+            _concept("colega", aliases=["companheiro"], isa=["pessoa"], examples_pt=["colega de trabalho"], examples_en=["work colleague"]),
+            _concept("chefe", aliases=["superior"], isa=["pessoa"], examples_pt=["meu chefe"], examples_en=["my boss"]),
+            _concept("parceiro_romantico", aliases=["namorado", "companheiro"], isa=["pessoa"], examples_pt=["parceiro romântico"], examples_en=["romantic partner"]),
+        ],
+    },
+    {
+        "category": "social_actions",
+        "concepts": [
+            _concept("ajudar", aliases=["auxiliar"], isa=["ação"], examples_pt=["ele ajudou"], examples_en=["he helped"]),
+            _concept("pedir", aliases=["solicitar"], isa=["ação"], examples_pt=["ele pediu algo"], examples_en=["he asked for something"]),
+            _concept("ordenar", aliases=["mandar"], isa=["ação"], examples_pt=["ele ordenou"], examples_en=["he ordered"]),
+            _concept("elogiar", isa=["ação"], examples_pt=["ele elogiou"], examples_en=["he praised"]),
+            _concept("criticar", aliases=["reclamar"], isa=["ação"], examples_pt=["ele criticou"], examples_en=["he criticized"]),
+            _concept("cumprimentar", aliases=["saudar"], isa=["ação"], examples_pt=["ele cumprimentou"], examples_en=["he greeted"]),
+        ],
+    },
+    {
+        "category": "logic",
+        "concepts": [
+            _concept("e", aliases=["and"], isa=["operador"], examples_pt=["A e B"], examples_en=["A and B"]),
+            _concept("ou", aliases=["or"], isa=["operador"], examples_pt=["A ou B"], examples_en=["A or B"]),
+            _concept("não", aliases=["not"], isa=["operador"], examples_pt=["não A"], examples_en=["not A"]),
+            _concept("se_entao", aliases=["implica"], isa=["operador"], examples_pt=["se A então B"], examples_en=["if A then B"]),
+            _concept("equivalente", aliases=["se_e_somente_se"], isa=["operador"], examples_pt=["A ↔ B"], examples_en=["A iff B"]),
+            _concept("verdadeiro", aliases=["true"], isa=["valor"], examples_pt=["verdadeiro"], examples_en=["true"]),
+            _concept("falso", aliases=["false"], isa=["valor"], examples_pt=["falso"], examples_en=["false"]),
+        ],
+    },
+    {
+        "category": "computing",
+        "concepts": [
+            _concept("arquivo", aliases=["file"], isa=["objeto"], examples_pt=["o arquivo abriu"], examples_en=["the file opened"]),
+            _concept("pasta", aliases=["diretorio"], isa=["local"], examples_pt=["a pasta contém arquivos"], examples_en=["the folder contains files"]),
+            _concept("programa", aliases=["software"], isa=["objeto"], examples_pt=["o programa executou"], examples_en=["the program executed"]),
+            _concept("codigo", aliases=["source"], isa=["objeto"], examples_pt=["o código compilou"], examples_en=["the code compiled"]),
+            _concept("função", aliases=["método"], isa=["entidade"], examples_pt=["a função retornou"], examples_en=["the function returned"]),
+            _concept("erro", aliases=["bug"], isa=["estado"], examples_pt=["um erro ocorreu"], examples_en=["an error occurred"]),
+        ],
+    },
