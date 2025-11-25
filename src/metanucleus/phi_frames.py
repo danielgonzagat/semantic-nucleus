@@ -39,18 +39,13 @@ def phi_frames(parse: SemanticParse, idx: Optional[OntologyIndex] = None) -> Fra
         fid = frame.get("id")
         label = frame.get("label", fid)
         for pattern in frame.get("patterns", []):
-            if _pattern_matches(str(pattern).lower(), text_lower):
-                frame_type = "event"
-                if label and "definition" in label:
-                    frame_type = "definition_request"
-                elif label and "communication" in label:
-                    frame_type = "communication"
-                roles: Dict[str, str] = {}
-                if frame_type == "definition_request":
-                    topic = _extract_topic_from_definition(text_lower)
-                    if topic:
-                        roles["TOPIC"] = topic
-                        signals.append(f"TOPIC={topic}")
+            normalized_pattern = str(pattern).lower()
+            span = _locate_span(parse.tokens, normalized_pattern)
+            if span or _pattern_matches(normalized_pattern, text_lower):
+                frame_type = _infer_frame_type(label)
+                roles = _prefill_roles(frame_type, text_lower)
+                if span:
+                    _populate_roles_from_span(roles, span, parse)
                 signals.append(f"match_frame:{fid}:{pattern}")
                 return FrameResult(frame_id=fid, frame_type=frame_type, roles=roles, confidence=0.85, signals=signals)
 
@@ -82,6 +77,63 @@ def phi_frames(parse: SemanticParse, idx: Optional[OntologyIndex] = None) -> Fra
         confidence = 0.2
 
     return FrameResult(frame_id=None, frame_type=frame_type, roles=roles, confidence=confidence, signals=signals)
+
+
+def _prefill_roles(frame_type: str, text_lower: str) -> Dict[str, str]:
+    roles: Dict[str, str] = {}
+    if frame_type == "definition_request":
+        topic = _extract_topic_from_definition(text_lower)
+        if topic:
+            roles["TOPIC"] = topic
+    return roles
+
+
+def _populate_roles_from_span(roles: Dict[str, str], span: List[int], parse: SemanticParse) -> None:
+    tokens = parse.tokens
+    surface = " ".join(tokens[i].text for i in span)
+    roles.setdefault("ACTION", surface)
+
+    before = _nearest_entity_hit(parse.hits, span[0], direction=-1)
+    after = _nearest_entity_hit(parse.hits, span[-1], direction=1)
+    if before and "AGENT" not in roles:
+        roles["AGENT"] = before.token.text
+    if after and "PATIENT" not in roles and (not before or after.token_index != before.token_index):
+        roles["PATIENT"] = after.token.text
+
+
+def _nearest_entity_hit(hits, pivot: int, direction: int):
+    ordered = sorted(hits, key=lambda h: h.token_index, reverse=(direction < 0))
+    for hit in ordered:
+        if not hit.category_id.startswith("A000"):
+            continue
+        if direction < 0 and hit.token_index < pivot:
+            return hit
+        if direction > 0 and hit.token_index > pivot:
+            return hit
+    return None
+
+
+def _locate_span(tokens, pattern: str) -> Optional[List[int]]:
+    pattern_parts = [p for p in pattern.split() if p]
+    if not pattern_parts:
+        return None
+    norms = [t.norm for t in tokens]
+    n = len(pattern_parts)
+    for i in range(len(tokens) - n + 1):
+        if all(norms[i + j] == pattern_parts[j] for j in range(n)):
+            return list(range(i, i + n))
+    return None
+
+
+def _infer_frame_type(label: Optional[str]) -> str:
+    if not label:
+        return "event"
+    label_lower = label.lower()
+    if "definition" in label_lower:
+        return "definition_request"
+    if "communication" in label_lower:
+        return "communication"
+    return "event"
 
 
 def _pattern_matches(pattern: str, text: str) -> bool:

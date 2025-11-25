@@ -34,30 +34,48 @@ def phi_intent(parse: SemanticParse, idx: Optional[OntologyIndex] = None) -> Int
         idx = get_global_index()
 
     patterns = _load_intent_patterns()
-    reasons: List[str] = []
     text_lower = parse.text.lower()
+    scores: Dict[str, float] = {
+        "statement": 0.2,
+        "question": 0.0,
+        "definition_request": 0.0,
+        "command": 0.0,
+        "greeting": 0.0,
+    }
+    reason_map: Dict[str, List[str]] = {label: [] for label in scores}
 
-    for pat in patterns.get("greeting", []):
-        if pat in text_lower:
-            reasons.append(f"match greeting: {pat!r}")
-            return IntentFrame(label="greeting", confidence=0.9, reasons=reasons)
+    def add(label: str, value: float, note: str) -> None:
+        scores[label] = scores.get(label, 0.0) + value
+        reason_map.setdefault(label, []).append(note)
+
+    if any(token.lower in patterns.get("greeting", []) for token in parse.tokens if not token.is_punctuation):
+        add("greeting", 1.5, "match greeting token")
 
     for pat in patterns.get("definition_request", []):
         if pat in text_lower:
-            reasons.append(f"match definition_request: {pat!r}")
-            return IntentFrame(label="definition_request", confidence=0.9, reasons=reasons)
+            add("definition_request", 1.2, f"match definition_request: {pat!r}")
 
-    if any(token.text == "?" for token in parse.tokens):
-        reasons.append("termina_com_?")
-        return IntentFrame(label="question", confidence=0.9, reasons=reasons)
+    if any(token.text == "?" for token in parse.tokens) or text_lower.strip().endswith("?"):
+        add("question", 1.5, "termina_com_?")
 
+    # Imperative heuristic (first token verb-like or operator concept)
     tokens_lower = [t.lower for t in parse.tokens if not t.is_punctuation]
     if tokens_lower:
         first = tokens_lower[0]
+        if first.endswith(("ar", "er", "ir")):
+            add("command", 0.8, "primeiro token parece verbo")
         concept = idx.by_name(first) or idx.by_alias(first)
         if concept and concept.category_id.startswith("A003"):
-            reasons.append("primeiro_token_é_operador")
-            return IntentFrame(label="command", confidence=0.7, reasons=reasons)
+            add("command", 1.0, "primeiro token é operador")
 
-    reasons.append("padrão neutro; assumindo 'statement'")
-    return IntentFrame(label="statement", confidence=0.5, reasons=reasons)
+    # If we matched a definition request but it's also clearly a question, bump question score
+    if scores["definition_request"] > 0 and scores["question"] > 0:
+        add("question", 0.5, "definition_request também marcado como pergunta")
+
+    label = max(scores.items(), key=lambda item: item[1])[0]
+    top_score = scores[label]
+    reasons = reason_map.get(label, [])
+    if not reasons:
+        reasons.append("padrão neutro; assumindo 'statement'")
+    confidence = min(0.95, 0.4 + top_score / 2)
+    return IntentFrame(label=label, confidence=confidence, reasons=reasons)
