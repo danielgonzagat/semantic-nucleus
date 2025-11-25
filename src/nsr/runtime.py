@@ -138,6 +138,7 @@ class RunOutcome:
     code_ast: Node | None = None
     code_summary: Node | None = None
     math_ast: Node | None = None
+    domain_scope: Node | None = None
 
     @property
     def quality(self) -> float:
@@ -201,6 +202,8 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
             code_summary=meta.code_summary,
             math_ast=meta.math_ast,
             plan_goal=meta.plan_goal,
+            domain_scope=meta.domain_scope,
+            active_domains=meta.active_domains,
         )
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     if calc_mode == "plan_only":
@@ -378,6 +381,7 @@ def run_struct_full(
             code_ast=meta_info.code_ast if meta_info else None,
             code_summary=meta_info.code_summary if meta_info else None,
             math_ast=meta_info.math_ast if meta_info else None,
+            domain_scope=meta_info.domain_scope if meta_info else None,
         )
         return outcome
     steps = 0
@@ -594,6 +598,7 @@ def run_struct_full(
         code_ast=meta_info.code_ast if meta_info else None,
         code_summary=meta_info.code_summary if meta_info else None,
         math_ast=meta_info.math_ast if meta_info else None,
+        domain_scope=meta_info.domain_scope if meta_info else None,
     )
     return outcome
 
@@ -1130,6 +1135,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         code_ast=meta.code_ast,
         code_summary=meta.code_summary,
         math_ast=meta.math_ast,
+        domain_scope=meta.domain_scope,
     )
     return outcome
 

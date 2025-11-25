@@ -117,6 +117,25 @@ def test_meta_transformer_falls_back_to_text_route():
     assert plan_fields["digest"].label
 
 
+def test_meta_transformer_attaches_ontology_scope():
+    session = SessionCtx()
+    base_len = len(session.kb_ontology)
+    transformer = MetaTransformer(session)
+    result = transformer.transform("O paciente recebeu aspirina no hospital e assinou um contrato legal.")
+    assert result.domain_scope is not None
+    scope_nodes = [
+        node for node in result.preseed_context if dict(node.fields)["tag"].label == "ontology_scope"
+    ]
+    assert scope_nodes, "ontology_scope node missing from context"
+    scope_fields = dict(scope_nodes[0].fields)
+    active_list = scope_fields["active"]
+    assert active_list.kind.name == "LIST"
+    active_labels = {entry.label for entry in active_list.args}
+    assert "medical" in active_labels
+    assert "legal" in active_labels
+    assert len(session.kb_ontology) > base_len
+
+
 def test_meta_transformer_routes_code_snippet():
     session = SessionCtx()
     transformer = MetaTransformer(session)
@@ -383,6 +402,17 @@ def soma(a, b):
     programs = summary.get("synthesis_programs")
     assert programs
     assert programs[0].get("source_digest")
+
+
+def test_meta_summary_includes_ontology_scope():
+    session = SessionCtx()
+    outcome = run_text_full("O paciente tomou aspirina e assinou um contrato legal no hospital.", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    active_domains = summary.get("ontology_active_domains")
+    assert active_domains and "medical" in active_domains
+    inferred_domains = summary.get("ontology_inferred_domains")
+    assert inferred_domains and "legal" in inferred_domains
 
 
 def test_meta_memory_entries_include_program_synthesis():

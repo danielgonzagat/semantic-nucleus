@@ -79,6 +79,8 @@ class MetaTransformResult:
     code_summary: Node | None = None
     math_ast: Node | None = None
     plan_goal: str | None = None
+    domain_scope: Node | None = None
+    active_domains: Tuple[str, ...] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -132,6 +134,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                poly_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=poly_hook.struct_node,
                 route=MetaRoute.MATH,
@@ -145,6 +152,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         if math_hook:
@@ -160,6 +169,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                math_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=math_hook.struct_node,
                 route=MetaRoute.MATH,
@@ -173,6 +187,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=math_hook.math_ast,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
@@ -190,6 +206,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.LOGIC, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                logic_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=logic_hook.struct_node,
                 route=MetaRoute.LOGIC,
@@ -202,6 +223,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         bayes_hook = maybe_route_bayes(text_value)
@@ -217,6 +240,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                bayes_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=bayes_hook.struct_node,
                 route=MetaRoute.STAT,
@@ -229,6 +257,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         markov_hook = maybe_route_markov(text_value)
@@ -244,6 +274,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                markov_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=markov_hook.struct_node,
                 route=MetaRoute.STAT,
@@ -256,6 +291,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         regression_hook = maybe_route_regression(text_value)
@@ -271,6 +308,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                regression_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=regression_hook.struct_node,
                 route=MetaRoute.STAT,
@@ -283,6 +325,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         factor_hook = maybe_route_factor(text_value)
@@ -298,6 +342,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                factor_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=factor_hook.struct_node,
                 route=MetaRoute.STAT,
@@ -310,6 +359,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         code_hook = maybe_route_code(
@@ -331,6 +382,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.CODE, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                code_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=code_hook.struct_node,
                 route=MetaRoute.CODE,
@@ -345,6 +401,8 @@ class MetaTransformer:
                 code_ast=code_hook.ast_node,
                 code_summary=summary_node,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         instinct_hook = maybe_route_text(text_value)
@@ -361,6 +419,11 @@ class MetaTransformer:
             plan_node = _meta_plan_node(MetaRoute.INSTINCT, None, plan)
             if plan_node is not None:
                 preseed_context = tuple((*preseed_context, plan_node))
+            preseed_context, scope_node, active_domains = self._inject_domain_scope(
+                preseed_context,
+                instinct_hook.struct_node,
+                text_value,
+            )
             return MetaTransformResult(
                 struct_node=instinct_hook.struct_node,
                 route=MetaRoute.INSTINCT,
@@ -374,6 +437,8 @@ class MetaTransformer:
                 language_profile=language_profile_node,
                 code_ast=None,
                 math_ast=None,
+                domain_scope=scope_node,
+                active_domains=active_domains,
             )
 
         language = (language_hint or "pt").lower()
@@ -426,6 +491,11 @@ class MetaTransformer:
         plan_context = _meta_plan_node(MetaRoute.TEXT, phi_plan_ops, text_plan)
         if plan_context is not None:
             meta_context = tuple((*meta_context, plan_context))
+        meta_context, scope_node, active_domains = self._inject_domain_scope(
+            meta_context,
+            struct_node,
+            text_value,
+        )
         return MetaTransformResult(
             struct_node=struct_node,
             route=MetaRoute.TEXT,
@@ -441,6 +511,8 @@ class MetaTransformer:
             code_summary=code_summary,
             math_ast=None,
             plan_goal=plan_goal_text,
+            domain_scope=scope_node,
+            active_domains=active_domains,
         )
 
     def _effective_lexicon(self):
@@ -467,6 +539,27 @@ class MetaTransformer:
         if base_context:
             return tuple((*base_context, *extra))
         return extra
+
+    def _inject_domain_scope(
+        self,
+        context: Tuple[Node, ...],
+        struct_node: Node,
+        text_value: str,
+    ) -> Tuple[Tuple[Node, ...], Node | None, Tuple[str, ...] | None]:
+        manager = getattr(self.session, "ontology_manager", None)
+        if manager is None:
+            return context, None, None
+        inferred = manager.infer_domains(text_value=text_value, struct_node=struct_node)
+        for domain in inferred:
+            manager.activate_domain(domain)
+        active = tuple(sorted(manager.active_domains)) if manager.active_domains else None
+        self.session.kb_ontology = manager.get_active_relations()
+        scope_node = manager.build_scope_node(
+            inferred_domains=inferred,
+            active_domains=active or tuple(),
+        )
+        enriched_context = tuple((*context, scope_node))
+        return enriched_context, scope_node, active
 
 
 def attach_language_field(node: Node, language: str | None) -> Node:
@@ -617,6 +710,8 @@ def build_meta_summary(
         nodes.append(meta.code_summary)
     if meta.math_ast is not None:
         nodes.append(meta.math_ast)
+    if meta.domain_scope is not None:
+        nodes.append(meta.domain_scope)
     if calc_result is not None:
         exec_node = _meta_calc_exec_node(calc_result)
         if exec_node is not None:
@@ -743,6 +838,35 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
           value_node = math_fields.get("value")
           if value_node is not None:
               result["math_ast_value"] = _value(value_node)
+    scope_node = nodes.get("ontology_scope")
+    if scope_node is not None:
+        scope_fields = _fields(scope_node)
+        result["ontology_scope_digest"] = _label(scope_fields.get("digest"))
+        result["ontology_active_domains"] = _list_labels(scope_fields.get("active"))
+        inferred_domains = _list_labels(scope_fields.get("inferred"))
+        if inferred_domains:
+            result["ontology_inferred_domains"] = inferred_domains
+        relation_total = scope_fields.get("relation_total")
+        if relation_total is not None:
+            result["ontology_relation_total"] = int(_value(relation_total))
+        domain_count_node = scope_fields.get("domain_count")
+        if domain_count_node is not None:
+            result["ontology_domain_count"] = int(_value(domain_count_node))
+        details_node = scope_fields.get("details")
+        if details_node is not None and details_node.kind.name == "LIST":
+            detail_entries: list[dict[str, object]] = []
+            for entry in details_node.args:
+                entry_fields = _fields(entry)
+                detail_entries.append(
+                    {
+                        "name": _label(entry_fields.get("name")),
+                        "version": _label(entry_fields.get("version")),
+                        "relation_count": int(_value(entry_fields.get("relation_count") or number(0))),
+                        "status": _label(entry_fields.get("status")),
+                    }
+                )
+            if detail_entries:
+                result["ontology_domains"] = detail_entries
     reasoning_node = nodes.get("meta_reasoning")
     if reasoning_node is not None:
           reasoning_fields = _fields(reasoning_node)
@@ -1135,6 +1259,12 @@ def _value(node: Node | None) -> float:
     if node.value is not None:
         return float(node.value)
     return 0.0
+
+
+def _list_labels(node: Node | None) -> list[str]:
+    if node is None or node.kind.name != "LIST":
+        return []
+    return [(entry.label or "") for entry in node.args if entry.label]
 
 
 def _extract_meta_calculation(meta: MetaTransformResult | None) -> Node | None:
