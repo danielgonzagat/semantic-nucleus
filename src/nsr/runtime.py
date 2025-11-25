@@ -33,6 +33,7 @@ from .meta_memory import build_meta_memory
 from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
+from .context_stats import build_context_probabilities
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -299,6 +300,7 @@ def run_struct_full(
             if meta_info
             else None
         )
+        context_prob_node = build_context_probabilities(isr)
         equation_stats = snapshot.stats()
         memory_entry = _memory_entry_payload(
             meta_info,
@@ -325,6 +327,7 @@ def run_struct_full(
                 meta_memory=meta_memory,
                 meta_equation=equation_node,
                 meta_proof=logic_proof_node,
+                meta_context_prob=context_prob_node,
             )
             if meta_info
             else None
@@ -495,6 +498,7 @@ def run_struct_full(
         if meta_info
         else None
     )
+    context_prob_node = build_context_probabilities(isr)
     equation_stats = snapshot.stats()
     memory_entry = _memory_entry_payload(
         meta_info,
@@ -521,6 +525,7 @@ def run_struct_full(
             meta_memory=meta_memory,
             meta_equation=equation_node,
             meta_proof=logic_proof_node,
+            meta_context_prob=context_prob_node,
         )
         if meta_info
         else None

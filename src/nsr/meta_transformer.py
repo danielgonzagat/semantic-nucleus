@@ -595,6 +595,7 @@ def build_meta_summary(
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
     meta_proof: Node | None = None,
+    meta_context_prob: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -629,6 +630,8 @@ def build_meta_summary(
         nodes.append(meta_expression)
     if meta_memory is not None:
         nodes.append(meta_memory)
+    if meta_context_prob is not None:
+        nodes.append(meta_context_prob)
     if meta_equation is not None:
         nodes.append(meta_equation)
     if meta_proof is not None:
@@ -940,6 +943,51 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                     }
                 )
             result["equation_section_deltas"] = delta_sections
+    context_prob_node = nodes.get("context_probabilities")
+    if context_prob_node is not None:
+        cp_fields = _fields(context_prob_node)
+        result["context_relation_total"] = int(_value(cp_fields.get("relation_total")))
+        result["context_context_total"] = int(_value(cp_fields.get("context_total")))
+        result["context_goal_total"] = int(_value(cp_fields.get("goal_total")))
+        relations_node = cp_fields.get("relations")
+        if relations_node is not None and relations_node.kind.name == "LIST":
+            relation_entries = []
+            for entry in relations_node.args:
+                entry_fields = _fields(entry)
+                relation_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_relation_probs"] = relation_entries
+        contexts_node = cp_fields.get("contexts")
+        if contexts_node is not None and contexts_node.kind.name == "LIST":
+            context_entries = []
+            for entry in contexts_node.args:
+                entry_fields = _fields(entry)
+                context_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_context_probs"] = context_entries
+        goals_node = cp_fields.get("goals")
+        if goals_node is not None and goals_node.kind.name == "LIST":
+            goal_entries = []
+            for entry in goals_node.args:
+                entry_fields = _fields(entry)
+                goal_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_goal_probs"] = goal_entries
     proof_node = nodes.get("meta_proof")
     if proof_node is not None:
         proof_fields = _fields(proof_node)

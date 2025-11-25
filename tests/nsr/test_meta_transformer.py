@@ -357,6 +357,18 @@ def test_meta_transformer_routes_factor_graph():
     assert summary_dict["phi_plan_description"] == "stat_direct_answer"
 
 
+def test_context_probabilities_recorded():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe. O carro anda.", session)
+    summary = outcome.meta_summary
+    assert summary is not None
+    summary_dict = meta_summary_to_dict(summary)
+    assert "context_relation_total" in summary_dict
+    assert summary_dict["context_relation_total"] >= 0
+    assert "context_context_probs" in summary_dict
+    assert summary_dict["context_context_probs"]
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
