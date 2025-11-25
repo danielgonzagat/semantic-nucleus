@@ -44,6 +44,8 @@ from .bayes_bridge import BayesHook, maybe_route_bayes
 from .bayes_engine import BayesNetwork, BayesVariable
 from .markov_bridge import MarkovHook, maybe_route_markov
 from .markov_engine import MarkovModel
+from .factor_bridge import FactorHook, maybe_route_factor
+from .factor_graph_engine import FactorGraph, FactorVariable, Factor
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
@@ -116,6 +118,11 @@ __all__ = [
     "MarkovHook",
     "MarkovModel",
     "maybe_route_markov",
+    "FactorHook",
+    "FactorGraph",
+    "FactorVariable",
+    "Factor",
+    "maybe_route_factor",
     "MetaTransformer",
     "MetaTransformResult",
     "MetaRoute",

@@ -8,6 +8,7 @@ from dataclasses import dataclass, field, replace as dc_replace
 from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
+from collections import deque, Counter
 
 from liu import Node, NodeKind, operation, fingerprint, text
 
@@ -388,8 +389,10 @@ def run_struct_full(
                 break
             if isr.goals:
                 isr.ops_queue.append(isr.goals[0])
+                _prioritize_ops_queue(isr)
             else:
                 isr.ops_queue.extend([operation("ALIGN"), operation("STABILIZE"), operation("SUMMARIZE")])
+                _prioritize_ops_queue(isr)
         op = isr.ops_queue.popleft()
         op_label = op.label or "NOOP"
         isr = apply_operator(isr, op, session)
@@ -651,11 +654,44 @@ def _prime_ops_from_meta_calc(
     isr.ops_queue.clear()
     isr.ops_queue.extend(pipeline_ops)
     isr.ops_queue.extend(original_ops)
+    _prioritize_ops_queue(isr)
     operator = (
         (meta_info.meta_calculation.operator if meta_info.meta_calculation else "plan").upper()
     )
     chain = "→".join(filter(None, (op.label or "" for op in pipeline_ops)))
     return f"Φ_PLAN[{operator}:{chain}]"
+
+
+def _prioritize_ops_queue(isr: ISR) -> None:
+    priorities = _context_priority_map(isr)
+    if not priorities or not isr.ops_queue:
+        return
+    indexed_ops = list(isr.ops_queue)
+    indexed_ops = sorted(
+        enumerate(indexed_ops),
+        key=lambda item: (-priorities.get((item[1].label or "").upper(), 0.0), item[0]),
+    )
+    isr.ops_queue = deque(op for _, op in indexed_ops)
+
+
+def _context_priority_map(isr: ISR) -> dict[str, float]:
+    counts = Counter()
+    for node in isr.context:
+        label = _context_node_label(node)
+        if label:
+            counts[label] += 1
+    total = sum(counts.values())
+    if not total:
+        return {}
+    return {label: count / total for label, count in counts.items()}
+
+
+def _context_node_label(node: Node) -> str:
+    if node.kind is NodeKind.STRUCT:
+        tag_field = dict(node.fields).get("tag")
+        if tag_field and tag_field.label:
+            return tag_field.label.upper()
+    return (node.label or "").upper()
 
 
 def _apply_code_rewrite_if_needed(
