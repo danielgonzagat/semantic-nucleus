@@ -36,6 +36,8 @@ from .ian_bridge import (
 from .code_bridge import CodeHook, maybe_route_code
 from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
+from .polynomial_bridge import PolynomialHook, maybe_route_polynomial
+from .polynomial_engine import PolynomialResult, factor_polynomial
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
 from .bayes_bridge import BayesHook, maybe_route_bayes
@@ -83,6 +85,9 @@ __all__ = [
     "InstinctHook",
     "CodeHook",
     "MathInstinct",
+    "PolynomialHook",
+    "PolynomialResult",
+    "factor_polynomial",
     "analyze_utterance",
     "plan_reply",
     "respond",
@@ -92,6 +97,7 @@ __all__ = [
     "ian_conjugate",
     "maybe_route_text",
     "maybe_route_math",
+    "maybe_route_polynomial",
     "utterance_to_struct",
     "reply_plan_to_answer",
     "maybe_route_code",

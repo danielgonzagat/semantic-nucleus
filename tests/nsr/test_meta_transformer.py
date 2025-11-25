@@ -287,6 +287,20 @@ def test_meta_transformer_routes_regression():
     assert summary_dict["phi_plan_description"] == "stat_direct_answer"
 
 
+def test_meta_transformer_routes_polynomial():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {"variable": "x", "coefficients": [1, -3, 2]}
+    command = f"POLY {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.MATH
+    assert result.trace_label == "MATH[POLY]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Poly factor", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "math"
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),

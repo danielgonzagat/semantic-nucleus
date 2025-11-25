@@ -30,6 +30,7 @@ from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
+from .polynomial_bridge import maybe_route_polynomial
 from .bayes_bridge import maybe_route_bayes
 from .markov_bridge import maybe_route_markov
 from .regression_bridge import maybe_route_regression
@@ -111,9 +112,39 @@ class MetaTransformer:
             self.session.language_hint = language_hint
         should_build_code_ast = detection.category == "code" and detection.dialect == "python"
 
+        poly_hook = None
         math_hook = None
         if detection.category != "code":
-            math_hook = maybe_route_math(text_value)
+            poly_hook = maybe_route_polynomial(text_value)
+            if poly_hook is None:
+                math_hook = maybe_route_math(text_value)
+        if poly_hook:
+            plan = _direct_answer_plan(MetaRoute.MATH, poly_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                poly_hook.context_nodes,
+                MetaRoute.MATH,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=poly_hook.struct_node,
+                route=MetaRoute.MATH,
+                input_text=text_value,
+                trace_label=poly_hook.trace_label,
+                preseed_answer=poly_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=poly_hook.quality,
+                language_hint=self.session.language_hint,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
         if math_hook:
             plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
             self.session.language_hint = math_hook.reply.language

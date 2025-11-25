@@ -6,7 +6,7 @@ O Metanúcleo opera como uma cadeia irreversível reversível que leva qualquer 
 
 O estágio Meta-LER recebe texto cru e determina, de maneira determinística, qual rota deve ser aplicada:
 
-- **Matemática** (`MetaRoute.MATH`): ativa o `math_bridge`/`Math-Core` quando a entrada é equação ou instrução aritmética.
+- **Matemática** (`MetaRoute.MATH`): ativa o `math_bridge`/`Math-Core` para expressões aritméticas e aceita comandos `POLY {json}` (fatoração determinística via `nsr.polynomial_engine`), devolvendo ast/fatores auditáveis.
 - **Lógica** (`MetaRoute.LOGIC`): roteia comandos `FACT/IF/QUERY` para o `logic_bridge`.
 - **Estatística / Bayes / Markov** (`MetaRoute.STAT`): interpreta comandos `BAYES {json}` (redes bayesianas discretas) e `MARKOV {json}` (cadeias/hmms determinísticos), executando inferência exata via `nsr.bayes_engine.BayesNetwork` ou `nsr.markov_engine.MarkovModel`, sempre emitindo meta-estruturas auditáveis e plano ΣVM direto (`stat_direct_answer`).
 - **Código** (`MetaRoute.CODE`): detecta snippets Python determinísticos via `code_bridge` e converte diretamente para relações LIU de programação.

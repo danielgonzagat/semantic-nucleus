@@ -59,7 +59,7 @@ flowchart LR
 
 ### Meta-LER determinístico
 
-- O módulo `nsr.meta_transformer.MetaTransformer` concentra o estágio **Meta-LER** do pipeline, decidindo de forma determinística qual rota aplicar (Math-Core, Logic-Bridge, Code-Bridge/Python, IAN-Ω ou parser LIU).
+- O módulo `nsr.meta_transformer.MetaTransformer` concentra o estágio **Meta-LER** do pipeline, decidindo de forma determinística qual rota aplicar (Math-Core, POLY bridge, Logic-Bridge, Code-Bridge/Python, IAN-Ω ou parser LIU).
 - Cada transformação gera um `MetaTransformResult` com `struct_node`, contexto pré-semeado (`meta_route` + `meta_input`) e `trace_label`, garantindo rastreabilidade total antes do loop Φ.
 - Quando a rota fornece `preseed_answer`, o `MetaTransformResult` também inclui um `calc_plan`, que nada mais é que um `MetaCalculationPlan` contendo um programa ΣVM pronto para executar o meta-cálculo mínimo (por enquanto, um programa direto que escreve a resposta determinística na pilha e finaliza).
 - A rota estatística `MetaRoute.STAT` aceita comandos `BAYES {json}` (redes bayesianas discretas), `MARKOV {json}` (cadeias/hmms determinísticos) e `REGRESS {json}` (regressão linear múltipla). Cada payload descreve a estrutura completa, o núcleo roda o motor correspondente (`nsr.bayes_engine`, `nsr.markov_engine`, `nsr.regression_engine`) e devolve LIU + plano ΣVM direto (`stat_direct_answer`) auditável no `meta_summary`.
@@ -212,7 +212,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   - `meta_reasoner`, `meta_reflection`, `meta_justification`, `meta_expression`, `meta_equation` – trilhas de raciocínio, fases, árvore de justificativas, expressão final e snapshots da equação LIU.
   - `meta_calculator.py`, `meta_calculus_router.py` – planos ΣVM, verificação estática e pipelines Φ (NORMALIZE/INFER/SUMMARIZE, MEMORY_* etc.).
   - `nsr_evo/` – autoevolução determinística: consumo de mismatches, geração de patches (lexicon, regras, semântica, meta cálculo) e ferramentas CLI (`cli_cycle`, `cli_genome`, `cli_promote_kb`, etc.).
-  - `bayes_engine.py`, `markov_engine.py`, `regression_engine.py` – bibliotecas estatísticas sem pesos (redes bayesianas, cadeias/hmms e regressões lineares fechadas) para alimentar a rota `STAT`, com bridges textuais (`BAYES`, `MARKOV`, `REGRESS`).
+  - `bayes_engine.py`, `markov_engine.py`, `regression_engine.py`, `polynomial_engine.py` – bibliotecas sem pesos (redes bayesianas, cadeias/hmms, regressões lineares e fatoração polinomial). Seus bridges textuais (`BAYES`, `MARKOV`, `REGRESS`, `POLY`) alimentam as rotas `STAT`/`MATH`.
 - `src/svm/` – ΣVM/Ω-VM: assembler (`opcodes.py`, `assembler.py`), runtime (`vm.py`), snapshots (`snapshots.py`), assinatura (`signing.py`), verificador (`verifier.py`) e integração com o MetaKernel.
 - `src/frontend_*` – compiladores determinísticos (Python, Rust, Elixir, lógica) que convertem código em LIU/ΣVM IR para testes e CTS.
 - `tests/` – suites abrangentes:
