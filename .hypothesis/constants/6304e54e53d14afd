@@ -1,4 +1,0 @@
-# file: /workspace/src/svm/encoding.py
-# hypothesis_version: 6.148.2
-
-[127, 128, 'decode_varint', 'encode_varint', 'unterminated varint']

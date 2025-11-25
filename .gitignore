@@ -1,3 +1,7 @@
 __pycache__/
+*.pyc
 .nsr_learning/
 .metanucleus/
+.hypothesis/
+logs/*.jsonl
+.meta/*.jsonl

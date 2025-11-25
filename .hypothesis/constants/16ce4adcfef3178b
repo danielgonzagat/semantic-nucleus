@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/core/ast_bridge.py
-# hypothesis_version: 6.148.2
-
-[0.0, 'add', 'arg', 'args', 'body', 'div', 'false', 'fn', 'func', 'id', 'kind', 'left', 'mult', 'name', 'op', 'params', 'py_assign', 'py_binop', 'py_call', 'py_const_bool', 'py_const_num', 'py_const_other', 'py_const_str', 'py_expr', 'py_function', 'py_module', 'py_name', 'py_none', 'py_return', 'py_unknown', 'right', 'sub', 'targets', 'true', 'value', 'x']

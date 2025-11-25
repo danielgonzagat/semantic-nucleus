@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/core/__init__.py
-# hypothesis_version: 6.148.2
-
-['Config', 'ISR', 'MetaState', 'Metrics', 'Node', 'NodeKind', 'boolean', 'entity', 'list_node', 'nil', 'number', 'op', 'struct', 'text']

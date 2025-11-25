@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/logic_engine.py
-# hypothesis_version: 6.148.2
-
-['LogicEngine', 'LogicRule', 'NFD', 'NOT ', 'negate', 'normalize_statement']

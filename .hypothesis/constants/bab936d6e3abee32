@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/nsr/factor_graph_engine.py
-# hypothesis_version: 6.148.2
-
-[0.0, 1e-06, 1.0, 'Factor', 'FactorGraph', 'FactorVariable', 'assignment', 'factors', 'name', 'table', 'value', 'values', 'variables']

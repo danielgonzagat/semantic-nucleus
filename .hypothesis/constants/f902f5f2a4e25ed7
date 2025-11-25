@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/lang/tokenizer.py
-# hypothesis_version: 6.148.2
-
-['NUMBER', 'PUNCT', 'WORD', '[^\\w\\s]']

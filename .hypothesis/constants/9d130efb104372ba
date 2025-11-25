@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/semantic_mismatch_log.py
-# hypothesis_version: 6.148.2
-
-['SemanticMismatch', 'a', 'actual_repr', 'expected_repr', 'extra', 'file_path', 'issue', 'lang', 'logs', 'phrase', 'r', 'severity', 'timestamp', 'utf-8', 'warning']

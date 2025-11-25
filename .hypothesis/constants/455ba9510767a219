@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/nsr/regression_engine.py
-# hypothesis_version: 6.148.2
-
-[0.0, 1e-12, 1.0, 'RegressionResult', 'data', 'features', 'intercept', 'matrix is singular', 'target']

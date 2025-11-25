@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/metanucleus/cli/auto_focus.py
-# hypothesis_version: 6.148.2
-
-['--base-command', '--config', '--config-mode', '--format', '--report', '__main__', 'command', 'default', 'json', 'label', 'logic', 'merge', 'meta_calculus', 'meta_memory', 'nucleo-auto-focus', 'pytest', 'r', 'replace', 'rule', 'semantic', 'targets', 'tests', 'text', 'unmapped_categories', 'utf-8']

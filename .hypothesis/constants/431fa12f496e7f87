@@ -1,4 +1,0 @@
-# file: /workspace/src/svm/opcodes.py
-# hypothesis_version: 6.148.2
-
-[100, 101, 102, 103, 112, 113, 114, 128, 144, 240, 254, 255, 'Opcode']

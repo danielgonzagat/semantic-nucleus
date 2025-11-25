@@ -1,4 +1,0 @@
-# file: /workspace/src/frontend_python/compiler.py
-# hypothesis_version: 6.148.2
-
-['code/DEFN', 'code/MODULE', 'code/PARAM', 'compile_source', 'main']

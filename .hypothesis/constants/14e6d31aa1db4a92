@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/rule_mismatch_log.py
-# hypothesis_version: 6.148.2
-
-['RuleMismatch', 'a', 'append_rule_mismatch', 'context', 'description', 'expected', 'extra', 'file_path', 'got', 'load_rule_mismatches', 'logs', 'r', 'rule_name', 'severity', 'timestamp', 'utf-8', 'warning']

@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/metanucleus/cli/auto_debug.py
-# hypothesis_version: 6.148.2
-
-[',', '--apply', '--focus', '--focus-base-command', '--focus-config', '--focus-config-mode', '--focus-format', '--keep-memory', '--max-cycles', '--pytest-args', '--report', '--report-diff', '--report-json', '--report-path', '--report-snapshot', '--skip-auto-evolve', '-m', 'NSR_EPISODES_PATH', 'ReportContext | None', '__main__', 'all', 'append', 'command', 'json', 'merge', 'nucleo-auto-debug', 'pytest', 'replace', 'report_paths', 'store_true', 'text']

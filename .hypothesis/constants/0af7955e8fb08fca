@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/nsr/factor_bridge.py
-# hypothesis_version: 6.148.2
-
-[0.0, 0.9, ', ', 'FACTOR', 'FactorHook', 'STAT[FACTOR_BP]', 'damping', 'factor_answer', 'factor_definition', 'factor_graph', 'factor_input', 'factor_marginal', 'factor_marginals', 'factor_variable', 'max_iters', 'maybe_route_factor']

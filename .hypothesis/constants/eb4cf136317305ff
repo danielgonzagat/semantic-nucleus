@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/nsr/meta_memory.py
-# hypothesis_version: 6.148.2
-
-['answer', 'answer_digest', 'answer_preview', 'build_meta_memory', 'digest', 'entries', 'equation_digest', 'equation_quality', 'equation_trend', 'expression_digest', 'expression_preview', 'logic_proof_digest', 'logic_proof_query', 'logic_proof_truth', 'memory_entry', 'meta_memory', 'meta_memory_to_dict', 'position', 'proof_digest', 'reasoning_digest', 'reflection_digest', 'route', 'size', 'source_digest', 'synthesis_plan_total', 'synthesis_plans', 'synthesis_programs', 'synthesis_proofs', 'tag', 'unknown', 'utf-8']

@@ -1,4 +1,0 @@
-# file: /home/runner/work/metanucleus/metanucleus/src/nsr/context_stats.py
-# hypothesis_version: 6.148.2
-
-['UNKNOWN', 'context_probability', 'goal_probability', 'relation_probability', 'tag']

@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/meta_calculus_patch_generator.py
-# hypothesis_version: 6.148.2
-
-[b'\x00', 1.0, 'actual_repr', 'data', 'enabled', 'equivalence', 'error_type', 'examples', 'expr', 'id', 'kind', 'metanucleus', 'rules', 'src', 'target_repr', 'test_id', 'utf-8', 'weight']

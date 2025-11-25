@@ -1,4 +1,0 @@
-# file: /workspace/src/ontology/core.py
-# hypothesis_version: 6.148.2
-
-['CAUSE', 'CORE_V1', 'DESCRIBES', 'HAS', 'HAS_PART', 'IS_A', 'PART_OF', 'carro', 'context::transporte', 'energia', 'event::deslocamento', 'event::mover', 'facts', 'moto', 'motor', 'roda', 'type::coisa', 'type::componente', 'type::veiculo', 'veiculo']
