@@ -18,7 +18,12 @@ src/liu/signatures.py
 src/liu/wf.py
 src/metanucleus/__init__.py
 src/metanucleus/cli/__init__.py
+src/metanucleus/cli/auto_cycle.py
+src/metanucleus/cli/auto_debug.py
 src/metanucleus/cli/auto_evolve.py
+src/metanucleus/cli/auto_focus.py
+src/metanucleus/cli/auto_prune.py
+src/metanucleus/cli/auto_report.py
 src/metanucleus/cli/chat.py
 src/metanucleus/core/__init__.py
 src/metanucleus/core/ast_bridge.py
@@ -116,6 +121,7 @@ src/nsr/operators.py
 src/nsr/parser.py
 src/nsr/rules.py
 src/nsr/runtime.py
+src/nsr/semantic_graph.py
 src/nsr/state.py
 src/nsr_evo/__init__.py
 src/nsr_evo/api.py
