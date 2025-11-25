@@ -17,6 +17,7 @@ from .semantic_graph import SemanticGraph
 if TYPE_CHECKING:
     from .logic_engine import LogicEngine
     from .equation import EquationSnapshotStats
+    from .meta_learning import MetaLearningEngine
 
 
 def _env_path(var_name: str) -> str | None:
@@ -119,6 +120,7 @@ class SessionCtx:
     meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
     memory_loaded: bool = False
     last_equation_stats: "EquationSnapshotStats | None" = None
+    meta_learning_engine: "MetaLearningEngine | None" = None
 
 
 @dataclass(slots=True)

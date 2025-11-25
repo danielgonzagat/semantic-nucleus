@@ -1,6 +1,10 @@
+from types import SimpleNamespace
+
 from liu import entity, relation, struct
 
 from nsr.meta_learning import MetaLearningEngine
+from nsr.runtime import _maybe_run_meta_learning
+from nsr.state import SessionCtx
 
 
 def test_meta_learning_transitivity_rule() -> None:
@@ -38,3 +42,25 @@ def test_meta_learning_symmetric_rule() -> None:
     # consequent deve inverter os placeholders
     assert rule.then.args[0].label == "?y"
     assert rule.then.args[1].label == "?x"
+
+
+def test_meta_learning_integration_updates_session_rules() -> None:
+    session = SessionCtx()
+    context = (
+        relation("CONNECTED", entity("a"), entity("b")),
+        relation("CONNECTED", entity("b"), entity("c")),
+        relation("CONNECTED", entity("d"), entity("e")),
+        relation("CONNECTED", entity("e"), entity("f")),
+    )
+    outcome = SimpleNamespace(
+        quality=0.95,
+        isr=SimpleNamespace(context=context),
+        meta_summary=None,
+    )
+
+    _maybe_run_meta_learning(session, outcome)
+
+    assert session.kb_rules, "meta-learning deveria adicionar regras na sessão"
+    summary = session.meta_history[-1][0]
+    fields = dict(summary.fields)
+    assert fields["tag"].label == "meta_learning"

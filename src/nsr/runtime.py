@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, NodeKind, operation, fingerprint
+from liu import Node, NodeKind, operation, fingerprint, struct, entity, number
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -19,7 +19,7 @@ from .equation import (
     snapshot_equation,
 )
 from .operators import apply_operator
-from .state import ISR, SessionCtx, initial_isr
+from .state import ISR, SessionCtx, Rule, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, MetaRoute, build_meta_summary
@@ -32,6 +32,7 @@ from .meta_memory import build_meta_memory
 from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
+from .meta_learning import MetaLearningEngine
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -843,6 +844,7 @@ def _record_episode(session: SessionCtx, text: str, outcome: RunOutcome) -> None
         except OSError:
             pass
     _maybe_run_memory_induction(session)
+    _maybe_run_meta_learning(session, outcome)
 
 
 def _maybe_run_memory_induction(session: SessionCtx) -> None:
@@ -861,6 +863,53 @@ def _maybe_run_memory_induction(session: SessionCtx) -> None:
         )
     except OSError:
         return
+
+
+def _maybe_run_meta_learning(session: SessionCtx, outcome: RunOutcome) -> None:
+    if outcome.quality < session.config.min_quality:
+        return
+    context = getattr(outcome.isr, "context", tuple())
+    if not context:
+        return
+    engine = session.meta_learning_engine
+    if engine is None:
+        engine = MetaLearningEngine()
+        session.meta_learning_engine = engine
+    trace_node = outcome.meta_summary[0] if (outcome.meta_summary and len(outcome.meta_summary) > 0) else struct(tag=entity("meta_learning_trace"))
+    new_rules = engine.learn_from_trace(trace_node, context)
+    merged, added = _merge_rules(session.kb_rules, new_rules)
+    if added == 0:
+        return
+    session.kb_rules = merged
+    summary = struct(
+        tag=entity("meta_learning"),
+        learned=number(added),
+        total_rules=number(len(merged)),
+    )
+    session.meta_history.append((summary,))
+    limit = session.config.meta_history_limit
+    if limit and len(session.meta_history) > limit:
+        del session.meta_history[:-limit]
+    session.meta_buffer = tuple((*session.meta_buffer, summary))
+
+
+def _merge_rules(existing: Tuple[Rule, ...], candidates: Iterable[Rule]) -> Tuple[Tuple[Rule, ...], int]:
+    signatures = {_rule_signature(rule) for rule in existing}
+    updated = list(existing)
+    added = 0
+    for rule in candidates:
+        sig = _rule_signature(rule)
+        if sig in signatures:
+            continue
+        signatures.add(sig)
+        updated.append(rule)
+        added += 1
+    return tuple(updated), added
+
+
+def _rule_signature(rule: Rule) -> Tuple[str, ...]:
+    nodes: Tuple[Node, ...] = tuple(rule.if_all) + (rule.then,)
+    return tuple(fingerprint(node) for node in nodes)
 
 
 def _finalize_outcome(session: SessionCtx, text: str, outcome: RunOutcome) -> RunOutcome:
