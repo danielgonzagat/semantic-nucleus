@@ -18,7 +18,12 @@ src/liu/signatures.py
 src/liu/wf.py
 src/metanucleus/__init__.py
 src/metanucleus/cli/__init__.py
+src/metanucleus/cli/auto_cycle.py
+src/metanucleus/cli/auto_debug.py
 src/metanucleus/cli/auto_evolve.py
+src/metanucleus/cli/auto_focus.py
+src/metanucleus/cli/auto_prune.py
+src/metanucleus/cli/auto_report.py
 src/metanucleus/cli/chat.py
 src/metanucleus/core/__init__.py
 src/metanucleus/core/ast_bridge.py
@@ -105,12 +110,14 @@ src/nsr/meta_calculator.py
 src/nsr/meta_calculus_router.py
 src/nsr/meta_equation.py
 src/nsr/meta_expressor.py
+src/nsr/meta_justification.py
 src/nsr/meta_memory.py
 src/nsr/meta_memory_induction.py
 src/nsr/meta_memory_store.py
 src/nsr/meta_reasoner.py
 src/nsr/meta_reflection.py
 src/nsr/meta_structures.py
+src/nsr/meta_trace_utils.py
 src/nsr/meta_transformer.py
 src/nsr/operators.py
 src/nsr/parser.py

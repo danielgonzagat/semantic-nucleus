@@ -345,6 +345,37 @@ def test_meta_summary_includes_meta_reflection():
     assert summary_dict["reflection_digest"]
     assert summary_dict["reflection_phase_count"] >= 1
     assert summary_dict["reflection_decision_count"] >= 1
+    assert summary_dict["justification_digest"]
+    assert summary_dict["justification_depth"] >= 2
+    assert summary_dict["justification_width"] >= 1
+    assert summary_dict["justification_node_count"] >= summary_dict["justification_width"] + 1
+    assert summary_dict["justification_phases"]
+    assert "justification_delta_quality" in summary_dict
+
+
+def test_meta_justification_tree_structure():
+    session = SessionCtx()
+    outcome = run_text_full("Explique a frase 'o carro está parado'", session)
+    tree = outcome.meta_justification
+    assert tree is not None, "meta_justification deve ser emitido"
+    tree_fields = dict(tree.fields)
+    assert tree_fields["tag"].label == "meta_justification"
+    root_node = tree_fields.get("root")
+    assert root_node is not None
+    root_fields = dict(root_node.fields)
+    assert root_fields["tag"].label == "justification_root"
+    children = root_fields.get("children")
+    assert children is not None and children.kind.name == "LIST"
+    assert len(children.args) == int(tree_fields["width"].value)
+    first_phase = children.args[0]
+    phase_fields = dict(first_phase.fields)
+    assert phase_fields["tag"].label == "justification_phase"
+    assert phase_fields["children"].kind.name == "LIST"
+    assert phase_fields["children"].args, "cada fase deve ter pelo menos um passo"
+    first_step = phase_fields["children"].args[0]
+    step_fields = dict(first_step.fields)
+    assert step_fields["tag"].label == "justification_step"
+    assert step_fields["reason"].kind.name == "TEXT"
 
 
 def test_meta_summary_includes_plan_metadata_for_math():

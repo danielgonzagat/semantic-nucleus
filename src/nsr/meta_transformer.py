@@ -438,6 +438,7 @@ def build_meta_summary(
     calc_result: "MetaCalculationResult | None" = None,
     meta_reasoning: Node | None = None,
     meta_reflection: Node | None = None,
+    meta_justification: Node | None = None,
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
@@ -470,6 +471,8 @@ def build_meta_summary(
         nodes.append(meta_reasoning)
     if meta_reflection is not None:
         nodes.append(meta_reflection)
+    if meta_justification is not None:
+        nodes.append(meta_justification)
     if meta_expression is not None:
         nodes.append(meta_expression)
     if meta_memory is not None:
@@ -651,6 +654,57 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             result["reflection_alert_phases"] = [
                 _label(entry) for entry in alert_node.args if _label(entry)
             ]
+    justification_node = nodes.get("meta_justification")
+    if justification_node is not None:
+        justification_fields = _fields(justification_node)
+        result["justification_digest"] = _label(justification_fields.get("digest"))
+        depth_node = justification_fields.get("depth")
+        width_node = justification_fields.get("width")
+        count_node = justification_fields.get("node_count")
+        if depth_node is not None:
+            result["justification_depth"] = int(_value(depth_node))
+        if width_node is not None:
+            result["justification_width"] = int(_value(width_node))
+        if count_node is not None:
+            result["justification_node_count"] = int(_value(count_node))
+        alert_node = justification_fields.get("alert_phases")
+        if alert_node is not None and alert_node.kind.name == "LIST":
+            result["justification_alert_phases"] = [
+                _label(entry) for entry in alert_node.args if _label(entry)
+            ]
+        root_node = justification_fields.get("root")
+        if root_node is not None:
+            root_fields = _fields(root_node)
+            result["justification_root_label"] = _label(root_fields.get("label"))
+            impact_node = root_fields.get("impact")
+            if impact_node is not None:
+                impact_fields = _fields(impact_node)
+                result["justification_delta_quality"] = _value(impact_fields.get("delta_quality"))
+                result["justification_delta_relations"] = _value(impact_fields.get("delta_relations"))
+            phases_node = root_fields.get("children")
+            if phases_node is not None and phases_node.kind.name == "LIST":
+                phases: list[dict[str, object]] = []
+                for phase_entry in phases_node.args:
+                    phase_fields = _fields(phase_entry)
+                    phase_payload: dict[str, object] = {
+                        "name": _label(phase_fields.get("name")),
+                        "label": _label(phase_fields.get("label")),
+                        "step_count": int(_value(phase_fields.get("step_count") or number(0))),
+                    }
+                    impact = phase_fields.get("impact")
+                    if impact is not None:
+                        impact_fields = _fields(impact)
+                        if impact_fields.get("delta_quality") is not None:
+                            phase_payload["delta_quality"] = _value(impact_fields.get("delta_quality"))
+                        if impact_fields.get("delta_relations") is not None:
+                            phase_payload["delta_relations"] = _value(
+                                impact_fields.get("delta_relations")
+                            )
+                    if phase_fields.get("alert") is not None:
+                        phase_payload["alert"] = True
+                    phases.append(phase_payload)
+                if phases:
+                    result["justification_phases"] = phases
     expression_node = nodes.get("meta_expression")
     if expression_node is not None:
         expression_fields = _fields(expression_node)

@@ -198,6 +198,36 @@ Resumo do fluxo:
 pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → metanucleus-auto-evolve --apply → git branch/commit → PR automático → revisão humana
 ```
 
+### Pipeline de auto-debug local
+
+- `nucleo-auto-debug` roda `pytest` e, em caso de falha, encadeia `metanucleus-auto-evolve <domínios> --apply` antes de repetir a suíte.  
+  ```bash
+  nucleo-auto-debug --pytest-args "-k runtime -vv" --auto-evolve-domains all
+  ```
+- Persistência do NSR é desativada por padrão (`NSR_MEMORY_STORE_PATH/EPISODES_PATH/INDUCTION_RULES_PATH=""`), evitando que arquivos em `.nsr_memory/` e `.meta/` contaminem depurações determinísticas.
+- Ajuste `--max-cycles` para controlar quantas tentativas executar, `--skip-auto-evolve` para apenas rodar os testes ou `--keep-memory` quando quiser reaproveitar o estado simbólico entre ciclos.
+- Ideal para loops locais de autocura ou para integrar em jobs de CI que precisem tentar remediação automaticamente antes de falhar.
+- Workflow GitHub [`auto-debug.yml`](.github/workflows/auto-debug.yml) expõe um gatilho `workflow_dispatch`/`workflow_call` para executar o mesmo pipeline direto na nuvem, enquanto [`auto-cycle.yml`](.github/workflows/auto-cycle.yml) roda o pacote completo (debug + relatório final + poda).
+- Use `--report` (e opcionalmente `--report-json` / `--report-path`) para imprimir um resumo dos mismatches entre cada tentativa.
+- Flags adicionais: `--report-snapshot reports/latest.json` cria um snapshot após cada ciclo e `--report-diff reports/baseline.json` mostra o delta vs. um snapshot anterior.
+- Para rodar todo o ciclo (debug → relatório final → limpeza), use `nucleo-auto-cycle --post-report --prune-glob "logs/*.jsonl"`; ele encadeia `nucleo-auto-debug`, `nucleo-auto-report` e `nucleo-auto-prune` automaticamente.
+- `nucleo-auto-cycle` aceita `--focus` (para passar o novo modo ao `nucleo-auto-debug`) e `--post-focus --report-snapshot reports/latest.json` para acionar `nucleo-auto-focus` como etapa final, emitindo comandos prontos para a próxima rodada. Quando qualquer modo de foco é habilitado, o snapshot padrão cai em `ci-artifacts/auto-report.json`, garantindo que sempre haja um payload recente.
+- Use `--focus-rerun` para executar automaticamente `pytest` com as seleções geradas pelo snapshot (mesmo comando que `nucleo-auto-focus --format command` emitiria), acelerando a validação imediata após cada ciclo.
+- Personalize o roteamento de suites com um JSON `{ "label": ["tests/foo.py", ...] }` passado via `--focus-config` (ou `nucleo-auto-focus --config`). O modo padrão é `merge` com o mapeamento interno; use `--focus-config-mode replace` para assumir controle total.
+- Combine com `nucleo-auto-report` para resumir rapidamente `logs/*.jsonl` e `.meta/*.jsonl` após uma execução (use `--watch 5` para reemitir a cada 5s ou `--glob "logs/*.jsonl"` para pegar todos os arquivos disponíveis):
+  ```bash
+  nucleo-auto-report --json
+  ```
+- Gere snapshots para auditoria e diffs automáticos: `nucleo-auto-report --snapshot reports/latest.json --diff reports/baseline.json`.
+- Acrescente `--focus` ao `nucleo-auto-debug` para que cada relatório gere sugestões de suites (`--focus-format command` imprime o comando completo, `--focus-format json` retorna um payload estruturado). O mapeamento padrão cobre labels `semantic`, `rule`, `meta_calculus`, `logic` e `meta_memory`.
+- Manter os logs enxutos: `nucleo-auto-prune --glob "logs/*.jsonl" --archive-dir logs/archive --max-entries 200` remove entradas antigas, arquivando-as para auditoria.
+- Depois de gerar um snapshot (`ci-artifacts/auto-report.json`, por exemplo), use `nucleo-auto-focus` para sugerir subconjuntos do `pytest` alinhados aos labels dos mismatches:
+  ```bash
+  nucleo-auto-focus --report ci-artifacts/auto-report.json --format command
+  # → pytest tests/nsr/test_meta_* tests/test_evolution_rules_smoke.py
+  ```
+  Ele entende labels como `semantic`, `rule`, `meta_calculus`, `logic` e `meta_memory`, apontando diretamente para suites relevantes e listando categorias ainda não mapeadas. Passe `--config focus-map.json` para adicionar/alterar labels disponíveis.
+
 ## Camadas principais
 
 1. **LIU** – IR semântico tipado com arenas imutáveis e serialização S-expr/JSON.
