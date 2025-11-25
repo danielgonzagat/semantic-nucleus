@@ -164,6 +164,8 @@ class MetaTransformer:
                     math_ast=None,
                 )
             else:
+                # Type narrowing: must be MathHook since PolynomialHook was handled above
+                assert isinstance(math_or_poly_hook, MathHook)
                 self.session.language_hint = math_or_poly_hook.reply.language
                 preseed_context = self._with_meta_context(
                     math_or_poly_hook.context_nodes,
