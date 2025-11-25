@@ -13,6 +13,8 @@ from typing import Dict, List, Sequence, Tuple, Union
 
 from liu import Node, entity, relation, text
 
+from .universal_part10 import EXTRA_CATEGORY_SEEDS
+
 ConceptSeed = Union[str, Dict[str, object]]
 
 
@@ -51,6 +53,12 @@ def _normalize_concept(seed: ConceptSeed) -> Dict[str, object]:
         return _concept(seed, aliases=[alias], examples_pt=[sample_pt], examples_en=[sample_en])
     data = dict(seed)
     name = data.pop("name")
+    examples = data.pop("examples", None)
+    if isinstance(examples, dict):
+        if "pt" in examples and "examples_pt" not in data:
+            data["examples_pt"] = examples["pt"]
+        if "en" in examples and "examples_en" not in data:
+            data["examples_en"] = examples["en"]
     return _concept(name, **data)
 
 
@@ -3502,6 +3510,8 @@ CATEGORY_SEEDS += [
         ],
     },
 ]
+
+CATEGORY_SEEDS.extend(EXTRA_CATEGORY_SEEDS)
 
 UNIVERSAL_CATEGORIES: List[Dict[str, object]] = [
     _category(seed["idx"], seed["label"], seed["concepts"]) for seed in CATEGORY_SEEDS
