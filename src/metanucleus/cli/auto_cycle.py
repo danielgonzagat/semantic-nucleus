@@ -78,6 +78,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Reexecuta pytest com os padrões sugeridos pelo foco (usa snapshot JSON).",
     )
+    parser.add_argument(
+        "--focus-config",
+        help="JSON com mapping label→pytest target utilizado pelos modos de foco.",
+    )
+    parser.add_argument(
+        "--focus-config-mode",
+        choices=["merge", "replace"],
+        default="merge",
+        help="Como combinar --focus-config com o mapeamento padrão (default: %(default)s).",
+    )
 
     return parser.parse_args(argv)
 
@@ -132,6 +142,10 @@ def _build_auto_debug_cmd(args: argparse.Namespace) -> List[str]:
         cmd.extend(["--focus-format", args.focus_format])
         if args.focus_base_command:
             cmd.extend(["--focus-base-command", args.focus_base_command])
+        if args.focus_config:
+            cmd.extend(["--focus-config", args.focus_config])
+        if args.focus_config_mode and args.focus_config_mode != "merge":
+            cmd.extend(["--focus-config-mode", args.focus_config_mode])
     return cmd
 
 
@@ -180,6 +194,10 @@ def _build_focus_cmd(args: argparse.Namespace) -> List[str]:
     ]
     if args.focus_format == "command" or args.focus_base_command != "pytest":
         cmd.extend(["--base-command", args.focus_base_command])
+    if args.focus_config:
+        cmd.extend(["--config", args.focus_config])
+    if args.focus_config_mode and args.focus_config_mode != "merge":
+        cmd.extend(["--config-mode", args.focus_config_mode])
     return cmd
 
 
@@ -190,7 +208,13 @@ def _run_focus_rerun(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as exc:
         print(f"[auto-cycle] focus rerun failed to load {report_path}: {exc}", flush=True)
         return 1
-    selected, unknown = auto_focus.select_targets(entries, auto_focus.CATEGORY_TESTS)
+    config_path = Path(args.focus_config).resolve() if args.focus_config else None
+    try:
+        mapping = auto_focus.load_mapping(config_path, mode=args.focus_config_mode or "merge")
+    except ValueError as exc:
+        print(f"[auto-cycle] focus rerun invalid config: {exc}", flush=True)
+        return 1
+    selected, unknown = auto_focus.select_targets(entries, mapping)
     ordered_selected = sorted(selected)
     ordered_unknown = sorted(unknown)
     targets = ordered_selected or ["tests"]

@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Set, Tuple
 
-CATEGORY_TESTS: Dict[str, List[str]] = {
+DEFAULT_CATEGORY_TESTS: Dict[str, List[str]] = {
     "semantic": [
         "tests/nsr/test_meta_*",
         "tests/test_evolution_semantics_smoke.py",
@@ -56,6 +56,16 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default="pytest",
         help="Base command when using --format command (default: pytest).",
     )
+    parser.add_argument(
+        "--config",
+        help="JSON file mapping mismatch labels to pytest targets.",
+    )
+    parser.add_argument(
+        "--config-mode",
+        choices=["merge", "replace"],
+        default="merge",
+        help="How to combine --config with o mapeamento padrão (default: %(default)s).",
+    )
     return parser.parse_args(argv)
 
 
@@ -65,6 +75,38 @@ def load_entries(path: Path) -> List[dict]:
         if not isinstance(data, list):
             raise ValueError("Report is not a list of entries.")
         return data
+
+
+def _normalize_patterns(value) -> List[str]:
+    if isinstance(value, str):
+        return [value]
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return list(value)
+    raise ValueError("Each mapping entry must be a string or list of strings.")
+
+
+def load_mapping(path: Path | None, *, mode: str = "merge") -> Dict[str, List[str]]:
+    if mode not in {"merge", "replace"}:
+        raise ValueError("mode must be 'merge' or 'replace'")
+    mapping: Dict[str, List[str]] = (
+        {label: list(patterns) for label, patterns in DEFAULT_CATEGORY_TESTS.items()}
+        if mode == "merge"
+        else {}
+    )
+    if not path:
+        return mapping
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            data = json.load(handle)
+    except OSError as exc:
+        raise ValueError(f"unable to read focus config: {exc}") from exc
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"invalid JSON in focus config: {exc}") from exc
+    if not isinstance(data, dict):
+        raise ValueError("focus config must be a JSON object {label: [patterns]}")
+    for label, value in data.items():
+        mapping[label] = _normalize_patterns(value)
+    return mapping
 
 
 def select_targets(
@@ -127,8 +169,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     report_path = Path(args.report)
     if not report_path.exists():
         raise SystemExit(f"Report file not found: {report_path}")
+    config_path = Path(args.config).resolve() if args.config else None
+    try:
+        mapping = load_mapping(config_path, mode=args.config_mode)
+    except ValueError as exc:
+        raise SystemExit(str(exc))
     entries = load_entries(report_path)
-    selected, unknown = select_targets(entries, CATEGORY_TESTS)
+    selected, unknown = select_targets(entries, mapping)
     ordered_selected = sorted(selected)
     ordered_unknown = sorted(unknown)
 

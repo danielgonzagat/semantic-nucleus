@@ -88,6 +88,16 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="pytest",
         help="Comando base usado quando --focus-format=command (default: %(default)s).",
     )
+    parser.add_argument(
+        "--focus-config",
+        help="JSON file with label→pytest target mapping para --focus.",
+    )
+    parser.add_argument(
+        "--focus-config-mode",
+        choices=["merge", "replace"],
+        default="merge",
+        help="Como combinar o --focus-config com o mapeamento padrão (default: %(default)s).",
+    )
     return parser.parse_args(argv)
 
 
@@ -170,9 +180,10 @@ class ReportContext:
 class FocusConfig:
     fmt: str
     base_command: str
+    mapping: dict[str, list[str]]
 
     def emit(self, payload: Sequence[dict]) -> None:
-        selected, unknown = auto_focus.select_targets(payload, auto_focus.CATEGORY_TESTS)
+        selected, unknown = auto_focus.select_targets(payload, self.mapping)
         ordered_selected = sorted(selected)
         ordered_unknown = sorted(unknown)
         if self.fmt == "json":
@@ -251,7 +262,16 @@ def main(argv: list[str] | None = None) -> int:
         )
     focus_config: FocusConfig | None = None
     if args.focus:
-        focus_config = FocusConfig(fmt=args.focus_format, base_command=args.focus_base_command)
+        config_path = Path(args.focus_config).resolve() if args.focus_config else None
+        try:
+            mapping = auto_focus.load_mapping(config_path, mode=args.focus_config_mode)
+        except ValueError as exc:
+            raise SystemExit(f"invalid focus config: {exc}")
+        focus_config = FocusConfig(
+            fmt=args.focus_format,
+            base_command=args.focus_base_command,
+            mapping=mapping,
+        )
     return run_cycle(
         pytest_args,
         domains,

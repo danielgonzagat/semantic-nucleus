@@ -102,9 +102,37 @@ def test_auto_cycle_focus_rerun_executes_pytest(monkeypatch):
 
     monkeypatch.setattr(auto_cycle.auto_focus, "load_entries", fake_load)
     monkeypatch.setattr(auto_cycle.auto_focus, "select_targets", fake_select)
+    monkeypatch.setattr(
+        auto_cycle.auto_focus,
+        "load_mapping",
+        lambda path, mode: {"semantic": ["tests/nsr/test_meta_*"]},
+    )
 
     rc = auto_cycle.main(["--focus-rerun", "--skip-prune"])
     assert rc == 0
     rerun_cmd = spy.commands[-1]
     assert rerun_cmd[0] == "pytest"
     assert "tests/nsr/test_meta_*" in rerun_cmd
+
+
+def test_auto_cycle_focus_propagates_config(monkeypatch):
+    spy = SpyRunner([0, 0, 0])
+    monkeypatch.setattr(auto_cycle, "_run", spy)
+    rc = auto_cycle.main(
+        [
+            "--focus",
+            "--post-focus",
+            "--focus-config",
+            "focus-map.json",
+            "--focus-config-mode",
+            "replace",
+            "--skip-prune",
+        ]
+    )
+    assert rc == 0
+    debug_cmd = spy.commands[0]
+    assert "--focus-config" in debug_cmd
+    assert "--focus-config-mode" in debug_cmd
+    focus_cmd = next(cmd for cmd in spy.commands if cmd[0] == "nucleo-auto-focus")
+    assert "--config" in focus_cmd
+    assert "--config-mode" in focus_cmd

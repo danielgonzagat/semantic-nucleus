@@ -167,7 +167,7 @@ def test_auto_debug_focus_emits_suggestions(monkeypatch, capsys):
     monkeypatch.setattr(auto_debug.auto_focus, "select_targets", fake_select)
     monkeypatch.setattr(auto_debug.auto_focus, "render_text", fake_render)
 
-    focus = auto_debug.FocusConfig(fmt="text", base_command="pytest")
+    focus = auto_debug.FocusConfig(fmt="text", base_command="pytest", mapping={"semantic": ["tests"]})
 
     def always_fail(cmd, env):
         return 1
