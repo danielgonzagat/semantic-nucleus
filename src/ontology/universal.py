@@ -1,7 +1,11 @@
 """
-Universal Ontology v1.0 (categorias 1–40).
+Universal Ontology v1.0 (categorias 1–110)
+------------------------------------------
 
-Fornece conhecimento determinístico para o MultiOntologyManager.
+Esta tabela concentra o conhecimento simbólico base do Metanúcleo. Cada
+categoria agrega conceitos com aliases, relações hierárquicas (ISA, PART_OF),
+atributos e exemplos PT/EN. O builder converte essa descrição em domínios LIU
+que podem ser registrados no MultiOntologyManager.
 """
 
 from __future__ import annotations
@@ -34,7 +38,7 @@ def _concept(
     }
 
 
-UNIVERSAL_ONTOLOGY_V1_PART1: List[Dict[str, object]] = [
+BASE_CATEGORIES: List[Dict[str, object]] = [
     {
         "category": "existence",
         "concepts": [
@@ -142,7 +146,7 @@ UNIVERSAL_ONTOLOGY_V1_PART1: List[Dict[str, object]] = [
 ]
 
 
-UNIVERSAL_ONTOLOGY_V1_PART2: List[Dict[str, object]] = [
+CATALOG_EXTENSION: List[Dict[str, object]] = [
     {
         "category": "relations",
         "concepts": [
@@ -225,5 +229,66 @@ UNIVERSAL_ONTOLOGY_V1_PART2: List[Dict[str, object]] = [
             _concept("codigo", aliases=["source"], isa=["objeto"], examples_pt=["o código compilou"], examples_en=["the code compiled"]),
             _concept("função", aliases=["método"], isa=["entidade"], examples_pt=["a função retornou"], examples_en=["the function returned"]),
             _concept("erro", aliases=["bug"], isa=["estado"], examples_pt=["um erro ocorreu"], examples_en=["an error occurred"]),
+        ],
+    },
+    {
+        "category": "abstracts",
+        "concepts": [
+            _concept("ideia", isa=["conceito"], examples_pt=["uma ideia surgiu"], examples_en=["an idea appeared"]),
+            _concept("conceito", isa=["entidade"], examples_pt=["um conceito importante"], examples_en=["an important concept"]),
+            _concept("significado", aliases=["sentido"], isa=["entidade"], examples_pt=["qual é o significado?"], examples_en=["what is the meaning?"]),
+            _concept("metodo", aliases=["técnica"], isa=["entidade"], examples_pt=["um método novo"], examples_en=["a new method"]),
+            _concept("processo", aliases=["fluxo"], isa=["entidade"], examples_pt=["o processo começou"], examples_en=["the process started"]),
+        ],
+    },
+    {
+        "category": "communication",
+        "concepts": [
+            _concept("pergunta", aliases=["questionamento"], isa=["ato"], examples_pt=["ela fez uma pergunta"], examples_en=["she asked a question"]),
+            _concept("resposta", aliases=["retorno"], isa=["ato"], examples_pt=["ele deu uma resposta"], examples_en=["he gave an answer"]),
+            _concept("afirmacao", aliases=["declaração"], isa=["ato"], examples_pt=["ela fez uma afirmação"], examples_en=["she made a statement"]),
+            _concept("negacao", isa=["ato"], examples_pt=["uma negação"], examples_en=["a negation"]),
+            _concept("explicacao", isa=["ato"], examples_pt=["uma explicação"], examples_en=["an explanation"]),
+            _concept("comando", aliases=["ordem"], isa=["ato"], examples_pt=["um comando"], examples_en=["a command"]),
+        ],
+    },
+    {
+        "category": "intents",
+        "concepts": [
+            _concept("saudacao", aliases=["cumprimento"], isa=["intenção"], examples_pt=["oi", "olá"], examples_en=["hi", "hello"]),
+            _concept("informacao", aliases=["pergunta_informacional"], isa=["intenção"], examples_pt=["o que é?"], examples_en=["what is?"]),
+            _concept("acao", aliases=["pedido"], isa=["intenção"], examples_pt=["faça isso"], examples_en=["do this"]),
+            _concept("explicacao", isa=["intenção"], examples_pt=["explique"], examples_en=["explain"]),
+            _concept("opiniao", isa=["intenção"], examples_pt=["o que você acha?"], examples_en=["what do you think?"]),
+            _concept("avaliacao", aliases=["julgamento"], isa=["intenção"], examples_pt=["isso é bom?"], examples_en=["is this good?"]),
+        ],
+    },
+    {
+        "category": "causality",
+        "concepts": [
+            _concept("causa_direta", aliases=["causa_imediata"], isa=["causa"], examples_pt=["fogo causa calor"], examples_en=["fire causes heat"]),
+            _concept("causa_indireta", aliases=["causa_consequencial"], isa=["causa"], examples_pt=["chuva causa trânsito"], examples_en=["rain causes traffic"]),
+            _concept("efeito_direto", aliases=["resultado_imediato"], isa=["efeito"], examples_pt=["o efeito imediato"], examples_en=["the direct effect"]),
+            _concept("efeito_indireto", aliases=["efeito_consequencial"], isa=["efeito"], examples_pt=["efeito secundário"], examples_en=["secondary effect"]),
+            _concept("condicao", aliases=["requisito"], isa=["relação"], examples_pt=["se X, então Y"], examples_en=["if X then Y"]),
+            _concept("contrafactual", aliases=["contrario_ao_fato"], isa=["raciocinio"], examples_pt=["se não tivesse chovido..."], examples_en=["if it hadn't rained..."]),
+            _concept("proposito", aliases=["finalidade"], isa=["relação"], examples_pt=["ele fez isso para ajudar"], examples_en=["he did it to help"]),
+            _concept("justificativa", aliases=["motivo"], isa=["relação"], examples_pt=["ele fez isso porque..."], examples_en=["he did it because..."]),
+        ],
+    },
+    {
+        "category": "math",
+        "concepts": [
+            _concept("expressao", aliases=["ex"], isa=["objeto"], examples_pt=["2 + 2"], examples_en=["2 + 2"]),
+            _concept("variavel", aliases=["x", "y", "z"], isa=["entidade"], examples_pt=["x é uma variável"], examples_en=["x is a variable"]),
+            _concept("constante", isa=["entidade"], examples_pt=["constante pi"], examples_en=["constant pi"]),
+            _concept("funcao", aliases=["f"], isa=["entidade"], examples_pt=["f(x) = x+1"], examples_en=["f(x)=x+1"]),
+            _concept("dominio", isa=["entidade"], examples_pt=["domínio de f"], examples_en=["domain of f"]),
+            _concept("intervalo", aliases=["range"], isa=["entidade"], examples_pt=["intervalo [0,1]"], examples_en=["interval [0,1]"]),
+            _concept("soma", aliases=["+"], isa=["operação"], examples_pt=["a soma"], examples_en=["the sum"]),
+            _concept("subtracao", aliases(["-"]), isa=["operação"], examples_pt(["subtração"]), examples_en(["subtraction"])),
+            _concept("multiplicacao", aliases=["*"], isa=["operação"], examples_pt=["multiplicação"], examples_en=["multiplication"]),
+            _concept("divisao", aliases=["/"], isa=["operação"], examples_pt=["divisão"], examples_en=["division"]),
+            _concept("aplicacao_funcional", aliases=["aplicar"], isa=["operação"], examples_pt=["aplicar f a x"], examples_en=["apply f to x"]),
         ],
     },
