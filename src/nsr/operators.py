@@ -24,6 +24,16 @@ from liu import (
     fingerprint,
     struct as liu_struct,
 )
+def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
+    tag_lower = tag_name.lower()
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if tag_field and (tag_field.label or "").lower() == tag_lower:
+            return node
+    return None
 
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
@@ -238,6 +248,25 @@ def _op_rewrite_semantic(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) 
     context = tuple((*isr.context, liu_struct(**summary_fields)))
     relations = tuple((*isr.relations, *relationships))
     quality = min(1.0, max(isr.quality, 0.6))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
+def _op_synth_prog(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    program_context = _latest_tagged_struct(isr.context, "code_ast_summary")
+    language = session.language_hint or "pt"
+    summary_fields = {
+        "tag": entity("synth_prog"),
+        "language": entity(language),
+        "status": entity("initialized"),
+    }
+    if program_context is not None:
+        fields = dict(program_context.fields)
+        summary_fields["source_language"] = fields.get("language") or entity(language)
+        summary_fields["function_count"] = fields.get("function_count") or number(0)
+    summary = liu_struct(**summary_fields)
+    context = isr.context + (summary,)
+    relations = isr.relations + (relation("code/SYNTH", entity(language), entity("draft")),)
+    quality = min(1.0, max(isr.quality, 0.62))
     return _update(isr, relations=relations, context=context, quality=quality)
 
 
@@ -512,6 +541,7 @@ _HANDLERS: Dict[str, Handler] = {
     "REDUCE": _op_reduce,
     "REWRITE": _op_rewrite,
     "REWRITE_SEMANTIC": _op_rewrite_semantic,
+    "SYNTH_PROG": _op_synth_prog,
     "REWRITE_CODE": _op_rewrite_code,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,

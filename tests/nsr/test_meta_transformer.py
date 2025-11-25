@@ -387,6 +387,30 @@ def test_rewrite_semantic_operator():
     assert "SEMANTIC_REWRITE" in tags
 
 
+def test_synth_prog_operator():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    transformer.transform(
+        """
+def soma(a, b):
+    return a + b
+"""
+    )
+    outcome = run_text_full("Sintetize um programa que calcule a média", session)
+    from nsr.operators import apply_operator
+    from liu import operation, text as liu_text
+
+    expr = outcome.meta_expression or liu_text("Sintetizar")
+    updated = apply_operator(outcome.isr, operation("SYNTH_PROG", expr), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PROG" in tags
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
