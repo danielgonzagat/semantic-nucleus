@@ -13,6 +13,7 @@ from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
 from ontology import code as code_ontology
 from .semantic_graph import SemanticGraph
+from .multi_ontology import MultiOntologyManager, build_default_multi_ontology_manager
 
 if TYPE_CHECKING:
     from .logic_engine import LogicEngine
@@ -109,7 +110,7 @@ DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1
 @dataclass(slots=True)
 class SessionCtx:
     config: Config = field(default_factory=Config)
-    kb_ontology: Tuple[Node, ...] = field(default_factory=lambda: DEFAULT_ONTOLOGY)
+    kb_ontology: Tuple[Node, ...] = field(default_factory=tuple)
     kb_rules: Tuple[Rule, ...] = field(default_factory=tuple)
     lexicon: Lexicon = field(default_factory=Lexicon)
     language_hint: str | None = None
@@ -119,6 +120,13 @@ class SessionCtx:
     meta_buffer: Tuple[Node, ...] = field(default_factory=tuple)
     memory_loaded: bool = False
     last_equation_stats: "EquationSnapshotStats | None" = None
+    ontology_manager: MultiOntologyManager | None = None
+
+    def __post_init__(self) -> None:
+        if self.ontology_manager is None:
+            self.ontology_manager = build_default_multi_ontology_manager()
+        if not self.kb_ontology:
+            self.kb_ontology = self.ontology_manager.get_active_relations()
 
 
 @dataclass(slots=True)

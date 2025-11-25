@@ -6,7 +6,12 @@ from typing import cast
 from liu import Node, NodeKind, entity, relation, struct, operation, list_node, text, number
 from nsr.state import ISR, SessionCtx, initial_isr, Rule
 from nsr.operators import apply_operator
-from nsr.multi_ontology import MultiOntologyManager, OntologyDomain
+from nsr.multi_ontology import (
+    MultiOntologyManager,
+    OntologyDomain,
+    build_default_multi_ontology_manager,
+)
+from ontology.universal import UNIVERSAL_CATEGORIES
 from nsr.meta_learning import MetaLearningEngine, meta_learn
 
 def test_multi_ontology_manager() -> None:
@@ -46,6 +51,42 @@ def test_multi_ontology_manager() -> None:
     
     domain = manager.get_domain_for_entity(entity("contrato"))
     assert domain == "legal" # Mesmo inativo, ele sabe onde está
+
+
+def test_multi_ontology_infers_domains_from_text() -> None:
+    manager = build_default_multi_ontology_manager()
+    text_value = "O paciente tomou aspirina no hospital e assinou um contrato legal."
+    inferred = manager.infer_domains(text_value=text_value)
+    assert "medical" in inferred
+    assert "legal" in inferred
+    for domain in inferred:
+        manager.activate_domain(domain)
+    scope_node = manager.build_scope_node(
+        inferred_domains=inferred,
+        active_domains=tuple(sorted(manager.active_domains)),
+    )
+    scope_fields = dict(scope_node.fields)
+    active_list = scope_fields["active"]
+    assert active_list.kind.name == "LIST"
+    active_labels = {entry.label for entry in active_list.args}
+    assert "medical" in active_labels
+    assert "legal" in active_labels
+    relation_total = scope_fields["relation_total"]
+    assert relation_total.value is not None and relation_total.value > 0
+
+
+def test_universal_domains_are_registered() -> None:
+    manager = build_default_multi_ontology_manager()
+    total_universal = len([name for name in manager.domains if name.startswith("universal::")])
+    assert total_universal >= len(UNIVERSAL_CATEGORIES)
+    existence_domain = "universal::001_existence"
+    assert existence_domain in manager.domains
+    manager.activate_domain(existence_domain)
+    active = manager.get_active_relations()
+    assert any(
+        rel.label == "IN_CATEGORY" and rel.args[0].label == "coisa"
+        for rel in active
+    )
 
 def test_meta_learning_operator() -> None:
     session = SessionCtx()
