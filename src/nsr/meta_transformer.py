@@ -29,8 +29,8 @@ from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
-from .math_bridge import maybe_route_math
-from .polynomial_bridge import maybe_route_polynomial
+from .math_bridge import MathHook, maybe_route_math
+from .polynomial_bridge import PolynomialHook, maybe_route_polynomial
 from .bayes_bridge import maybe_route_bayes
 from .markov_bridge import maybe_route_markov
 from .regression_bridge import maybe_route_regression
@@ -58,7 +58,7 @@ class MetaRoute(str, Enum):
     STAT = "stat"
 
 
-def _route_math_hooks(text_value: str, is_code: bool):
+def _route_math_hooks(text_value: str, is_code: bool) -> PolynomialHook | MathHook | None:
     """
     Route math-related hooks with explicit priority order.
 
@@ -66,7 +66,7 @@ def _route_math_hooks(text_value: str, is_code: bool):
     1. Polynomial factorization (specialized math pattern)
     2. General math expressions
 
-    Returns the first matching hook or None.
+    Returns the first matching hook (PolynomialHook or MathHook) or None.
     """
     if is_code:
         return None
@@ -137,10 +137,8 @@ class MetaTransformer:
         # Route math-related hooks with explicit priority (poly > math)
         math_or_poly_hook = _route_math_hooks(text_value, detection.category == "code")
         if math_or_poly_hook is not None:
-            # Determine if this is a polynomial hook (no 'reply' attribute) or math hook
-            is_poly_hook = not hasattr(math_or_poly_hook, 'reply')
             plan = _direct_answer_plan(MetaRoute.MATH, math_or_poly_hook.answer_node)
-            if is_poly_hook:
+            if isinstance(math_or_poly_hook, PolynomialHook):
                 preseed_context = self._with_meta_context(
                     math_or_poly_hook.context_nodes,
                     MetaRoute.MATH,
@@ -166,7 +164,6 @@ class MetaTransformer:
                     math_ast=None,
                 )
             else:
-                # Math hook with reply and utterance attributes
                 self.session.language_hint = math_or_poly_hook.reply.language
                 preseed_context = self._with_meta_context(
                     math_or_poly_hook.context_nodes,
