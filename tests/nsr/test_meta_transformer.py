@@ -5,7 +5,7 @@ from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full, run_text
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode
-from liu import struct, entity, number, list_node, text, fingerprint
+from liu import struct, entity, number, list_node, text, fingerprint, Node
 
 
 def test_meta_transformer_routes_math():
@@ -345,6 +345,47 @@ def test_runtime_auto_builds_synth_plan():
     assert synth_source == plan_digest
 
 
+def test_runtime_auto_builds_synth_prog():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    tags = []
+    sources = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        label = (tag.label or "").upper()
+        tags.append(label)
+        if label == "SYNTH_PROG" and "source_digest" in fields:
+            sources.append(fields["source_digest"].label)
+    assert "SYNTH_PROG" in tags
+    assert sources
+
+
+def test_meta_summary_reports_synthesis_prog():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_program_total"] >= 1
+    programs = summary.get("synthesis_programs")
+    assert programs
+    assert programs[0].get("source_digest")
+
+
 def test_meta_summary_reports_synthesis_plan():
     session = SessionCtx()
     outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
@@ -427,7 +468,7 @@ def test_rewrite_semantic_operator():
 def test_synth_prog_operator():
     session = SessionCtx()
     transformer = MetaTransformer(session)
-    transformer.transform(
+    code_result = transformer.transform(
         """
 def soma(a, b):
     return a + b
@@ -436,6 +477,18 @@ def soma(a, b):
     outcome = run_text_full("Sintetize um programa que calcule a média", session)
     from nsr.operators import apply_operator
     from liu import operation, text as liu_text
+
+    # Remove sínteses anteriores para garantir que exista um resumo sem `synth_prog`
+    def _tag_label(node: Node) -> str:
+        if node.kind.name != "STRUCT":
+            return ""
+        tag_node = dict(node.fields).get("tag")
+        return (tag_node.label or "").lower() if tag_node else ""
+
+    cleaned = tuple(node for node in outcome.isr.context if _tag_label(node) != "synth_prog")
+    if code_result.code_summary is not None:
+        cleaned = cleaned + (code_result.code_summary,)
+    outcome.isr.context = cleaned
 
     expr = outcome.meta_expression or liu_text("Sintetizar")
     updated = apply_operator(outcome.isr, operation("SYNTH_PROG", expr), session)

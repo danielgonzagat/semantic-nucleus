@@ -1043,6 +1043,9 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                 src_lang = entry_fields.get("source_language")
                 if src_lang is not None:
                     payload["source_language"] = _label(src_lang)
+                src_digest = entry_fields.get("source_digest")
+                if src_digest is not None:
+                    payload["source_digest"] = _label(src_digest)
                 fn_count = entry_fields.get("function_count")
                 if fn_count is not None:
                     payload["function_count"] = int(_value(fn_count))

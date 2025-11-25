@@ -24,6 +24,7 @@ from .operators import (
     _latest_tagged_struct,
     _latest_unsynthesized_plan,
     _latest_unsynthesized_proof,
+    _latest_unsynthesized_prog,
 )
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
@@ -283,6 +284,7 @@ def run_struct_full(
         justification_node = build_meta_justification(reasoning_node)
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
+        isr = _drain_synthesis_ops(isr, session)
         language = _resolve_language(meta_info, session)
         memory_refs = tuple(node for node in session.meta_buffer if node is not None)
         if (
@@ -501,6 +503,7 @@ def run_struct_full(
     justification_node = build_meta_justification(reasoning_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
+    isr = _drain_synthesis_ops(isr, session)
     language = _resolve_language(meta_info, session)
     memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
@@ -727,6 +730,8 @@ def _maybe_queue_synthesis_ops(isr: ISR) -> None:
         isr.ops_queue.appendleft(operation("SYNTH_PLAN"))
     if _latest_unsynthesized_proof(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PROOF"):
         isr.ops_queue.appendleft(operation("SYNTH_PROOF"))
+    if _latest_unsynthesized_prog(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PROG"):
+        isr.ops_queue.appendleft(operation("SYNTH_PROG"))
 
 
 def _drain_synthesis_ops(isr: ISR, session: SessionCtx) -> ISR:
@@ -739,6 +744,10 @@ def _drain_synthesis_ops(isr: ISR, session: SessionCtx) -> ISR:
         pending_proof = _latest_unsynthesized_proof(isr.context)
         if pending_proof:
             isr = apply_operator(isr, operation("SYNTH_PROOF"), session)
+            continue
+        pending_prog = _latest_unsynthesized_prog(isr.context)
+        if pending_prog:
+            isr = apply_operator(isr, operation("SYNTH_PROG"), session)
             continue
         break
     return isr

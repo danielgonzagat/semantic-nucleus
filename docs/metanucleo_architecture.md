@@ -44,6 +44,8 @@ O MetaPlanner e a biblioteca de síntese formal também operam sem intervenção
 
 Para fechar o elo de auditoria, o `meta_summary` agora inclui um bloco `meta_synthesis` agregando todos os `synth_plan`, `synth_proof` e `synth_prog` presentes no contexto. Esse nó expõe contagens por categoria, listas resumidas (com digest de origem, contagem de passos, idioma e status) e é convertido em campos estruturados por `meta_summary_to_dict`, permitindo acompanhar, em JSON, o ciclo completo “estrutura detectada → síntese Φ → digest rastreável”.
 
+Além disso, `Φ_SYNTH_PROG` passou a ser disparado automaticamente: sempre que `REWRITE_CODE` cria um `code_ast_summary`, o runtime identifica resumos ainda não sintetizados (via digest) e agenda `SYNTH_PROG` antes do halt. O operador grava o `source_digest` no próprio nó e nas relações `code/SYNTH`, garantindo que o bloco `meta_synthesis` consiga rastrear com o mesmo nível de detalhe usado para planos e provas.
+
 O histórico curto também é materializado: `meta_memory` agrega os últimos meta-resultados (rota, digestos de raciocínio/expressão e prévias) e é anexado no `meta_summary`, garantindo que cada execução carregue um mapa determinístico das iterações anteriores — base para memória auditável e evolução multi-turno.
 
 Esse mesmo pacote é persistido automaticamente em `.nsr_memory/memory.jsonl` (JSONL com hashes BLAKE2b), permitindo recarregar sessões seguintes e iniciar cada Meta-LER com operações `MEMORY_RECALL` que inserem, no contexto LIU, as entradas anteriores antes do novo raciocínio Φ.

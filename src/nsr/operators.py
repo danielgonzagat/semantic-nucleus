@@ -247,20 +247,23 @@ def _op_rewrite_semantic(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) 
 
 
 def _op_synth_prog(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
-    program_context = _latest_tagged_struct(isr.context, "code_ast_summary")
+    pending = _latest_unsynthesized_prog(isr.context)
+    if pending is None:
+        return isr
+    program_context, source_digest = pending
     language = session.language_hint or "pt"
     summary_fields = {
         "tag": entity("synth_prog"),
         "language": entity(language),
         "status": entity("initialized"),
+        "source_digest": text(source_digest),
     }
-    if program_context is not None:
-        fields = dict(program_context.fields)
-        summary_fields["source_language"] = fields.get("language") or entity(language)
-        summary_fields["function_count"] = fields.get("function_count") or number(0)
+    fields = dict(program_context.fields)
+    summary_fields["source_language"] = fields.get("language") or entity(language)
+    summary_fields["function_count"] = fields.get("function_count") or number(0)
     summary = liu_struct(**summary_fields)
     context = isr.context + (summary,)
-    relations = isr.relations + (relation("code/SYNTH", entity(language), entity("draft")),)
+    relations = isr.relations + (relation("code/SYNTH", entity(language), text(source_digest)),)
     quality = min(1.0, max(isr.quality, 0.62))
     return _update(isr, relations=relations, context=context, quality=quality)
 
@@ -653,6 +656,21 @@ def _latest_unsynthesized_proof(context: Tuple[Node, ...]) -> Tuple[Node, str] |
             continue
         digest_value = fingerprint(node)
         if digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _latest_unsynthesized_prog(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_prog", "source_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "code_ast_summary":
+            continue
+        digest_value = _node_text(fields.get("digest")) or fingerprint(node)
+        if digest_value and digest_value not in synthesized:
             return node, digest_value
     return None
 

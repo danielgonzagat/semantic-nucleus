@@ -82,6 +82,8 @@ def _program_entry(node: Node) -> Node:
         summary_fields["status"] = fields["status"]
     if "source_language" in fields:
         summary_fields["source_language"] = fields["source_language"]
+    if "source_digest" in fields:
+        summary_fields["source_digest"] = fields["source_digest"]
     function_count = fields.get("function_count")
     if function_count is not None:
         summary_fields["function_count"] = function_count
