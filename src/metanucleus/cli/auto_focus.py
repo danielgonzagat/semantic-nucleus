@@ -59,7 +59,7 @@ def _parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def _load_entries(path: Path) -> List[dict]:
+def load_entries(path: Path) -> List[dict]:
     with path.open("r", encoding="utf-8") as handle:
         data = json.load(handle)
         if not isinstance(data, list):
@@ -127,7 +127,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     report_path = Path(args.report)
     if not report_path.exists():
         raise SystemExit(f"Report file not found: {report_path}")
-    entries = _load_entries(report_path)
+    entries = load_entries(report_path)
     selected, unknown = select_targets(entries, CATEGORY_TESTS)
     ordered_selected = sorted(selected)
     ordered_unknown = sorted(unknown)

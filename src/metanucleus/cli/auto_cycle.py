@@ -9,6 +9,8 @@ import sys
 from pathlib import Path
 from typing import Iterable, List
 
+from . import auto_focus
+
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -71,8 +73,22 @@ def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         default="pytest",
         help="Comando base usado quando --focus-format=command (default: %(default)s).",
     )
+    parser.add_argument(
+        "--focus-rerun",
+        action="store_true",
+        help="Reexecuta pytest com os padrões sugeridos pelo foco (usa snapshot JSON).",
+    )
 
     return parser.parse_args(argv)
+
+
+def _focus_requested(args: argparse.Namespace) -> bool:
+    return args.focus or args.post_focus or args.focus_rerun
+
+
+def _ensure_focus_snapshot(args: argparse.Namespace) -> None:
+    if _focus_requested(args) and not args.report_snapshot:
+        args.report_snapshot = "ci-artifacts/auto-report.json"
 
 
 def _split_domains(raw: str) -> List[str]:
@@ -100,7 +116,7 @@ def _build_auto_debug_cmd(args: argparse.Namespace) -> List[str]:
         cmd.append("--keep-memory")
     if args.skip_auto_evolve:
         cmd.append("--skip-auto-evolve")
-    focus_enabled = args.focus or args.post_focus
+    focus_enabled = _focus_requested(args)
     if args.report or args.report_paths or args.report_snapshot or args.report_diff or focus_enabled:
         cmd.append("--report")
         if args.report_json:
@@ -167,8 +183,33 @@ def _build_focus_cmd(args: argparse.Namespace) -> List[str]:
     return cmd
 
 
+def _run_focus_rerun(args: argparse.Namespace) -> int:
+    report_path = Path(_resolve_focus_report(args))
+    try:
+        entries = auto_focus.load_entries(report_path)
+    except (OSError, ValueError) as exc:
+        print(f"[auto-cycle] focus rerun failed to load {report_path}: {exc}", flush=True)
+        return 1
+    selected, unknown = auto_focus.select_targets(entries, auto_focus.CATEGORY_TESTS)
+    ordered_selected = sorted(selected)
+    ordered_unknown = sorted(unknown)
+    targets = ordered_selected or ["tests"]
+    if ordered_unknown:
+        print(
+            "[auto-cycle] focus rerun has unmapped labels: " + ", ".join(sorted(ordered_unknown)),
+            flush=True,
+        )
+    base_parts = shlex.split(args.focus_base_command or "pytest")
+    if not base_parts:
+        base_parts = ["pytest"]
+    rerun_cmd = base_parts + targets
+    print("[auto-cycle] focus rerun targets:", " ".join(targets), flush=True)
+    return _run(rerun_cmd)
+
+
 def main(argv: list[str] | None = None) -> int:
     args = _parse_args(argv)
+    _ensure_focus_snapshot(args)
     debug_cmd = _build_auto_debug_cmd(args)
     debug_rc = _run(debug_cmd)
 
@@ -182,13 +223,17 @@ def main(argv: list[str] | None = None) -> int:
         focus_cmd = _build_focus_cmd(args)
         focus_rc = _run(focus_cmd)
 
+    focus_rerun_rc = 0
+    if args.focus_rerun:
+        focus_rerun_rc = _run_focus_rerun(args)
+
     prune_rc = 0
     should_prune = not args.skip_prune and (debug_rc == 0 or args.prune_on_fail)
     if should_prune:
         prune_cmd = _build_prune_cmd(args)
         prune_rc = _run(prune_cmd)
 
-    return debug_rc or report_rc or focus_rc or prune_rc
+    return debug_rc or report_rc or focus_rc or focus_rerun_rc or prune_rc
 
 
 if __name__ == "__main__":  # pragma: no cover

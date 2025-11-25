@@ -58,6 +58,9 @@ def test_auto_cycle_focus_only_enables_auto_debug_flag(monkeypatch):
     debug_cmd = spy.commands[0]
     assert "nucleo-auto-debug" == debug_cmd[0]
     assert "--focus" in debug_cmd
+    assert "--report-snapshot" in debug_cmd
+    snap_idx = debug_cmd.index("--report-snapshot")
+    assert debug_cmd[snap_idx + 1] == "ci-artifacts/auto-report.json"
     assert all(cmd[0] != "nucleo-auto-focus" for cmd in spy.commands)
 
 
@@ -83,3 +86,25 @@ def test_auto_cycle_runs_post_focus_step(monkeypatch):
     assert "reports/latest.json" in focus_cmd
     assert "--format" in focus_cmd
     assert "--base-command" in focus_cmd
+
+
+def test_auto_cycle_focus_rerun_executes_pytest(monkeypatch):
+    spy = SpyRunner([0, 0])
+    monkeypatch.setattr(auto_cycle, "_run", spy)
+
+    def fake_load(path):
+        assert str(path) == "ci-artifacts/auto-report.json"
+        return [{"label": "semantic"}]
+
+    def fake_select(entries, mapping):
+        assert entries == [{"label": "semantic"}]
+        return {"tests/nsr/test_meta_*"}, set()
+
+    monkeypatch.setattr(auto_cycle.auto_focus, "load_entries", fake_load)
+    monkeypatch.setattr(auto_cycle.auto_focus, "select_targets", fake_select)
+
+    rc = auto_cycle.main(["--focus-rerun", "--skip-prune"])
+    assert rc == 0
+    rerun_cmd = spy.commands[-1]
+    assert rerun_cmd[0] == "pytest"
+    assert "tests/nsr/test_meta_*" in rerun_cmd
