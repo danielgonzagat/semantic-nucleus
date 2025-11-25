@@ -1,10 +1,10 @@
-import pytest
+import json
 
 from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode
-from liu import struct, entity, number, list_node, text
+from liu import struct, entity, number, list_node, text, fingerprint, Node
 
 
 def test_meta_transformer_routes_math():
@@ -210,6 +210,400 @@ def test_meta_transformer_text_route_uses_lc_calculus_pipeline(monkeypatch):
     assert dict(calc_payload.fields)["operator"].label == "STATE_QUERY"
 
 
+def test_meta_transformer_routes_bayes():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "variables": [
+            {"name": "Rain", "values": ["yes", "no"]},
+        ],
+        "cpt": {
+            "Rain": [
+                {"distribution": {"yes": 0.2, "no": 0.8}},
+            ]
+        },
+        "query": "Rain",
+    }
+    command = f"BAYES {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.preseed_answer is not None
+    assert result.trace_label == "STAT[BAYES_QUERY]"
+    summary_nodes = build_meta_summary(result, "Rain posterior", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+    assert summary_dict["phi_plan_digest"]
+
+
+def test_meta_transformer_routes_markov():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "states": ["Rain", "Dry"],
+        "initial": {"Rain": 0.6, "Dry": 0.4},
+        "transitions": [
+            {"from": "Rain", "to": {"Rain": 0.7, "Dry": 0.3}},
+            {"from": "Dry", "to": {"Rain": 0.2, "Dry": 0.8}},
+        ],
+        "emissions": [
+            {"state": "Rain", "symbols": {"umbrella": 0.9, "no": 0.1}},
+            {"state": "Dry", "symbols": {"umbrella": 0.2, "no": 0.8}},
+        ],
+        "observations": ["umbrella", "umbrella"],
+    }
+    command = f"MARKOV {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[MARKOV_FORWARD]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Markov forward", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
+def test_meta_transformer_routes_regression():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "features": ["x1", "x2"],
+        "target": "y",
+        "data": [
+            {"x1": 1, "x2": 1, "y": 3},
+            {"x1": 2, "x2": 0, "y": 2},
+            {"x1": 0, "x2": 3, "y": 6},
+        ],
+    }
+    command = f"REGRESS {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[REGRESSION]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Regression output", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
+def test_meta_transformer_routes_polynomial():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {"variable": "x", "coefficients": [1, -3, 2]}
+    command = f"POLY {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.MATH
+    assert result.trace_label == "MATH[POLY]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Poly factor", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "math"
+
+
+def test_plan_decompose_auto_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    tags = []
+    plan_struct = None
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+            if (tag.label or "").lower() == "plan_decompose":
+                plan_struct = fields
+    assert "PLAN_DECOMPOSE" in tags
+    assert plan_struct is not None
+    assert plan_struct["step_count"].value == 3
+    assert any("PLAN_DECOMPOSE" in step for step in outcome.trace.steps)
+
+
+def test_runtime_auto_builds_synth_plan():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    plan_digest = None
+    synth_source = None
+    tags = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        tags.append((tag.label or "").upper())
+        lowered = (tag.label or "").lower()
+        if lowered == "plan_decompose":
+            digest_field = fields.get("digest")
+            if digest_field:
+                plan_digest = digest_field.label
+        if lowered == "synth_plan":
+            source = fields.get("source_digest")
+            if source:
+                synth_source = source.label
+    assert "SYNTH_PLAN" in tags
+    assert plan_digest
+    assert synth_source == plan_digest
+
+
+def test_runtime_auto_builds_synth_prog():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    tags = []
+    sources = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        label = (tag.label or "").upper()
+        tags.append(label)
+        if label == "SYNTH_PROG" and "source_digest" in fields:
+            sources.append(fields["source_digest"].label)
+    assert "SYNTH_PROG" in tags
+    assert sources
+
+
+def test_meta_summary_reports_synthesis_prog():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_program_total"] >= 1
+    programs = summary.get("synthesis_programs")
+    assert programs
+    assert programs[0].get("source_digest")
+
+
+def test_meta_memory_entries_include_program_synthesis():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    entries = summary.get("memory_entries")
+    assert entries
+    latest = entries[-1]
+    assert latest.get("synthesis_program_total", 0) >= 1
+    assert latest.get("synthesis_program_sources")
+
+
+def test_meta_summary_reports_synthesis_plan():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_plan_total"] >= 1
+    plans = summary.get("synthesis_plans")
+    assert plans
+    assert plans[0].get("source_digest")
+
+
+def test_meta_memory_entries_include_plan_synthesis():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    entries = summary.get("memory_entries")
+    assert entries
+    latest = entries[-1]
+    assert latest.get("synthesis_plan_total", 0) >= 1
+    assert latest.get("synthesis_plan_sources")
+
+
+def test_meta_transformer_routes_factor_graph():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "variables": [
+            {"name": "A", "values": ["t", "f"]},
+            {"name": "B", "values": ["t", "f"]},
+        ],
+        "factors": [
+            {
+                "name": "Prior",
+                "variables": ["A"],
+                "table": [
+                    {"assignment": {"A": "t"}, "value": 0.6},
+                    {"assignment": {"A": "f"}, "value": 0.4},
+                ],
+            },
+            {
+                "name": "Link",
+                "variables": ["A", "B"],
+                "table": [
+                    {"assignment": {"A": "t", "B": "t"}, "value": 0.8},
+                    {"assignment": {"A": "t", "B": "f"}, "value": 0.2},
+                    {"assignment": {"A": "f", "B": "t"}, "value": 0.3},
+                    {"assignment": {"A": "f", "B": "f"}, "value": 0.7},
+                ],
+            },
+        ],
+    }
+    command = f"FACTOR {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[FACTOR_BP]"
+    summary_nodes = build_meta_summary(result, "Factor graph", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
+def test_context_probabilities_recorded():
+    session = SessionCtx()
+    outcome = run_text_full("Um carro existe. O carro anda.", session)
+    summary = outcome.meta_summary
+    assert summary is not None
+    summary_dict = meta_summary_to_dict(summary)
+    assert "context_relation_total" in summary_dict
+    assert summary_dict["context_relation_total"] >= 0
+    assert "context_context_probs" in summary_dict
+    assert summary_dict["context_context_probs"]
+
+
+def test_rewrite_semantic_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Descreva: Um plano detalhado para viajar", session)
+    from nsr.operators import apply_operator
+    from liu import operation, text as liu_text
+
+    expr = outcome.meta_expression or outcome.isr.answer
+    op_node = operation("REWRITE_SEMANTIC", expr or liu_text("placeholder"))
+    updated = apply_operator(outcome.isr, op_node, session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append(tag.label.upper())
+    assert "SEMANTIC_REWRITE" in tags
+
+
+def test_synth_prog_operator():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    code_result = transformer.transform(
+        """
+def soma(a, b):
+    return a + b
+"""
+    )
+    outcome = run_text_full("Sintetize um programa que calcule a média", session)
+    from nsr.operators import apply_operator
+    from liu import operation, text as liu_text
+
+    # Remove sínteses anteriores para garantir que exista um resumo sem `synth_prog`
+    def _tag_label(node: Node) -> str:
+        if node.kind.name != "STRUCT":
+            return ""
+        tag_node = dict(node.fields).get("tag")
+        return (tag_node.label or "").lower() if tag_node else ""
+
+    cleaned = tuple(node for node in outcome.isr.context if _tag_label(node) != "synth_prog")
+    if code_result.code_summary is not None:
+        cleaned = cleaned + (code_result.code_summary,)
+    outcome.isr.context = cleaned
+
+    expr = outcome.meta_expression or liu_text("Sintetizar")
+    updated = apply_operator(outcome.isr, operation("SYNTH_PROG", expr), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PROG" in tags
+
+
+def test_synth_plan_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    from nsr.operators import apply_operator
+    from liu import operation
+
+    updated = apply_operator(outcome.isr, operation("SYNTH_PLAN"), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PLAN" in tags
+
+
+def test_synth_proof_operator():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    from nsr.operators import apply_operator
+    from liu import operation
+
+    updated = apply_operator(outcome.isr, operation("SYNTH_PROOF"), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PROOF" in tags
+
+
+def test_runtime_auto_builds_synth_proof():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    proof_digest = None
+    synth_digest = None
+    tags = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        label = (tag.label or "").upper()
+        tags.append(label)
+        lowered = (tag.label or "").lower()
+        if lowered == "logic_proof":
+            proof_digest = fingerprint(node)
+        if lowered == "synth_proof":
+            digest_field = fields.get("proof_digest")
+            if digest_field:
+                synth_digest = digest_field.label
+    assert "SYNTH_PROOF" in tags
+    assert proof_digest
+    assert synth_digest == proof_digest
+
+
+def test_meta_summary_reports_synthesis_proof():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_proof_total"] >= 1
+    proofs = summary.get("synthesis_proofs")
+    assert proofs
+    assert proofs[0]["proof_digest"]
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
@@ -345,6 +739,37 @@ def test_meta_summary_includes_meta_reflection():
     assert summary_dict["reflection_digest"]
     assert summary_dict["reflection_phase_count"] >= 1
     assert summary_dict["reflection_decision_count"] >= 1
+    assert summary_dict["justification_digest"]
+    assert summary_dict["justification_depth"] >= 2
+    assert summary_dict["justification_width"] >= 1
+    assert summary_dict["justification_node_count"] >= summary_dict["justification_width"] + 1
+    assert summary_dict["justification_phases"]
+    assert "justification_delta_quality" in summary_dict
+
+
+def test_meta_justification_tree_structure():
+    session = SessionCtx()
+    outcome = run_text_full("Explique a frase 'o carro está parado'", session)
+    tree = outcome.meta_justification
+    assert tree is not None, "meta_justification deve ser emitido"
+    tree_fields = dict(tree.fields)
+    assert tree_fields["tag"].label == "meta_justification"
+    root_node = tree_fields.get("root")
+    assert root_node is not None
+    root_fields = dict(root_node.fields)
+    assert root_fields["tag"].label == "justification_root"
+    children = root_fields.get("children")
+    assert children is not None and children.kind.name == "LIST"
+    assert len(children.args) == int(tree_fields["width"].value)
+    first_phase = children.args[0]
+    phase_fields = dict(first_phase.fields)
+    assert phase_fields["tag"].label == "justification_phase"
+    assert phase_fields["children"].kind.name == "LIST"
+    assert phase_fields["children"].args, "cada fase deve ter pelo menos um passo"
+    first_step = phase_fields["children"].args[0]
+    step_fields = dict(first_step.fields)
+    assert step_fields["tag"].label == "justification_step"
+    assert step_fields["reason"].kind.name == "TEXT"
 
 
 def test_meta_summary_includes_plan_metadata_for_math():

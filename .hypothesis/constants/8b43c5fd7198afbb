@@ -1,4 +1,0 @@
-# file: /workspace/src/liu/signatures.py
-# hypothesis_version: 6.148.2
-
-['AFTER', 'ALIGN', 'ANSWER', 'BEFORE', 'CAUSE', 'COMPARE', 'DESCRIBES', 'DIFFERENT', 'EFFECT', 'EQUAL', 'EXPAND', 'EXPLAIN', 'EXTRACT', 'HAS', 'HAS_PART', 'INFER', 'INSTANCE_OF', 'IS_A', 'MAP', 'NORMALIZE', 'OP_SIGNATURES', 'PART_OF', 'REDUCE', 'REL_SIGNATURES', 'REWRITE', 'STABILIZE', 'SUMMARIZE', 'TYPE', 'code/ANNOTATION', 'code/ASSIGN', 'code/BORROW', 'code/CALL', 'code/CLAUSE', 'code/DEFN', 'code/EVAL_PURE', 'code/IF', 'code/LOOP', 'code/MATCH', 'code/MODULE', 'code/MOVE', 'code/PARAM', 'code/RETURNS', 'code/TYPE']

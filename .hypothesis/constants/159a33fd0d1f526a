@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/meta_memory_induction.py
-# hypothesis_version: 6.148.2
-
-[',', ':', 'REL', 'a', 'args', 'halt', 'if_rel', 'kind', 'label', 'memory_induction', 'quality', 'r', 'record_episode', 'rel', 'relations', 'run_memory_induction', 'source', 'support', 'text', 'then_rel', 'timestamp', 'utf-8', 'value']

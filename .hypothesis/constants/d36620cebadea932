@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/code_ast.py
-# hypothesis_version: 6.148.2
-
-[160, 512, '"', "'", '...', 'CodeAstStats', 'FunctionDef', 'LIST', 'NUMBER', 'STRUCT', 'TEXT', 'arg', 'args', 'ast', 'ast_field', 'ast_literal', 'ast_truncated', 'ast_type', 'body', 'build_js_ast_meta', 'build_rust_ast_meta', 'children', 'code_ast', 'code_ast_summary', 'code_fn_outline', 'code_function', 'code_param', 'digest', 'elixir', 'field', 'fields', 'function_count', 'functiondef', 'functions', 'javascript', 'language', 'name', 'node_count', 'param_count', 'parameters', 'params', 'python', 'ret', 'root', 'rust', 'summary', 'tag', 'truncated', 'type', 'unknown', 'value']

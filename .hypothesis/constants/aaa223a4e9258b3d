@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/lc_omega.py
-# hypothesis_version: 6.148.2
-
-['!', ',', '.', ':', ';', '=', '?', 'ALL_THINGS', 'ANSWER_HEALTH', 'BE_STATE', 'CALC', 'COMMAND', 'COMMAND_ROUTE', 'CONFIRM', 'EMIT_CONFIRM', 'EMIT_FAREWELL', 'EMIT_GREETING', 'EMIT_THANKS', 'EQ', 'FACT', 'FACT_QUERY', 'FAREWELL', 'GREETING_SIMPLE', 'LCParseResult', 'LCTerm', 'LIT:', 'LexemeProxy', 'MetaCalculation', 'OP', 'QUESTION_FACT', 'QUESTION_HEALTH', 'REQUEST', 'SELF', 'SEQ', 'STATE_ASSERT', 'STATE_BAD', 'STATE_GOOD', 'STATE_OF', 'STATE_QUERY', 'STATE_UNKNOWN', 'STATE_UNSPECIFIED', 'SYM', 'THANKS', 'YOU', "[\\wÀ-ÿ']+|[.,?!]", '_', 'lc_normalize', 'lc_parse', 'lc_synthesize', 'lc_term_from_pattern']

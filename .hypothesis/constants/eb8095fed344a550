@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/meta_reasoner.py
-# hypothesis_version: 6.148.2
-
-[0.0, ',', ':', '=', '[', 'build_meta_reasoning', 'context', 'ctx', 'delta_quality', 'delta_relations', 'digest', 'index', 'label', 'meta_reasoning', 'operations', 'operator_stats', 'q', 'quality', 'reasoning_stat', 'reasoning_step', 'rel', 'relations', 'step_count', 'tag', 'utf-8']

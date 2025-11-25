@@ -36,8 +36,16 @@ from .ian_bridge import (
 from .code_bridge import CodeHook, maybe_route_code
 from .math_instinct import MathInstinct
 from .math_bridge import maybe_route_math
+from .polynomial_bridge import PolynomialHook, maybe_route_polynomial
+from .polynomial_engine import PolynomialResult, factor_polynomial
 from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normalize_statement as logic_normalize
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
+from .bayes_bridge import BayesHook, maybe_route_bayes
+from .bayes_engine import BayesNetwork, BayesVariable
+from .markov_bridge import MarkovHook, maybe_route_markov
+from .markov_engine import MarkovModel
+from .factor_bridge import FactorHook, maybe_route_factor
+from .factor_graph_engine import FactorGraph, FactorVariable, Factor
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
@@ -46,8 +54,9 @@ from .meta_structures import (
     meta_calculation_to_node,
 )
 from .meta_expressor import build_meta_expression
-from .meta_memory import build_meta_memory
+from .meta_memory import build_meta_memory, meta_memory_to_dict
 from .meta_reflection import build_meta_reflection
+from .meta_synthesis import build_meta_synthesis
 from .language_detector import detect_language_profile
 from .code_ast import build_python_ast_meta, build_rust_ast_meta
 from .math_ast import build_math_ast_node
@@ -79,6 +88,9 @@ __all__ = [
     "InstinctHook",
     "CodeHook",
     "MathInstinct",
+    "PolynomialHook",
+    "PolynomialResult",
+    "factor_polynomial",
     "analyze_utterance",
     "plan_reply",
     "respond",
@@ -88,6 +100,7 @@ __all__ = [
     "ian_conjugate",
     "maybe_route_text",
     "maybe_route_math",
+    "maybe_route_polynomial",
     "utterance_to_struct",
     "reply_plan_to_answer",
     "maybe_route_code",
@@ -99,6 +112,18 @@ __all__ = [
     "LogicBridgeResult",
     "logic_route",
     "interpret_logic_command",
+    "BayesHook",
+    "BayesNetwork",
+    "BayesVariable",
+    "maybe_route_bayes",
+    "MarkovHook",
+    "MarkovModel",
+    "maybe_route_markov",
+    "FactorHook",
+    "FactorGraph",
+    "FactorVariable",
+    "Factor",
+    "maybe_route_factor",
     "MetaTransformer",
     "MetaTransformResult",
     "MetaRoute",
@@ -115,5 +140,7 @@ __all__ = [
     "build_rust_ast_meta",
     "build_meta_expression",
     "build_meta_memory",
+    "meta_memory_to_dict",
+    "build_meta_synthesis",
     "build_meta_reflection",
 ]

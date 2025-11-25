@@ -1,4 +1,0 @@
-# file: /workspace/src/frontend_logic/compiler.py
-# hypothesis_version: 6.148.2
-
-[' )', '%', '(', ')', ',', '?', 'LogicRule', 'compile_logic']

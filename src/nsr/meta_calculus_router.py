@@ -95,4 +95,37 @@ def text_operation_pipeline(
     return tuple(operations)
 
 
-__all__ = ["text_opcode_pipeline", "text_operation_pipeline"]
+_PLAN_HINTS = (
+    "plan",
+    "planejar",
+    "plano",
+    "passo",
+    "passos",
+    "etapa",
+    "etapas",
+    "step",
+    "steps",
+)
+_ARROW_HINTS = ("->", "→")
+
+
+def detect_plan_goal(calculus: MetaCalculation | None, raw_text: str | None) -> str | None:
+    if not raw_text:
+        return None
+    text_value = raw_text.strip()
+    if not text_value:
+        return None
+    lower_text = text_value.lower()
+    arrow_present = any(symbol in text_value for symbol in _ARROW_HINTS) or ">" in text_value
+    hint_present = any(hint in lower_text for hint in _PLAN_HINTS)
+    if not arrow_present and not hint_present:
+        return None
+    operator = (calculus.operator or "").upper() if calculus else ""
+    if operator in {"COMMAND_ROUTE", "COMMAND_FOLLOWUP"}:
+        return text_value
+    if arrow_present:
+        return text_value
+    return None
+
+
+__all__ = ["text_opcode_pipeline", "text_operation_pipeline", "detect_plan_goal"]

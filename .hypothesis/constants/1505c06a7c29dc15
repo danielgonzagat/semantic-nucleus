@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/supervised_evolution.py
-# hypothesis_version: 6.148.2
-
-[0.0, 1.0, '*.pyc', '*.pyo', '.git', 'EvolutionConfig', 'PatchCandidate', 'PatchEvaluation', 'ShellTestCore', 'TestRunResult', '__pycache__', 'chosen', 'diff_error', 'evaluations', 'exception', 'metanucleus-evo-', 'utf-8', 'workspace']

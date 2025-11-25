@@ -1,4 +1,0 @@
-# file: /workspace/src/svm/__init__.py
-# hypothesis_version: 6.148.2
-
-['Ed25519Unavailable', 'Opcode', 'Program', 'SNAPSHOT_VERSION', 'SVMSnapshot', 'SigmaVM', 'SnapshotSignature', 'assemble', 'build_snapshot', 'decode', 'disassemble', 'encode', 'load_snapshot', 'restore_snapshot', 'save_snapshot', 'sign_snapshot']

@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/meta_equation.py
-# hypothesis_version: 6.148.2
-
-[0.001, 'answer_digest', 'context', 'delta_quality', 'delta_sections', 'digest', 'equation_section', 'expanding', 'false', 'goals', 'initial', 'input_digest', 'meta_equation', 'ontology', 'ops_queue', 'quality', 'regressing', 'relations', 'sections', 'stable', 'tag', 'trend', 'true']

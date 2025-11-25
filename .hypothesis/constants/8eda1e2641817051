@@ -1,4 +1,0 @@
-# file: /workspace/src/svm/snapshots.py
-# hypothesis_version: 6.148.2
-
-[0.0, ',', ':', 'SNAPSHOT_VERSION', 'SVMSnapshot', 'SnapshotSignature', 'algorithm', 'answer', 'ascii', 'build_snapshot', 'bytecode', 'call_stack', 'constants', 'context', 'digest', 'goals', 'isr', 'isr_digest', 'load_snapshot', 'node', 'ontology', 'ops_queue', 'pc', 'program', 'public_key', 'quality', 'register_values', 'registers', 'relations', 'repr', 'restore_snapshot', 'save_snapshot', 'signature', 'signatures', 'stack', 'stack_depth', 'state', 'svms/1', 'type', 'utf-8', 'value', 'version', 'vm']

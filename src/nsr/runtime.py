@@ -8,8 +8,9 @@ from dataclasses import dataclass, field, replace as dc_replace
 from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
+from collections import deque, Counter
 
-from liu import Node, NodeKind, operation, fingerprint
+from liu import Node, NodeKind, operation, fingerprint, text
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -18,7 +19,13 @@ from .equation import (
     EquationSnapshotStats,
     snapshot_equation,
 )
-from .operators import apply_operator
+from .operators import (
+    apply_operator,
+    _latest_tagged_struct,
+    _latest_unsynthesized_plan,
+    _latest_unsynthesized_proof,
+    _latest_unsynthesized_prog,
+)
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
@@ -27,11 +34,18 @@ from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
 from .meta_reflection import build_meta_reflection
+from .meta_justification import build_meta_justification
 from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory
 from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
+from .context_stats import build_context_probabilities
+from .meta_synthesis import build_meta_synthesis
+
+
+# Maximum iterations for synthesis drain loop
+MAX_SYNTHESIS_DRAIN_ITERATIONS = 6
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -113,8 +127,10 @@ class RunOutcome:
     meta_summary: Tuple[Node, ...] | None = None
     meta_reasoning: Node | None = None
     meta_reflection: Node | None = None
+    meta_justification: Node | None = None
     meta_expression: Node | None = None
     meta_memory: Node | None = None
+    meta_synthesis: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
@@ -184,6 +200,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
             code_ast=meta.code_ast,
             code_summary=meta.code_summary,
             math_ast=meta.math_ast,
+            plan_goal=meta.plan_goal,
         )
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     if calc_mode == "plan_only":
@@ -268,8 +285,10 @@ def run_struct_full(
         snapshot = snapshot_equation(struct_node, isr)
         reasoning_node = build_meta_reasoning(trace.steps)
         reflection_node = build_meta_reflection(reasoning_node)
+        justification_node = build_meta_justification(reasoning_node)
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
+        isr = _drain_synthesis_ops(isr, session)
         language = _resolve_language(meta_info, session)
         memory_refs = tuple(node for node in session.meta_buffer if node is not None)
         if (
@@ -278,6 +297,7 @@ def run_struct_full(
             and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
         ):
             isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+            isr = _drain_synthesis_ops(isr, session)
             logic_proof_node = _latest_logic_proof(isr.context)
         meta_expression = build_meta_expression(
             isr.answer,
@@ -295,6 +315,8 @@ def run_struct_full(
             if meta_info
             else None
         )
+        context_prob_node = build_context_probabilities(isr)
+        synthesis_node = build_meta_synthesis(isr.context)
         equation_stats = snapshot.stats()
         memory_entry = _memory_entry_payload(
             meta_info,
@@ -302,8 +324,10 @@ def run_struct_full(
             meta_expression,
             reasoning_node,
             reflection_node,
+            justification_node,
             equation_node,
             logic_proof_node,
+            synthesis_node,
         )
         meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
@@ -315,10 +339,13 @@ def run_struct_full(
                 calc_result,
                 meta_reasoning=reasoning_node,
                 meta_reflection=reflection_node,
+                meta_justification=justification_node,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
                 meta_equation=equation_node,
                 meta_proof=logic_proof_node,
+                meta_context_prob=context_prob_node,
+                meta_synthesis=synthesis_node,
             )
             if meta_info
             else None
@@ -340,8 +367,10 @@ def run_struct_full(
             meta_summary=summary,
             meta_reasoning=reasoning_node if meta_info else None,
             meta_reflection=reflection_node if meta_info else None,
+            meta_justification=justification_node if meta_info else None,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
+            meta_synthesis=synthesis_node,
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
@@ -360,6 +389,7 @@ def run_struct_full(
     last_stats: Optional[EquationSnapshotStats] = None
     while steps < session.config.max_steps:
         steps += 1
+        _maybe_queue_synthesis_ops(isr)
         if not isr.ops_queue:
             if isr.answer.fields:
                 if isr.quality < session.config.min_quality:
@@ -378,8 +408,10 @@ def run_struct_full(
                 break
             if isr.goals:
                 isr.ops_queue.append(isr.goals[0])
+                _prioritize_ops_queue(isr)
             else:
                 isr.ops_queue.extend([operation("ALIGN"), operation("STABILIZE"), operation("SUMMARIZE")])
+                _prioritize_ops_queue(isr)
         op = isr.ops_queue.popleft()
         op_label = op.label or "NOOP"
         isr = apply_operator(isr, op, session)
@@ -402,6 +434,7 @@ def run_struct_full(
                     trace.add_contradiction(contradiction, isr)
                 halt_reason = HaltReason.CONTRADICTION
                 break
+        _maybe_queue_synthesis_ops(isr)
         signature = _state_signature(isr)
         if signature in seen_signatures:
             idle_loops += 1
@@ -424,6 +457,9 @@ def run_struct_full(
             seen_signatures.add(signature)
             idle_loops = 0
         if isr.answer.fields and isr.quality >= session.config.min_quality:
+            if _latest_unsynthesized_plan(isr.context) or _latest_unsynthesized_proof(isr.context):
+                _maybe_queue_synthesis_ops(isr)
+                continue
             halt_reason = HaltReason.QUALITY_THRESHOLD
             break
     if halt_reason is None:
@@ -446,6 +482,7 @@ def run_struct_full(
         and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
     ):
         isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+        isr = _drain_synthesis_ops(isr, session)
         logic_proof_node = _latest_logic_proof(isr.context)
     answer_text = _answer_text(isr)
     if session.logic_engine:
@@ -468,8 +505,10 @@ def run_struct_full(
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     reasoning_node = build_meta_reasoning(trace.steps)
     reflection_node = build_meta_reflection(reasoning_node)
+    justification_node = build_meta_justification(reasoning_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
+    isr = _drain_synthesis_ops(isr, session)
     language = _resolve_language(meta_info, session)
     memory_refs = tuple(node for node in session.meta_buffer if node is not None)
     meta_expression = build_meta_expression(
@@ -487,6 +526,8 @@ def run_struct_full(
         if meta_info
         else None
     )
+    context_prob_node = build_context_probabilities(isr)
+    synthesis_node = build_meta_synthesis(isr.context)
     equation_stats = snapshot.stats()
     memory_entry = _memory_entry_payload(
         meta_info,
@@ -494,8 +535,10 @@ def run_struct_full(
         meta_expression,
         reasoning_node,
         reflection_node,
+        justification_node,
         equation_node,
         logic_proof_node,
+        synthesis_node,
     )
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = (
@@ -507,10 +550,13 @@ def run_struct_full(
             calc_result,
             meta_reasoning=reasoning_node,
             meta_reflection=reflection_node,
+            meta_justification=justification_node,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
             meta_equation=equation_node,
             meta_proof=logic_proof_node,
+            meta_context_prob=context_prob_node,
+            meta_synthesis=synthesis_node,
         )
         if meta_info
         else None
@@ -537,8 +583,10 @@ def run_struct_full(
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node if meta_info else None,
         meta_reflection=reflection_node if meta_info else None,
+        meta_justification=justification_node if meta_info else None,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
+        meta_synthesis=synthesis_node,
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,
@@ -622,18 +670,93 @@ def _prime_ops_from_meta_calc(
     struct_node: Node,
     meta_info: MetaTransformResult | None,
 ) -> str | None:
-    if meta_info is None or meta_info.meta_calculation is None:
+    if meta_info is None:
         return None
-    pipeline_ops = text_operation_pipeline(meta_info.meta_calculation, struct_node)
+    pipeline_ops: list[Node] = []
+    if meta_info.meta_calculation is not None:
+        pipeline_ops = list(text_operation_pipeline(meta_info.meta_calculation, struct_node))
+    if meta_info.plan_goal:
+        pipeline_ops.insert(0, operation("PLAN_DECOMPOSE", text(meta_info.plan_goal)))
     if not pipeline_ops:
         return None
     original_ops = tuple(isr.ops_queue)
     isr.ops_queue.clear()
     isr.ops_queue.extend(pipeline_ops)
     isr.ops_queue.extend(original_ops)
-    operator = (meta_info.meta_calculation.operator or "text").upper()
+    _prioritize_ops_queue(isr)
+    operator = (
+        (meta_info.meta_calculation.operator if meta_info.meta_calculation else "plan").upper()
+    )
     chain = "→".join(filter(None, (op.label or "" for op in pipeline_ops)))
     return f"Φ_PLAN[{operator}:{chain}]"
+
+
+def _prioritize_ops_queue(isr: ISR) -> None:
+    priorities = _context_priority_map(isr)
+    if not priorities or not isr.ops_queue:
+        return
+    indexed_ops = list(isr.ops_queue)
+    indexed_ops = sorted(
+        enumerate(indexed_ops),
+        key=lambda item: (-priorities.get((item[1].label or "").upper(), 0.0), item[0]),
+    )
+    isr.ops_queue = deque(op for _, op in indexed_ops)
+
+
+def _context_priority_map(isr: ISR) -> dict[str, float]:
+    counts = Counter()
+    for node in isr.context:
+        label = _context_node_label(node)
+        if label:
+            counts[label] += 1
+    total = sum(counts.values())
+    if not total:
+        return {}
+    return {label: count / total for label, count in counts.items()}
+
+
+def _context_node_label(node: Node) -> str:
+    if node.kind is NodeKind.STRUCT:
+        tag_field = dict(node.fields).get("tag")
+        if tag_field and tag_field.label:
+            return tag_field.label.upper()
+    return (node.label or "").upper()
+
+
+def _queue_contains_label(queue: deque[Node], label: str) -> bool:
+    target = label.upper()
+    for op in queue:
+        if (op.label or "").upper() == target:
+            return True
+    return False
+
+
+def _maybe_queue_synthesis_ops(isr: ISR) -> None:
+    if _latest_unsynthesized_plan(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PLAN"):
+        isr.ops_queue.appendleft(operation("SYNTH_PLAN"))
+    if _latest_unsynthesized_proof(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PROOF"):
+        isr.ops_queue.appendleft(operation("SYNTH_PROOF"))
+    if _latest_unsynthesized_prog(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PROG"):
+        isr.ops_queue.appendleft(operation("SYNTH_PROG"))
+
+
+def _drain_synthesis_ops(isr: ISR, session: SessionCtx) -> ISR:
+    # Bounded loop to execute any pending synthesis operators outside do/while
+    for _ in range(MAX_SYNTHESIS_DRAIN_ITERATIONS):
+        pending_plan = _latest_unsynthesized_plan(isr.context)
+        if pending_plan:
+            isr = apply_operator(isr, operation("SYNTH_PLAN"), session)
+            continue
+        pending_proof = _latest_unsynthesized_proof(isr.context)
+        if pending_proof:
+            isr = apply_operator(isr, operation("SYNTH_PROOF"), session)
+            continue
+        pending_prog = _latest_unsynthesized_prog(isr.context)
+        if pending_prog:
+            isr = apply_operator(isr, operation("SYNTH_PROG"), session)
+            continue
+        break
+    return isr
 
 
 def _apply_code_rewrite_if_needed(
@@ -747,8 +870,10 @@ def _memory_entry_payload(
     meta_expression: Node | None,
     reasoning_node: Node | None,
     reflection_node: Node | None,
+    justification_node: Node | None,
     meta_equation: Node | None,
     logic_proof: Node | None = None,
+    meta_synthesis: Node | None = None,
 ) -> dict[str, object]:
     route = meta_info.route.value if meta_info else ""
     payload = {
@@ -760,6 +885,15 @@ def _memory_entry_payload(
         "reflection_digest": _node_field_label(reflection_node, "digest"),
         "reflection_phase_chain": _node_field_label(reflection_node, "phase_chain"),
     }
+    justification_digest = _node_field_label(justification_node, "digest")
+    justification_depth = _node_field_label(justification_node, "depth")
+    justification_width = _node_field_label(justification_node, "width")
+    if justification_digest:
+        payload["justification_digest"] = justification_digest
+    if justification_depth:
+        payload["justification_depth"] = justification_depth
+    if justification_width:
+        payload["justification_width"] = justification_width
     if meta_equation is not None:
         payload["equation_digest"] = _node_field_label(meta_equation, "digest")
         payload["equation_quality"] = _node_field_label(meta_equation, "quality")
@@ -769,7 +903,48 @@ def _memory_entry_payload(
         payload["logic_proof_truth"] = _node_field_label(logic_proof, "truth")
         payload["logic_proof_query"] = _node_field_label(logic_proof, "query")
         payload["logic_proof_digest"] = fingerprint(logic_proof)
+    if meta_synthesis is not None:
+        payload.update(_synthesis_snapshot(meta_synthesis))
     return payload
+
+
+def _synthesis_snapshot(meta_synthesis: Node) -> dict[str, object]:
+    if meta_synthesis.kind is not NodeKind.STRUCT:
+        return {}
+    fields = dict(meta_synthesis.fields)
+    snapshot: dict[str, object] = {}
+    plan_total = _node_numeric(fields.get("plan_total"))
+    proof_total = _node_numeric(fields.get("proof_total"))
+    program_total = _node_numeric(fields.get("program_total"))
+    if plan_total:
+        snapshot["synthesis_plan_total"] = plan_total
+    if proof_total:
+        snapshot["synthesis_proof_total"] = proof_total
+    if program_total:
+        snapshot["synthesis_program_total"] = program_total
+    plans_node = fields.get("plans")
+    if plans_node is not None:
+        snapshot["synthesis_plan_sources"] = _collect_synthesis_sources(plans_node, "source_digest")
+    proofs_node = fields.get("proofs")
+    if proofs_node is not None:
+        snapshot["synthesis_proof_sources"] = _collect_synthesis_sources(proofs_node, "proof_digest")
+    programs_node = fields.get("programs")
+    if programs_node is not None:
+        snapshot["synthesis_program_sources"] = _collect_synthesis_sources(programs_node, "source_digest")
+    return snapshot
+
+
+def _collect_synthesis_sources(node: Node, field_name: str) -> list[str]:
+    if node.kind is not NodeKind.LIST:
+        return []
+    values: list[str] = []
+    for entry in node.args:
+        if entry.kind is not NodeKind.STRUCT:
+            continue
+        value_node = dict(entry.fields).get(field_name)
+        if value_node and value_node.label:
+            values.append(value_node.label)
+    return values
 
 
 def _node_field_label(node: Node | None, field: str) -> str:
@@ -792,18 +967,6 @@ def _node_numeric(node: Node | None) -> int | None:
         return int(node.value)
     except (TypeError, ValueError):
         return None
-
-
-def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
-    tag_lower = tag_name.lower()
-    for node in reversed(context):
-        if node.kind is not NodeKind.STRUCT:
-            continue
-        fields = dict(node.fields)
-        tag_field = fields.get("tag")
-        if tag_field and (tag_field.label or "").lower() == tag_lower:
-            return node
-    return None
 
 
 def _latest_logic_proof(context: Tuple[Node, ...]) -> Node | None:
@@ -894,6 +1057,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
     reflection_node = build_meta_reflection(reasoning_node)
+    justification_node = build_meta_justification(reasoning_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
     language = _resolve_language(meta, session)
@@ -916,6 +1080,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_expression,
         reasoning_node,
         reflection_node,
+        justification_node,
         equation_node,
         logic_proof_node,
     )
@@ -928,6 +1093,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         calc_result,
         meta_reasoning=reasoning_node,
         meta_reflection=reflection_node,
+        meta_justification=justification_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         meta_equation=equation_node,
@@ -954,6 +1120,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         meta_summary=meta_summary,
         meta_reasoning=reasoning_node,
         meta_reflection=reflection_node,
+        meta_justification=justification_node,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         calc_plan=plan,

@@ -22,6 +22,7 @@ from liu import (
     number,
     normalize,
     fingerprint,
+    struct as liu_struct,
 )
 
 from .ambiguity import AmbiguityResolver, detect_ambiguity
@@ -300,6 +301,34 @@ def _op_infer(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     return _update(isr, relations=merged, quality=min(1.0, isr.quality + 0.05))
 
 
+def _op_plan_decompose(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    if not args or args[0].kind is not NodeKind.TEXT:
+        return isr
+    goal_text = args[0].label or ""
+    if not goal_text:
+        return isr
+    segments = [segment.strip() for segment in goal_text.replace("→", ">").split(">") if segment.strip()]
+    if not segments:
+        segments = [goal_text]
+    plan_nodes = [
+        struct(tag=entity("plan_step"), index=number(idx + 1), description=text(segment))
+        for idx, segment in enumerate(segments)
+    ]
+    plan_fields = {
+        "tag": entity("plan_decompose"),
+        "original": text(goal_text),
+        "step_count": number(len(plan_nodes)),
+        "steps": list_node(plan_nodes),
+    }
+    plan_struct = struct(**plan_fields)
+    plan_digest = fingerprint(plan_struct)
+    plan_fields["digest"] = text(plan_digest)
+    plan_struct = struct(**plan_fields)
+    context = isr.context + (plan_struct,)
+    quality = min(1.0, max(isr.quality, 0.58))
+    return _update(isr, context=context, quality=quality)
+
+
 def _op_compare(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     if len(args) != 2:
         return isr
@@ -368,6 +397,93 @@ def _op_rewrite(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     target = normalize(args[0])
     context = isr.context + (target,)
     return _update(isr, context=context)
+
+
+def _op_rewrite_semantic(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    if not args or args[0].kind is not NodeKind.STRUCT:
+        return isr
+    target = args[0]
+    fields = dict(target.fields)
+    tag = fields.get("tag")
+    if not tag or (tag.label or "").lower() != "meta_expression":
+        summary = struct(tag=entity("semantic_rewrite"), status=entity("skipped"))
+        return _update(isr, context=isr.context + (summary,))
+    preview = fields.get("preview").label if fields.get("preview") else ""
+    language = fields.get("language").label if fields.get("language") else session.language_hint or "pt"
+    summary_fields = {
+        "tag": entity("semantic_rewrite"),
+        "language": entity(language),
+        "preview": text(preview or ""),
+    }
+    relationships = [relation("semantic/PRESERVE", entity(language), text(preview or ""))]
+    context = tuple((*isr.context, liu_struct(**summary_fields)))
+    relations = tuple((*isr.relations, *relationships))
+    quality = min(1.0, max(isr.quality, 0.6))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
+def _op_synth_prog(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    pending = _latest_unsynthesized_prog(isr.context)
+    if pending is None:
+        return isr
+    program_context, source_digest = pending
+    language = session.language_hint or "pt"
+    summary_fields = {
+        "tag": entity("synth_prog"),
+        "language": entity(language),
+        "status": entity("initialized"),
+        "source_digest": text(source_digest),
+    }
+    fields = dict(program_context.fields)
+    summary_fields["source_language"] = fields.get("language") or entity(language)
+    summary_fields["function_count"] = fields.get("function_count") or number(0)
+    summary = liu_struct(**summary_fields)
+    context = isr.context + (summary,)
+    relations = isr.relations + (relation("code/SYNTH", entity(language), text(source_digest)),)
+    quality = min(1.0, max(isr.quality, 0.62))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
+def _op_synth_plan(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    pending = _latest_unsynthesized_plan(isr.context)
+    if pending is None:
+        return isr
+    plan_node, plan_digest = pending
+    plan_fields = dict(plan_node.fields)
+    steps = plan_fields.get("steps")
+    if steps is None or steps.kind is not NodeKind.LIST:
+        return isr
+    plan_id = f"plan::{len(isr.context)}"
+    summary = struct(
+        tag=entity("synth_plan"),
+        plan_id=text(plan_id),
+        step_count=plan_fields.get("step_count") or number(len(steps.args)),
+        source_digest=text(plan_digest),
+    )
+    relations = isr.relations + (relation("plan/SYNTHESIZED", entity(plan_id), text(plan_digest)),)
+    context = isr.context + (summary,)
+    quality = min(1.0, max(isr.quality, 0.65))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
+def _op_synth_proof(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    pending = _latest_unsynthesized_proof(isr.context)
+    if pending is None:
+        return isr
+    proof_node, proof_digest = pending
+    fields = dict(proof_node.fields)
+    query = fields.get("query")
+    truth = fields.get("truth")
+    summary = struct(
+        tag=entity("synth_proof"),
+        query=query or text(""),
+        truth=truth or entity("unknown"),
+        proof_digest=text(proof_digest),
+    )
+    context = isr.context + (summary,)
+    relations = isr.relations + (relation("logic/SYNTH", entity("proof"), text(proof_digest)),)
+    quality = min(1.0, max(isr.quality, 0.88))
+    return _update(isr, relations=relations, context=context, quality=quality)
 
 
 def _op_align(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
@@ -633,12 +749,17 @@ _HANDLERS: Dict[str, Handler] = {
     "EXPLAIN": _op_explain,
     "SUMMARIZE": _op_summarize,
     "INFER": _op_infer,
+    "PLAN_DECOMPOSE": _op_plan_decompose,
     "COMPARE": _op_compare,
     "EXTRACT": _op_extract,
     "EXPAND": _op_expand,
     "MAP": _op_map,
     "REDUCE": _op_reduce,
     "REWRITE": _op_rewrite,
+    "REWRITE_SEMANTIC": _op_rewrite_semantic,
+    "SYNTH_PROG": _op_synth_prog,
+    "SYNTH_PLAN": _op_synth_plan,
+    "SYNTH_PROOF": _op_synth_proof,
     "REWRITE_CODE": _op_rewrite_code,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,
@@ -675,6 +796,79 @@ def _node_numeric_value(node: Node | None) -> float:
         return float(node.value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
+    tag_lower = tag_name.lower()
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if tag_field and (tag_field.label or "").lower() == tag_lower:
+            return node
+    return None
+
+
+def _latest_unsynthesized_plan(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_plan", "source_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "plan_decompose":
+            continue
+        digest_value = _node_text(fields.get("digest")) or fingerprint(node)
+        if digest_value and digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _latest_unsynthesized_proof(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_proof", "proof_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "logic_proof":
+            continue
+        digest_value = fingerprint(node)
+        if digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _latest_unsynthesized_prog(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_prog", "source_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "code_ast_summary":
+            continue
+        digest_value = _node_text(fields.get("digest")) or fingerprint(node)
+        if digest_value and digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _collect_digest_set(context: Tuple[Node, ...], tag_name: str, field_name: str) -> set[str]:
+    values: set[str] = set()
+    for node in context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != tag_name:
+            continue
+        digest_field = fields.get(field_name)
+        digest_value = _node_text(digest_field)
+        if digest_value:
+            values.add(digest_value)
+    return values
 
 
 def _build_trace_summary(reasoning: Node | None) -> Node | None:

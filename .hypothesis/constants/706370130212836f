@@ -1,4 +1,0 @@
-# file: /workspace/src/liu/serialize.py
-# hypothesis_version: 6.148.2
-
-['"', '(', '()[]', ')', ',', ':', 'BOOL', 'ENTITY', 'Extra tokens at end', 'Missing )', 'Missing ]', 'NIL', 'NUMBER', 'OP', 'ParseError', 'REL', 'STRUCT', 'TEXT', 'VAR', '[', '\\', ']', 'args', 'empty input', 'false', 'fields', 'from_json', 'invalid TEXT literal', 'kind', 'label', 'parse_sexpr', 'to_json', 'to_sexpr', 'true', 'value']

@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/meta_calculus_mismatch_log.py
-# hypothesis_version: 6.148.2
-
-['.meta', 'a', 'actual_repr', 'error_type', 'expected_repr', 'expr', 'meta', 'r', 'test_id', 'timestamp', 'utf-8', 'value_mismatch']

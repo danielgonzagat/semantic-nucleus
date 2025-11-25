@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/runtime.py
-# hypothesis_version: 6.148.2
-
-['-', '0', 'ALIGN', 'CONTRADICTION', 'EquationSnapshot', 'HaltReason', 'HaltReason | None', 'INVARIANT_FAILURE', 'MAX_STEPS', 'NOOP', 'OPS_QUEUE_EMPTY', 'PLAN_EXECUTED', 'QUALITY_THRESHOLD', 'RunOutcome', 'SIGNATURE_REPEAT', 'STABILIZE', 'STABILIZE*', 'SUMMARIZE', 'SUMMARIZE*', 'Trace', 'UNKNOWN', 'answer', 'calc_mode', 'calc_plan_mismatch', 'hybrid', 'meta_history_limit', 'plan_only', 'run_struct', 'run_struct_full', 'run_text', 'run_text_full', 'skip', 'text', 'utf-8', '|', '→']

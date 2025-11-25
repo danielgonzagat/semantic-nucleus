@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/kernel/meta_kernel.py
-# hypothesis_version: 6.148.2
-
-['AutoEvolutionConfig', 'MetaKernel', 'MetaKernelConfig', 'MetaKernelTurnResult', 'MetaRuntime', 'all', 'answer', 'calc_exec_consistent', 'calc_exec_error', 'calc_plan_route', 'calculus', 'cli', 'code_summary', 'code_summary_digest', 'consistent', 'error', 'finalized', 'halt_reason', 'intent', 'language', 'language_profile', 'lc_meta', 'meta_calculus', 'meta_digest', 'meta_history_limit', 'meta_summary', 'phi_plan_chain', 'phi_plan_digest', 'plan_description', 'plan_route', 'quality', 'route', 'rules', 'semantic_frames', 'semantics', 'session_id', 'snapshot', 'source', 'trace_digest', 'trace_steps']

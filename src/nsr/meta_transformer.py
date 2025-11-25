@@ -30,13 +30,18 @@ from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
+from .polynomial_bridge import maybe_route_polynomial
+from .bayes_bridge import maybe_route_bayes
+from .markov_bridge import maybe_route_markov
+from .regression_bridge import maybe_route_regression
+from .factor_bridge import maybe_route_factor
 from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
 from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation, LCTerm
-from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
+from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline, detect_plan_goal
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -50,6 +55,7 @@ class MetaRoute(str, Enum):
     CODE = "code"
     INSTINCT = "instinct"
     TEXT = "text"
+    STAT = "stat"
 
 
 @dataclass(frozen=True, slots=True)
@@ -72,6 +78,7 @@ class MetaTransformResult:
     code_ast: Node | None = None
     code_summary: Node | None = None
     math_ast: Node | None = None
+    plan_goal: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,9 +114,39 @@ class MetaTransformer:
             self.session.language_hint = language_hint
         should_build_code_ast = detection.category == "code" and detection.dialect == "python"
 
+        poly_hook = None
         math_hook = None
         if detection.category != "code":
-            math_hook = maybe_route_math(text_value)
+            poly_hook = maybe_route_polynomial(text_value)
+            if poly_hook is None:
+                math_hook = maybe_route_math(text_value)
+        if poly_hook:
+            plan = _direct_answer_plan(MetaRoute.MATH, poly_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                poly_hook.context_nodes,
+                MetaRoute.MATH,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=poly_hook.struct_node,
+                route=MetaRoute.MATH,
+                input_text=text_value,
+                trace_label=poly_hook.trace_label,
+                preseed_answer=poly_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=poly_hook.quality,
+                language_hint=self.session.language_hint,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
         if math_hook:
             plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
             self.session.language_hint = math_hook.reply.language
@@ -161,6 +198,114 @@ class MetaTransformer:
                 preseed_answer=logic_hook.answer_node,
                 preseed_context=preseed_context,
                 preseed_quality=logic_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        bayes_hook = maybe_route_bayes(text_value)
+        if bayes_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, bayes_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                bayes_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=bayes_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=bayes_hook.trace_label,
+                preseed_answer=bayes_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=bayes_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        markov_hook = maybe_route_markov(text_value)
+        if markov_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, markov_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                markov_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=markov_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=markov_hook.trace_label,
+                preseed_answer=markov_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=markov_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        regression_hook = maybe_route_regression(text_value)
+        if regression_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, regression_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                regression_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=regression_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=regression_hook.trace_label,
+                preseed_answer=regression_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=regression_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        factor_hook = maybe_route_factor(text_value)
+        if factor_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, factor_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                factor_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=factor_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=factor_hook.trace_label,
+                preseed_answer=factor_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=factor_hook.quality,
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,
@@ -264,6 +409,12 @@ class MetaTransformer:
             filtered = tuple((op.label or "") for op in ops if (op.label or ""))
             if filtered:
                 phi_plan_ops = filtered
+        plan_goal_text = detect_plan_goal(effective_calculus, text_value)
+        if plan_goal_text:
+            if phi_plan_ops:
+                phi_plan_ops = ("PLAN_DECOMPOSE", *phi_plan_ops)
+            else:
+                phi_plan_ops = ("PLAN_DECOMPOSE",)
         fallback_code_ast = None
         code_summary = None
         if should_build_code_ast:
@@ -289,6 +440,7 @@ class MetaTransformer:
             code_ast=fallback_code_ast,
             code_summary=code_summary,
             math_ast=None,
+            plan_goal=plan_goal_text,
         )
 
     def _effective_lexicon(self):
@@ -438,10 +590,13 @@ def build_meta_summary(
     calc_result: "MetaCalculationResult | None" = None,
     meta_reasoning: Node | None = None,
     meta_reflection: Node | None = None,
+    meta_justification: Node | None = None,
     meta_expression: Node | None = None,
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
     meta_proof: Node | None = None,
+    meta_context_prob: Node | None = None,
+    meta_synthesis: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -470,10 +625,16 @@ def build_meta_summary(
         nodes.append(meta_reasoning)
     if meta_reflection is not None:
         nodes.append(meta_reflection)
+    if meta_justification is not None:
+        nodes.append(meta_justification)
     if meta_expression is not None:
         nodes.append(meta_expression)
     if meta_memory is not None:
         nodes.append(meta_memory)
+    if meta_synthesis is not None:
+        nodes.append(meta_synthesis)
+    if meta_context_prob is not None:
+        nodes.append(meta_context_prob)
     if meta_equation is not None:
         nodes.append(meta_equation)
     if meta_proof is not None:
@@ -651,6 +812,57 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             result["reflection_alert_phases"] = [
                 _label(entry) for entry in alert_node.args if _label(entry)
             ]
+    justification_node = nodes.get("meta_justification")
+    if justification_node is not None:
+        justification_fields = _fields(justification_node)
+        result["justification_digest"] = _label(justification_fields.get("digest"))
+        depth_node = justification_fields.get("depth")
+        width_node = justification_fields.get("width")
+        count_node = justification_fields.get("node_count")
+        if depth_node is not None:
+            result["justification_depth"] = int(_value(depth_node))
+        if width_node is not None:
+            result["justification_width"] = int(_value(width_node))
+        if count_node is not None:
+            result["justification_node_count"] = int(_value(count_node))
+        alert_node = justification_fields.get("alert_phases")
+        if alert_node is not None and alert_node.kind.name == "LIST":
+            result["justification_alert_phases"] = [
+                _label(entry) for entry in alert_node.args if _label(entry)
+            ]
+        root_node = justification_fields.get("root")
+        if root_node is not None:
+            root_fields = _fields(root_node)
+            result["justification_root_label"] = _label(root_fields.get("label"))
+            impact_node = root_fields.get("impact")
+            if impact_node is not None:
+                impact_fields = _fields(impact_node)
+                result["justification_delta_quality"] = _value(impact_fields.get("delta_quality"))
+                result["justification_delta_relations"] = _value(impact_fields.get("delta_relations"))
+            phases_node = root_fields.get("children")
+            if phases_node is not None and phases_node.kind.name == "LIST":
+                phases: list[dict[str, object]] = []
+                for phase_entry in phases_node.args:
+                    phase_fields = _fields(phase_entry)
+                    phase_payload: dict[str, object] = {
+                        "name": _label(phase_fields.get("name")),
+                        "label": _label(phase_fields.get("label")),
+                        "step_count": int(_value(phase_fields.get("step_count") or number(0))),
+                    }
+                    impact = phase_fields.get("impact")
+                    if impact is not None:
+                        impact_fields = _fields(impact)
+                        if impact_fields.get("delta_quality") is not None:
+                            phase_payload["delta_quality"] = _value(impact_fields.get("delta_quality"))
+                        if impact_fields.get("delta_relations") is not None:
+                            phase_payload["delta_relations"] = _value(
+                                impact_fields.get("delta_relations")
+                            )
+                    if phase_fields.get("alert") is not None:
+                        phase_payload["alert"] = True
+                    phases.append(phase_payload)
+                if phases:
+                    result["justification_phases"] = phases
     expression_node = nodes.get("meta_expression")
     if expression_node is not None:
         expression_fields = _fields(expression_node)
@@ -688,14 +900,49 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             memory_entries: list[dict[str, object]] = []
             for entry in entries_node.args:
                 entry_fields = _fields(entry)
-                memory_entries.append(
-                    {
-                        "route": _label(entry_fields.get("route")),
-                        "answer_preview": _label(entry_fields.get("answer_preview")),
-                        "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
-                        "expression_digest": _label(entry_fields.get("expression_digest")),
-                    }
-                )
+                memory_entry: dict[str, object] = {
+                    "route": _label(entry_fields.get("route")),
+                    "answer_preview": _label(entry_fields.get("answer_preview")),
+                    "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
+                    "expression_digest": _label(entry_fields.get("expression_digest")),
+                }
+                if entry_fields.get("position") is not None:
+                    memory_entry["position"] = int(_value(entry_fields.get("position")))
+                if entry_fields.get("equation_digest") is not None:
+                    memory_entry["equation_digest"] = _label(entry_fields.get("equation_digest"))
+                if entry_fields.get("equation_trend") is not None:
+                    memory_entry["equation_trend"] = _label(entry_fields.get("equation_trend"))
+                if entry_fields.get("equation_quality") is not None:
+                    memory_entry["equation_quality"] = _value(entry_fields.get("equation_quality"))
+                if entry_fields.get("equation_delta_quality") is not None:
+                    memory_entry["equation_delta_quality"] = _value(entry_fields.get("equation_delta_quality"))
+                if entry_fields.get("logic_proof_truth") is not None:
+                    memory_entry["logic_proof_truth"] = _label(entry_fields.get("logic_proof_truth"))
+                if entry_fields.get("logic_proof_query") is not None:
+                    memory_entry["logic_proof_query"] = _label(entry_fields.get("logic_proof_query"))
+                if entry_fields.get("logic_proof_digest") is not None:
+                    memory_entry["logic_proof_digest"] = _label(entry_fields.get("logic_proof_digest"))
+                if entry_fields.get("reflection_digest") is not None:
+                    memory_entry["reflection_digest"] = _label(entry_fields.get("reflection_digest"))
+                plan_total = entry_fields.get("synthesis_plan_total")
+                if plan_total is not None:
+                    memory_entry["synthesis_plan_total"] = int(_value(plan_total))
+                proof_total = entry_fields.get("synthesis_proof_total")
+                if proof_total is not None:
+                    memory_entry["synthesis_proof_total"] = int(_value(proof_total))
+                program_total = entry_fields.get("synthesis_program_total")
+                if program_total is not None:
+                    memory_entry["synthesis_program_total"] = int(_value(program_total))
+                plan_sources_node = entry_fields.get("synthesis_plan_sources")
+                if plan_sources_node is not None and plan_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_plan_sources"] = [_label(item) for item in plan_sources_node.args]
+                proof_sources_node = entry_fields.get("synthesis_proof_sources")
+                if proof_sources_node is not None and proof_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_proof_sources"] = [_label(item) for item in proof_sources_node.args]
+                program_sources_node = entry_fields.get("synthesis_program_sources")
+                if program_sources_node is not None and program_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_program_sources"] = [_label(item) for item in program_sources_node.args]
+                memory_entries.append(memory_entry)
             result["memory_entries"] = memory_entries
     equation_node = nodes.get("meta_equation")
     if equation_node is not None:
@@ -734,6 +981,111 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                     }
                 )
             result["equation_section_deltas"] = delta_sections
+    context_prob_node = nodes.get("context_probabilities")
+    if context_prob_node is not None:
+        cp_fields = _fields(context_prob_node)
+        result["context_relation_total"] = int(_value(cp_fields.get("relation_total")))
+        result["context_context_total"] = int(_value(cp_fields.get("context_total")))
+        result["context_goal_total"] = int(_value(cp_fields.get("goal_total")))
+        relations_node = cp_fields.get("relations")
+        if relations_node is not None and relations_node.kind.name == "LIST":
+            relation_entries = []
+            for entry in relations_node.args:
+                entry_fields = _fields(entry)
+                relation_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_relation_probs"] = relation_entries
+        contexts_node = cp_fields.get("contexts")
+        if contexts_node is not None and contexts_node.kind.name == "LIST":
+            context_entries = []
+            for entry in contexts_node.args:
+                entry_fields = _fields(entry)
+                context_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_context_probs"] = context_entries
+        goals_node = cp_fields.get("goals")
+        if goals_node is not None and goals_node.kind.name == "LIST":
+            goal_entries = []
+            for entry in goals_node.args:
+                entry_fields = _fields(entry)
+                goal_entries.append(
+                    {
+                        "label": _label(entry_fields.get("label")),
+                        "count": int(_value(entry_fields.get("count"))),
+                        "probability": _value(entry_fields.get("probability")),
+                    }
+                )
+            result["context_goal_probs"] = goal_entries
+    synthesis_node = nodes.get("meta_synthesis")
+    if synthesis_node is not None:
+        syn_fields = _fields(synthesis_node)
+        plan_total = syn_fields.get("plan_total")
+        proof_total = syn_fields.get("proof_total")
+        program_total = syn_fields.get("program_total")
+        if plan_total is not None:
+            result["synthesis_plan_total"] = int(_value(plan_total))
+        if proof_total is not None:
+            result["synthesis_proof_total"] = int(_value(proof_total))
+        if program_total is not None:
+            result["synthesis_program_total"] = int(_value(program_total))
+        plans_node = syn_fields.get("plans")
+        if plans_node is not None and plans_node.kind.name == "LIST":
+            plan_entries = []
+            for entry in plans_node.args:
+                entry_fields = _fields(entry)
+                payload: dict[str, object] = {}
+                payload["plan_id"] = _label(entry_fields.get("plan_id"))
+                source_node = entry_fields.get("source_digest")
+                if source_node is not None:
+                    payload["source_digest"] = _label(source_node)
+                step_node = entry_fields.get("step_count")
+                if step_node is not None:
+                    payload["step_count"] = int(_value(step_node))
+                plan_entries.append(payload)
+            result["synthesis_plans"] = plan_entries
+        proofs_node = syn_fields.get("proofs")
+        if proofs_node is not None and proofs_node.kind.name == "LIST":
+            proof_entries = []
+            for entry in proofs_node.args:
+                entry_fields = _fields(entry)
+                proof_entries.append(
+                    {
+                        "query": _label(entry_fields.get("query")),
+                        "truth": _label(entry_fields.get("truth")),
+                        "proof_digest": _label(entry_fields.get("proof_digest")),
+                    }
+                )
+            result["synthesis_proofs"] = proof_entries
+        programs_node = syn_fields.get("programs")
+        if programs_node is not None and programs_node.kind.name == "LIST":
+            program_entries = []
+            for entry in programs_node.args:
+                entry_fields = _fields(entry)
+                payload: dict[str, object] = {
+                    "language": _label(entry_fields.get("language")),
+                    "status": _label(entry_fields.get("status")),
+                }
+                src_lang = entry_fields.get("source_language")
+                if src_lang is not None:
+                    payload["source_language"] = _label(src_lang)
+                src_digest = entry_fields.get("source_digest")
+                if src_digest is not None:
+                    payload["source_digest"] = _label(src_digest)
+                fn_count = entry_fields.get("function_count")
+                if fn_count is not None:
+                    payload["function_count"] = int(_value(fn_count))
+                program_entries.append(payload)
+            result["synthesis_programs"] = program_entries
     proof_node = nodes.get("meta_proof")
     if proof_node is not None:
         proof_fields = _fields(proof_node)
