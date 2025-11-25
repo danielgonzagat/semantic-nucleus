@@ -4,8 +4,12 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 from pathlib import Path
 from typing import Dict, Iterable, List, Sequence, Set, Tuple
+
+CONFIG_ENV_VAR = "NUCLEO_FOCUS_CONFIG"
+DEFAULT_CONFIG_PATH = Path("ci/focus-map.json")
 
 DEFAULT_CATEGORY_TESTS: Dict[str, List[str]] = {
     "semantic": [
@@ -109,6 +113,18 @@ def load_mapping(path: Path | None, *, mode: str = "merge") -> Dict[str, List[st
     return mapping
 
 
+def resolve_config_path(explicit: str | None) -> Path | None:
+    if explicit:
+        return Path(explicit).expanduser().resolve()
+    env_path = os.environ.get(CONFIG_ENV_VAR)
+    if env_path:
+        return Path(env_path).expanduser().resolve()
+    candidate = (Path.cwd() / DEFAULT_CONFIG_PATH).resolve()
+    if candidate.exists():
+        return candidate
+    return None
+
+
 def select_targets(
     entries: Iterable[dict],
     mapping: Dict[str, List[str]],
@@ -169,7 +185,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     report_path = Path(args.report)
     if not report_path.exists():
         raise SystemExit(f"Report file not found: {report_path}")
-    config_path = Path(args.config).resolve() if args.config else None
+    config_path = resolve_config_path(args.config)
     try:
         mapping = load_mapping(config_path, mode=args.config_mode)
     except ValueError as exc:

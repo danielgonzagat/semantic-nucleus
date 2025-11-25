@@ -262,9 +262,9 @@ def main(argv: list[str] | None = None) -> int:
         )
     focus_config: FocusConfig | None = None
     if args.focus:
-        config_path = Path(args.focus_config).resolve() if args.focus_config else None
+        resolved_config = auto_focus.resolve_config_path(args.focus_config)
         try:
-            mapping = auto_focus.load_mapping(config_path, mode=args.focus_config_mode)
+            mapping = auto_focus.load_mapping(resolved_config, mode=args.focus_config_mode)
         except ValueError as exc:
             raise SystemExit(f"invalid focus config: {exc}")
         focus_config = FocusConfig(

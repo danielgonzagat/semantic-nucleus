@@ -71,3 +71,21 @@ def test_cli_respects_custom_mapping(tmp_path: Path, capsys: pytest.CaptureFixtu
     assert rc == 0
     output = capsys.readouterr().out
     assert "tests/custom_suite.py" in output
+
+
+def test_resolve_config_env(monkeypatch, tmp_path: Path) -> None:
+    cfg = tmp_path / "foo.json"
+    cfg.write_text("{}", encoding="utf-8")
+    monkeypatch.setenv(auto_focus.CONFIG_ENV_VAR, str(cfg))
+    resolved = auto_focus.resolve_config_path(None)
+    assert resolved == cfg.resolve()
+
+
+def test_resolve_config_default_file(monkeypatch, tmp_path: Path) -> None:
+    focus_dir = tmp_path / "ci"
+    focus_dir.mkdir()
+    cfg = focus_dir / "focus-map.json"
+    cfg.write_text("{}", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    resolved = auto_focus.resolve_config_path(None)
+    assert resolved == cfg.resolve()

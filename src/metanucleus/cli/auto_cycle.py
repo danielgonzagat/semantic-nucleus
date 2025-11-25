@@ -137,13 +137,14 @@ def _build_auto_debug_cmd(args: argparse.Namespace) -> List[str]:
             cmd.extend(["--report-snapshot", args.report_snapshot])
         if args.report_diff:
             cmd.extend(["--report-diff", args.report_diff])
+    config_path = auto_focus.resolve_config_path(args.focus_config)
     if focus_enabled:
         cmd.append("--focus")
         cmd.extend(["--focus-format", args.focus_format])
         if args.focus_base_command:
             cmd.extend(["--focus-base-command", args.focus_base_command])
-        if args.focus_config:
-            cmd.extend(["--focus-config", args.focus_config])
+        if config_path:
+            cmd.extend(["--focus-config", str(config_path)])
         if args.focus_config_mode and args.focus_config_mode != "merge":
             cmd.extend(["--focus-config-mode", args.focus_config_mode])
     return cmd
@@ -194,8 +195,9 @@ def _build_focus_cmd(args: argparse.Namespace) -> List[str]:
     ]
     if args.focus_format == "command" or args.focus_base_command != "pytest":
         cmd.extend(["--base-command", args.focus_base_command])
-    if args.focus_config:
-        cmd.extend(["--config", args.focus_config])
+    config_path = auto_focus.resolve_config_path(args.focus_config)
+    if config_path:
+        cmd.extend(["--config", str(config_path)])
     if args.focus_config_mode and args.focus_config_mode != "merge":
         cmd.extend(["--config-mode", args.focus_config_mode])
     return cmd
@@ -208,7 +210,7 @@ def _run_focus_rerun(args: argparse.Namespace) -> int:
     except (OSError, ValueError) as exc:
         print(f"[auto-cycle] focus rerun failed to load {report_path}: {exc}", flush=True)
         return 1
-    config_path = Path(args.focus_config).resolve() if args.focus_config else None
+    config_path = auto_focus.resolve_config_path(args.focus_config)
     try:
         mapping = auto_focus.load_mapping(config_path, mode=args.focus_config_mode or "merge")
     except ValueError as exc:

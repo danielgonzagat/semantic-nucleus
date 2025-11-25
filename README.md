@@ -157,7 +157,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 - Para rodar todo o ciclo (debug → relatório final → limpeza), use `nucleo-auto-cycle --post-report --prune-glob "logs/*.jsonl"`; ele encadeia `nucleo-auto-debug`, `nucleo-auto-report` e `nucleo-auto-prune` automaticamente.
 - `nucleo-auto-cycle` aceita `--focus` (para passar o novo modo ao `nucleo-auto-debug`) e `--post-focus --report-snapshot reports/latest.json` para acionar `nucleo-auto-focus` como etapa final, emitindo comandos prontos para a próxima rodada. Quando qualquer modo de foco é habilitado, o snapshot padrão cai em `ci-artifacts/auto-report.json`, garantindo que sempre haja um payload recente.
 - Use `--focus-rerun` para executar automaticamente `pytest` com as seleções geradas pelo snapshot (mesmo comando que `nucleo-auto-focus --format command` emitiria), acelerando a validação imediata após cada ciclo.
-- Personalize o roteamento de suites com um JSON `{ "label": ["tests/foo.py", ...] }` passado via `--focus-config` (ou `nucleo-auto-focus --config`). O modo padrão é `merge` com o mapeamento interno; use `--focus-config-mode replace` para assumir controle total.
+- Personalize o roteamento de suites com um JSON `{ "label": ["tests/foo.py", ...] }` passado via `--focus-config` (ou `nucleo-auto-focus --config`). O modo padrão é `merge` com o mapeamento interno; use `--focus-config-mode replace` para assumir controle total. Você também pode definir `NUCLEO_FOCUS_CONFIG=/caminho/para/focus-map.json` ou manter `ci/focus-map.json` no repositório para que o arquivo seja detectado automaticamente em todos os comandos.
 - Combine com `nucleo-auto-report` para resumir rapidamente `logs/*.jsonl` e `.meta/*.jsonl` após uma execução (use `--watch 5` para reemitir a cada 5s ou `--glob "logs/*.jsonl"` para pegar todos os arquivos disponíveis):
   ```bash
   nucleo-auto-report --json
@@ -170,7 +170,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   nucleo-auto-focus --report ci-artifacts/auto-report.json --format command
   # → pytest tests/nsr/test_meta_* tests/test_evolution_rules_smoke.py
   ```
-  Ele entende labels como `semantic`, `rule`, `meta_calculus`, `logic` e `meta_memory`, apontando diretamente para suites relevantes e listando categorias ainda não mapeadas. Passe `--config focus-map.json` para adicionar/alterar labels disponíveis.
+  Ele entende labels como `semantic`, `rule`, `meta_calculus`, `logic` e `meta_memory`, apontando diretamente para suites relevantes e listando categorias ainda não mapeadas. Passe `--config focus-map.json` (ou configure `NUCLEO_FOCUS_CONFIG` / `ci/focus-map.json`) para adicionar/alterar labels disponíveis de forma persistente.
 
 ## Camadas principais
 
