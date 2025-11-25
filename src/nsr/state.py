@@ -12,6 +12,7 @@ from typing import Deque, List, Mapping, Sequence, Tuple, TYPE_CHECKING
 from liu import Node, NodeKind, operation, struct
 from ontology import core as core_ontology
 from ontology import code as code_ontology
+from .semantic_graph import SemanticGraph
 
 if TYPE_CHECKING:
     from .logic_engine import LogicEngine
@@ -129,6 +130,7 @@ class ISR:
     ops_queue: Deque[Node]
     answer: Node
     quality: float
+    graph: SemanticGraph = field(default_factory=lambda: SemanticGraph.from_relations([]))
 
     def snapshot(self) -> "ISR":
         """Return a shallow snapshot with defensive copies of queues."""
@@ -141,6 +143,7 @@ class ISR:
             ops_queue=deque(self.ops_queue),
             answer=self.answer,
             quality=self.quality,
+            graph=self.graph,
         )
 
 
@@ -163,6 +166,7 @@ def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
         ops_queue=ops,
         answer=struct(),
         quality=0.0,
+        graph=SemanticGraph.from_relations(session.kb_ontology + base_relations),
     )
 
 

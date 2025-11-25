@@ -24,6 +24,7 @@ from liu import (
     fingerprint,
 )
 
+from .semantic_graph import SemanticGraph
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
 from .rules import apply_rules
@@ -50,15 +51,62 @@ def _update(
     answer: Node | None = None,
     quality: float | None = None,
 ) -> ISR:
+    new_relations = relations if relations is not None else isr.relations
+    
+    # Se as relações mudaram, o grafo precisa ser reconstruído para refletir a nova verdade
+    # O grafo é a projeção indexada de (Ontologia + Memória de Trabalho)
+    new_graph = isr.graph
+    if relations is not None:
+        new_graph = SemanticGraph.from_relations(isr.ontology + new_relations)
+
     return ISR(
         ontology=isr.ontology,
-        relations=relations if relations is not None else isr.relations,
+        relations=new_relations,
         context=context if context is not None else isr.context,
         goals=deque(goals if goals is not None else isr.goals),
         ops_queue=deque(ops_queue if ops_queue is not None else isr.ops_queue),
         answer=answer if answer is not None else isr.answer,
         quality=quality if quality is not None else isr.quality,
+        graph=new_graph,
     )
+
+
+def _op_conceptualize(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
+    """
+    Expande o foco conceitual usando o Grafo Semântico.
+    Traz propriedades herdadas e vizinhos relevantes para o Contexto Imediato.
+    """
+    if not args:
+        return isr
+    
+    focus = args[0]
+    # Recupera propriedades (incluindo herdadas via IS_A)
+    props = isr.graph.get_properties(focus, inherit=True)
+    
+    if not props:
+        return isr
+
+    new_context = list(isr.context)
+    existing_fingerprints = {fingerprint(n) for n in new_context}
+    
+    added_count = 0
+    for label, target in props:
+        # Recontrói a relação explícita: LABEL(focus, target)
+        # Nota: get_properties retorna (label, target) de arestas que saem de 'focus' (ou seus pais)
+        # Então a semântica é relation(label, focus, target)
+        rel = relation(label, focus, target)
+        fp = fingerprint(rel)
+        
+        if fp not in existing_fingerprints:
+            new_context.append(rel)
+            existing_fingerprints.add(fp)
+            added_count += 1
+            
+    if added_count == 0:
+        return isr
+
+    quality = min(1.0, max(isr.quality, 0.45))
+    return _update(isr, context=tuple(new_context), quality=quality)
 
 
 def _op_normalize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
@@ -471,6 +519,7 @@ _HANDLERS: Dict[str, Handler] = {
     "MEMORY_RECALL": _op_memory_recall,
     "MEMORY_LINK": _op_memory_link,
     "PROVE": _op_prove,
+    "CONCEPTUALIZE": _op_conceptualize,
 }
 
 
