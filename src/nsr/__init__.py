@@ -54,7 +54,7 @@ from .meta_structures import (
     meta_calculation_to_node,
 )
 from .meta_expressor import build_meta_expression
-from .meta_memory import build_meta_memory
+from .meta_memory import build_meta_memory, meta_memory_to_dict
 from .meta_reflection import build_meta_reflection
 from .meta_synthesis import build_meta_synthesis
 from .language_detector import detect_language_profile
@@ -140,6 +140,7 @@ __all__ = [
     "build_rust_ast_meta",
     "build_meta_expression",
     "build_meta_memory",
+    "meta_memory_to_dict",
     "build_meta_synthesis",
     "build_meta_reflection",
 ]

@@ -48,6 +48,8 @@ Além disso, `Φ_SYNTH_PROG` passou a ser disparado automaticamente: sempre que 
 
 Por fim, `meta_memory` incorpora esses mesmos campos: cada `memory_entry` guarda os totais de síntese detectados na execução atual e uma lista determinística dos digests (`source_digest`/`proof_digest`) utilizados. Isso significa que chamadas subsequentes a `MEMORY_RECALL` podem reativar não apenas rota/preview/razões, mas também quais planos, provas e programas foram concretizados naquele ponto da linha do tempo.
 
+Para consumir esse bloco fora do runtime, `meta_memory_to_dict(meta_memory_node)` retorna um dicionário pronto (`size`, `digest`, `entries[...]`) em que cada entrada replica exatamente os campos persistidos (inclusive os `synthesis_*`). Isso simplifica integrações externas e ferramentas de auditoria que precisam analisar o histórico determinístico sem reimplementar parsing LIU.
+
 O histórico curto também é materializado: `meta_memory` agrega os últimos meta-resultados (rota, digestos de raciocínio/expressão e prévias) e é anexado no `meta_summary`, garantindo que cada execução carregue um mapa determinístico das iterações anteriores — base para memória auditável e evolução multi-turno.
 
 Esse mesmo pacote é persistido automaticamente em `.nsr_memory/memory.jsonl` (JSONL com hashes BLAKE2b), permitindo recarregar sessões seguintes e iniciar cada Meta-LER com operações `MEMORY_RECALL` que inserem, no contexto LIU, as entradas anteriores antes do novo raciocínio Φ.

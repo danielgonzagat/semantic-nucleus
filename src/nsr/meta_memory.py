@@ -7,7 +7,7 @@ from __future__ import annotations
 from hashlib import blake2b
 from typing import Mapping, Sequence
 
-from liu import Node, entity, list_node, number, struct as liu_struct, text as liu_text
+from liu import Node, NodeKind, entity, list_node, number, struct as liu_struct, text as liu_text
 
 from .meta_transformer import meta_summary_to_dict
 
@@ -174,4 +174,67 @@ def _extract_synthesis_sources(
     return sources
 
 
-__all__ = ["build_meta_memory"]
+def meta_memory_to_dict(node: Node | None) -> dict[str, object] | None:
+    if node is None or node.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(node.fields)
+    tag = fields.get("tag")
+    if not tag or (tag.label or "").lower() != "meta_memory":
+        return None
+    size_node = fields.get("size")
+    digest_node = fields.get("digest")
+    result: dict[str, object] = {
+        "size": int(size_node.value) if size_node and size_node.value is not None else 0,
+        "digest": digest_node.label if digest_node else "",
+    }
+    entries_node = fields.get("entries")
+    if entries_node is not None and entries_node.kind is NodeKind.LIST:
+        entries: list[dict[str, object]] = []
+        for entry in entries_node.args:
+            entry_dict = _entry_to_dict(entry)
+            if entry_dict is not None:
+                entries.append(entry_dict)
+        result["entries"] = entries
+    return result
+
+
+def _entry_to_dict(entry: Node) -> dict[str, object] | None:
+    if entry.kind is not NodeKind.STRUCT:
+        return None
+    fields = dict(entry.fields)
+    payload: dict[str, object] = {
+        "route": fields.get("route").label if fields.get("route") else "",
+        "answer_preview": fields.get("answer_preview").label if fields.get("answer_preview") else "",
+        "reasoning_digest": fields.get("reasoning_digest").label if fields.get("reasoning_digest") else "",
+        "expression_digest": fields.get("expression_digest").label if fields.get("expression_digest") else "",
+    }
+    optional_fields = (
+        ("position", True),
+        ("equation_digest", False),
+        ("equation_trend", False),
+        ("equation_quality", False),
+        ("equation_delta_quality", False),
+        ("logic_proof_truth", False),
+        ("logic_proof_query", False),
+        ("logic_proof_digest", False),
+        ("reflection_digest", False),
+        ("synthesis_plan_total", True),
+        ("synthesis_proof_total", True),
+        ("synthesis_program_total", True),
+    )
+    for name, numeric in optional_fields:
+        node_field = fields.get(name)
+        if node_field is None:
+            continue
+        if numeric and node_field.value is not None:
+            payload[name] = int(node_field.value)
+        else:
+            payload[name] = node_field.label or ""
+    for key in ("synthesis_plan_sources", "synthesis_proof_sources", "synthesis_program_sources"):
+        list_node_value = fields.get(key)
+        if list_node_value is not None and list_node_value.kind is NodeKind.LIST:
+            payload[key] = [item.label or "" for item in list_node_value.args]
+    return payload
+
+
+__all__ = ["build_meta_memory", "meta_memory_to_dict"]

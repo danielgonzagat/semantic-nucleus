@@ -1,7 +1,7 @@
 from liu import NodeKind
 
 from nsr import SessionCtx, run_text, run_text_full
-from nsr.meta_memory import build_meta_memory
+from nsr.meta_memory import build_meta_memory, meta_memory_to_dict
 
 
 def test_meta_memory_aggregates_history_and_current_entry():
@@ -80,3 +80,21 @@ def soma(a, b):
     assert sources is not None
     assert sources.kind.name == "LIST"
     assert sources.args
+
+
+def test_meta_memory_to_dict_serializes_entries():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    node = outcome.meta_memory
+    snapshot = meta_memory_to_dict(node)
+    assert snapshot is not None
+    assert snapshot["size"] >= 1
+    entries = snapshot["entries"]
+    assert entries
+    last = entries[-1]
+    assert last.get("synthesis_plan_total", 0) >= 1
+    assert last.get("route")
+
+
+def test_meta_memory_to_dict_rejects_invalid_node():
+    assert meta_memory_to_dict(None) is None
