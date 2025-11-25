@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/intent_mismatch_log.py
-# hypothesis_version: 6.148.2
-
-['.meta', 'a', 'actual_intent', 'expected_intent', 'extra', 'lang', 'log_intent_mismatch', 'r', 'source', 'text', 'timestamp', 'unknown', 'utf-8']

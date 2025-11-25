@@ -1,4 +1,0 @@
-# file: /workspace/src/liu/wf.py
-# hypothesis_version: 6.148.2
-
-['FIELD_SIGNATURES', 'LIUError', 'action', 'answer', 'args', 'assign', 'binop', 'body', 'check', 'clauses', 'code/', 'context', 'context::', 'event::', 'goal', 'guard', 'language', 'list', 'metadata', 'modifier', 'name', 'negation', 'object', 'params', 'pattern', 'question_focus', 'ret', 'return_', 'sentence_type', 'state', 'subject', 'target', 'type::', 'value']

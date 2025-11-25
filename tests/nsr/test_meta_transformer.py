@@ -1,7 +1,6 @@
 import json
-import pytest
 
-from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full, run_text
+from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode

@@ -1,4 +1,0 @@
-# file: /workspace/src/metanucleus/evolution/meta_evolution.py
-# hypothesis_version: 6.148.2
-
-['=== HINTS ===', '=== INSTRUÇÕES ===', '=== MÓDULO ALVO ===', 'EvolutionConfig', 'EvolutionRun', 'EvolutionStep', 'PatchPlan', 'answer_contains', 'answer_prefix', 'build_patch_plans', 'build_patch_prompt', 'callback_error', 'detected_intent', 'detected_lang', 'hints', 'intent', 'lang', 'module', 'raw_answer', 'reason']

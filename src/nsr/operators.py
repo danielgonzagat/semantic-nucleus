@@ -29,7 +29,6 @@ from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
 from .rules import apply_rules
 from .state import ISR, SessionCtx
-from .synthesis import SynthesisPlan, SynthesisStep, ProofSynthesis
 
 Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
 

@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/math_instinct.py
-# hypothesis_version: 6.148.2
-
-[' +-*/().', ' ?!.,;:/', '.', '0', '0123456789+-*/().^%', 'ABS', 'CALCOLA', 'CALCULA', 'CALCULATE', 'CALCULE', 'COMBIEN', 'COMPUTE', 'CUAL ES', 'CUANTO ES', 'MATH_EVAL', 'MathInstinct', 'MathReply', 'MathUtterance', 'QUANTO E', 'QUANTO È', 'QUANTO É', 'SQRT', 'WHAT IS', '\\s+', 'en', 'es', 'eval', 'evaluate_expression', 'fr', 'it', 'pt', 'und']

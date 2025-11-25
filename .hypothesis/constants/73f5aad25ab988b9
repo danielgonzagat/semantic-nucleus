@@ -1,4 +1,0 @@
-# file: /workspace/src/nsr/logic_bridge.py
-# hypothesis_version: 6.148.2
-
-[0.9, 0.96, ' .,:;!?"\'', ' ∧ ', 'ACK', 'AFIRMA', 'AFIRME', 'ALORS', 'ASK', 'ASSERT', 'ASSUME', 'CONSIDER', 'DERIVED', 'E VERDADE QUE', 'ENTAO', 'ENTONCES', 'ES VERDAD QUE', 'FACT', 'FALSE', 'GIVEN', 'IF', 'IS IT TRUE THAT', 'LogicBridgeResult', 'LogicHook', 'NAO', 'NE', 'NES', 'NFD', 'NO', 'NO ACTION', 'NON', 'NOT', 'QUERY', 'SE', 'SI', 'THEN', 'TRUE', 'UNKNOWN', '\\b(?:AND|E|Y|ET|I)\\b', 'fact', 'logic_answer', 'logic_fact', 'logic_input', 'logic_rule', 'logic_state', 'logic_statement', 'maybe_route_logic', 'query', 'rule']
