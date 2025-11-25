@@ -195,6 +195,33 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 /docs                # Manifesto, roadmap, quickstart e documentação pública
 ```
 
+**Inventário detalhado**
+
+- `spec/` – referências normativas (LIU, Compilers multilíngues, Runtime C_NSR, ΣVM, Manifesto). Cada subpasta (`A_LIU`, `B_Compilers`, `C_NSR_Runtime`, `D_SigmaVM`, `E_Manifesto`) descreve protocolos de interoperabilidade, estados ISR, bytecode e governança.
+- `src/liu/` – núcleo LIU (nós, arenas imutáveis, fingerprint, serialização JSON/S-expr, normalização e ontologia base). Inclui construtores utilitários (`struct`, `entity`, `text`, `number`) e ferramentas de fingerprint para auditoria.
+- `src/nsr/` – maior pacote:
+  - `runtime.py`, `state.py`, `operators.py`, `meta_*` implementam o pipeline Meta-LER → Meta-Pensar → Meta-Calcular → Meta-Expressar, memória determinística, planos ΣVM, operadores Φ completos, verificações de invariantes e integração com ΣVM.
+  - `meta_transformer.py` roteia entradas para `MetaRoute` (`MATH`, `LOGIC`, `CODE`, `INSTINCT`, `TEXT`, `STAT`), já cobrindo `BAYES {json}` e `MARKOV {json}` via `bayes_bridge`/`markov_bridge`.
+  - `bayes_engine.py` / `bayes_bridge.py` – redes bayesianas discretas com enumeração exata; `markov_engine.py` / `markov_bridge.py` – cadeias de Markov/HMM com algoritmo forward determinístico.
+  - `logic_engine.py`, `logic_bridge.py` – motor proposicional, parser textual (`FACT/IF/QUERY`), prova (`Φ_PROVE`) e persistência.
+  - `math_core`, `math_ast`, `math_bridge`, `math_instinct` – instinto matemático, AST simbólico e integração com ΣVM.
+  - `code_bridge`, `code_ast`, `frontend_*` – análise de snippets (Python/Rust/Elixir/Logic), AST determinístico e resumos `code_ast_summary`.
+  - `ian`, `ian_bridge` – instinto linguístico IAN-Ω (saudações, morfologia, conjugação determinística).
+  - `language_detector`, `lex`, `parser`, `liu` backends – tokenização multilíngue, gramática LxU/PSE, detecção de idioma/dialeto e hints para o pipeline.
+  - `meta_memory`, `meta_memory_store`, `meta_memory_induction` – memória curta, persistência `.nsr_memory`, indução de regras auditáveis.
+  - `meta_reasoner`, `meta_reflection`, `meta_justification`, `meta_expression`, `meta_equation` – trilhas de raciocínio, fases, árvore de justificativas, expressão final e snapshots da equação LIU.
+  - `meta_calculator.py`, `meta_calculus_router.py` – planos ΣVM, verificação estática e pipelines Φ (NORMALIZE/INFER/SUMMARIZE, MEMORY_* etc.).
+  - `nsr_evo/` – autoevolução determinística: consumo de mismatches, geração de patches (lexicon, regras, semântica, meta cálculo) e ferramentas CLI (`cli_cycle`, `cli_genome`, `cli_promote_kb`, etc.).
+- `src/svm/` – ΣVM/Ω-VM: assembler (`opcodes.py`, `assembler.py`), runtime (`vm.py`), snapshots (`snapshots.py`), assinatura (`signing.py`), verificador (`verifier.py`) e integração com o MetaKernel.
+- `src/frontend_*` – compiladores determinísticos (Python, Rust, Elixir, lógica) que convertem código em LIU/ΣVM IR para testes e CTS.
+- `tests/` – suites abrangentes:
+  - `tests/nsr/` cobre meta_transformer, meta_plan digests, operadores Φ, bridges, memórias.
+  - `tests/svm/` valida VM, assembler, snapshots, CTS.
+  - `tests/frontend_*` e `tests/cts/` (compatibilidade).
+- `docs/` – Manifesto, quickstart, roadmap oficial 2025–2030, manifesto ético, security checklist, architecture deep-dive, auto-evolution workflow.
+- `bin/` – CLIs (`metanucleus-auto-calculus`, `metanucleus-auto-evolve`, `metanucleus-auto-intent`) para automatizar testes e ciclos de evolução.
+- `.meta/`, `.nsr_memory/`, `logs/`, `ci-artifacts/` – artefatos auditáveis (mismatches, memória persistente, snapshots de relatórios).
+
 ## Quickstart
 
 - Guia rápido completo em [`docs/quickstart.md`](docs/quickstart.md).
