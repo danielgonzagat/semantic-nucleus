@@ -207,6 +207,37 @@ def _op_reflect(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     return _update(isr, answer=new_answer, quality=min(1.0, isr.quality + 0.1))
 
 
+def _op_learn(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    """
+    Analisa o sucesso da sessão atual e tenta induzir novas regras (Meta-Learning).
+    """
+    # Só aprende se a qualidade for alta
+    if isr.quality < 0.8:
+        return isr
+        
+    new_rules = meta_learn(isr.context)
+    
+    if not new_rules:
+        return isr
+        
+    # Adiciona as regras aprendidas à sessão (memória de trabalho)
+    # Em um sistema real, persistiria em disco/banco
+    current_rules = session.kb_rules
+    updated_rules = tuple(list(current_rules) + new_rules)
+    
+    # Como SessionCtx é mutável no runtime (passado por ref), podemos atualizar direto?
+    # O design do `apply_operator` recebe session mas não retorna session modificada, apenas ISR.
+    # Mas SessionCtx é passado por referência.
+    session.kb_rules = updated_rules
+    
+    summary = struct(
+        tag=entity("learning_summary"),
+        rules_learned=number(len(new_rules))
+    )
+    
+    return _update(isr, context=isr.context + (summary,), quality=min(1.0, isr.quality + 0.05))
+
+
 def _op_normalize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     normalized_relations: list[Node] = []
     seen = set()
@@ -620,6 +651,7 @@ _HANDLERS: Dict[str, Handler] = {
     "CONCEPTUALIZE": _op_conceptualize,
     "DISAMBIGUATE": _op_disambiguate,
     "REFLECT": _op_reflect,
+    "LEARN": _op_learn,
 }
 
 

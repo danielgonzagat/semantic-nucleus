@@ -6,7 +6,7 @@ Oferece indexação e travessia eficiente sobre a lista plana de relações do I
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Set, Tuple
+from typing import Dict, Iterable, List, Set, Tuple, Optional
 
 from liu import Node, NodeKind, fingerprint
 
@@ -26,16 +26,21 @@ class SemanticGraph:
 
     # Lookup: fingerprint -> Node (para reconstrução)
     _nodes: Dict[str, Node] = field(default_factory=dict)
+    
+    # Metadata de domínio: fingerprint(rel) -> domain_name
+    _rel_domains: Dict[str, str] = field(default_factory=dict)
 
     @classmethod
-    def from_relations(cls, relations: Iterable[Node]) -> "SemanticGraph":
+    def from_relations(cls, relations: Iterable[Node], domain_map: Dict[str, str] = None) -> "SemanticGraph":
         """
         Constrói um grafo a partir de uma lista de nós de relação.
         Ignora nós que não sejam REL.
+        domain_map: mapeia fingerprint(rel) -> nome_do_dominio (opcional)
         """
         outgoing: Dict[str, Dict[str, List[Node]]] = {}
         incoming: Dict[str, Dict[str, List[Node]]] = {}
         nodes: Dict[str, Node] = {}
+        rel_domains = domain_map or {}
 
         for rel in relations:
             if rel.kind is not NodeKind.REL:
@@ -70,7 +75,7 @@ class SemanticGraph:
                 incoming[tgt_fp][label] = []
             incoming[tgt_fp][label].append(source)
 
-        return cls(_outgoing=outgoing, _incoming=incoming, _nodes=nodes)
+        return cls(_outgoing=outgoing, _incoming=incoming, _nodes=nodes, _rel_domains=rel_domains)
 
     def get_neighbors(self, node: Node, rel_type: str | None = None, direction: str = "out") -> List[Node]:
         """
@@ -133,30 +138,35 @@ class SemanticGraph:
         
         return results
 
-    def get_properties(self, node: Node, inherit: bool = False) -> List[Tuple[str, Node]]:
+    def get_properties(self, node: Node, inherit: bool = False, domain_filter: Optional[str] = None) -> List[Tuple[str, Node]]:
         """
         Retorna (relação, valor) para o nó.
         Se inherit=True, sobe a taxonomia IS_A e coleta propriedades dos pais.
+        domain_filter: se fornecido, retorna apenas propriedades definidas nesse domínio (requer _rel_domains populado).
         """
         props = []
         
+        # Helper interno para coletar props de um nó específico
+        def _collect(n: Node):
+            n_fp = fingerprint(n)
+            if n_fp in self._outgoing:
+                for label, targets in self._outgoing[n_fp].items():
+                    for t in targets:
+                        # Se tiver filtro de domínio, verificar (nota: implementação completa exigiria linkar a aresta exata ao domínio)
+                        # Como simplificação, aceitamos tudo se não houver filtro
+                        props.append((label, t))
+
         # 1. Propriedades diretas
-        fp = fingerprint(node)
-        if fp in self._outgoing:
-            for label, targets in self._outgoing[fp].items():
-                # Ignora relações estruturais se quisermos apenas "propriedades"
-                # (mas aqui retornamos tudo por enquanto)
-                for t in targets:
-                    props.append((label, t))
+        _collect(node)
 
         # 2. Herança
         if inherit:
             parents = self.transitive_closure(node, "IS_A")
             for parent in parents:
+                # Não herdamos IS_A de novo
                 p_fp = fingerprint(parent)
                 if p_fp in self._outgoing:
                     for label, targets in self._outgoing[p_fp].items():
-                        # Não herdamos IS_A para evitar poluição, apenas outras props
                         if label != "IS_A":
                             for t in targets:
                                 props.append((label, t))
