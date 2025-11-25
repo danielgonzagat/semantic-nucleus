@@ -9,7 +9,7 @@ from enum import Enum
 from hashlib import blake2b
 from typing import Iterable, List, Tuple, Optional
 
-from liu import Node, NodeKind, operation, fingerprint
+from liu import Node, NodeKind, operation, fingerprint, text
 
 from .consistency import Contradiction, detect_contradictions
 from .equation import (
@@ -186,6 +186,7 @@ def run_text_full(text: str, session: SessionCtx | None = None) -> RunOutcome:
             code_ast=meta.code_ast,
             code_summary=meta.code_summary,
             math_ast=meta.math_ast,
+            plan_goal=meta.plan_goal,
         )
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     if calc_mode == "plan_only":
@@ -632,16 +633,22 @@ def _prime_ops_from_meta_calc(
     struct_node: Node,
     meta_info: MetaTransformResult | None,
 ) -> str | None:
-    if meta_info is None or meta_info.meta_calculation is None:
+    if meta_info is None:
         return None
-    pipeline_ops = text_operation_pipeline(meta_info.meta_calculation, struct_node)
+    pipeline_ops: list[Node] = []
+    if meta_info.meta_calculation is not None:
+        pipeline_ops = list(text_operation_pipeline(meta_info.meta_calculation, struct_node))
+    if meta_info.plan_goal:
+        pipeline_ops.insert(0, operation("PLAN_DECOMPOSE", text(meta_info.plan_goal)))
     if not pipeline_ops:
         return None
     original_ops = tuple(isr.ops_queue)
     isr.ops_queue.clear()
     isr.ops_queue.extend(pipeline_ops)
     isr.ops_queue.extend(original_ops)
-    operator = (meta_info.meta_calculation.operator or "text").upper()
+    operator = (
+        (meta_info.meta_calculation.operator if meta_info.meta_calculation else "plan").upper()
+    )
     chain = "→".join(filter(None, (op.label or "" for op in pipeline_ops)))
     return f"Φ_PLAN[{operator}:{chain}]"
 

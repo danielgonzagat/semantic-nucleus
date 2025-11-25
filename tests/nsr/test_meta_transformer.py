@@ -301,6 +301,24 @@ def test_meta_transformer_routes_polynomial():
     assert summary_dict["route"] == "math"
 
 
+def test_plan_decompose_auto_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    tags = []
+    plan_struct = None
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+            if (tag.label or "").lower() == "plan_decompose":
+                plan_struct = fields
+    assert "PLAN_DECOMPOSE" in tags
+    assert plan_struct is not None
+    assert plan_struct["step_count"].value == 3
+    assert any("PLAN_DECOMPOSE" in step for step in outcome.trace.steps)
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),

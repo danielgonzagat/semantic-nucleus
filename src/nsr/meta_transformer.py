@@ -40,7 +40,7 @@ from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_nod
 from .language_detector import detect_language_profile, language_profile_to_node
 from .code_ast import build_python_ast_meta, build_code_ast_summary
 from .lc_omega import MetaCalculation, LCTerm
-from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline
+from .meta_calculus_router import text_opcode_pipeline, text_operation_pipeline, detect_plan_goal
 from svm.vm import Program
 from svm.bytecode import Instruction
 from svm.opcodes import Opcode
@@ -77,6 +77,7 @@ class MetaTransformResult:
     code_ast: Node | None = None
     code_summary: Node | None = None
     math_ast: Node | None = None
+    plan_goal: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -380,6 +381,12 @@ class MetaTransformer:
             filtered = tuple((op.label or "") for op in ops if (op.label or ""))
             if filtered:
                 phi_plan_ops = filtered
+        plan_goal_text = detect_plan_goal(effective_calculus, text_value)
+        if plan_goal_text:
+            if phi_plan_ops:
+                phi_plan_ops = ("PLAN_DECOMPOSE", *phi_plan_ops)
+            else:
+                phi_plan_ops = ("PLAN_DECOMPOSE",)
         fallback_code_ast = None
         code_summary = None
         if should_build_code_ast:
@@ -405,6 +412,7 @@ class MetaTransformer:
             code_ast=fallback_code_ast,
             code_summary=code_summary,
             math_ast=None,
+            plan_goal=plan_goal_text,
         )
 
     def _effective_lexicon(self):
