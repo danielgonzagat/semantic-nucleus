@@ -442,6 +442,7 @@ def build_meta_summary(
     meta_memory: Node | None = None,
     meta_equation: Node | None = None,
     meta_proof: Node | None = None,
+    meta_reflection_trend: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -470,6 +471,8 @@ def build_meta_summary(
         nodes.append(meta_reasoning)
     if meta_reflection is not None:
         nodes.append(meta_reflection)
+    if meta_reflection_trend is not None:
+        nodes.append(meta_reflection_trend)
     if meta_expression is not None:
         nodes.append(meta_expression)
     if meta_memory is not None:
@@ -651,6 +654,40 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             result["reflection_alert_phases"] = [
                 _label(entry) for entry in alert_node.args if _label(entry)
             ]
+    trend_node = nodes.get("meta_reflection_trend")
+    if trend_node is not None:
+        trend_fields = _fields(trend_node)
+        result["reflection_trend"] = _label(trend_fields.get("trend"))
+        result["reflection_trend_entries"] = int(_value(trend_fields.get("entries")))
+        result["reflection_trend_window"] = int(_value(trend_fields.get("window")))
+        result["reflection_trend_alert_rate"] = _value(trend_fields.get("alert_rate"))
+        result["reflection_trend_decision_avg"] = _value(trend_fields.get("decision_avg"))
+        result["reflection_trend_decision_delta"] = int(_value(trend_fields.get("decision_delta")))
+        result["reflection_trend_dominant_current"] = _label(trend_fields.get("dominant_current"))
+        result["reflection_trend_dominant_shift"] = _label(trend_fields.get("dominant_shift"))
+        result["reflection_trend_dominant_consistency"] = _value(trend_fields.get("dominant_consistency"))
+        history_node = trend_fields.get("history")
+        if history_node is not None and history_node.kind.name == "LIST":
+            trend_entries: list[dict[str, object]] = []
+            for entry in history_node.args:
+                entry_fields = _fields(entry)
+                alerts_node = entry_fields.get("alerts")
+                alerts_list = []
+                if alerts_node is not None and alerts_node.kind.name == "LIST":
+                    alerts_list = [
+                        _label(alert_entry) for alert_entry in alerts_node.args if _label(alert_entry)
+                    ]
+                trend_entries.append(
+                    {
+                        "index": int(_value(entry_fields.get("index"))),
+                        "digest": _label(entry_fields.get("digest")),
+                        "phase_count": int(_value(entry_fields.get("phase_count"))),
+                        "decision_count": int(_value(entry_fields.get("decision_count"))),
+                        "dominant_phase": _label(entry_fields.get("dominant_phase")),
+                        "alerts": alerts_list,
+                    }
+                )
+            result["reflection_trend_history"] = trend_entries
     expression_node = nodes.get("meta_expression")
     if expression_node is not None:
         expression_fields = _fields(expression_node)

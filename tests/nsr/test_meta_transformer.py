@@ -345,6 +345,9 @@ def test_meta_summary_includes_meta_reflection():
     assert summary_dict["reflection_digest"]
     assert summary_dict["reflection_phase_count"] >= 1
     assert summary_dict["reflection_decision_count"] >= 1
+    assert summary_dict["reflection_trend_entries"] >= 1
+    assert summary_dict["reflection_trend_window"] >= summary_dict["reflection_trend_entries"]
+    assert summary_dict["reflection_trend_dominant_current"]
 
 
 def test_meta_summary_includes_plan_metadata_for_math():

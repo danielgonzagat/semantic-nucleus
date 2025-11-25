@@ -23,6 +23,7 @@ from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaCalculationPlan, MetaRoute, build_meta_summary
+from .meta_reflection_trend import build_reflection_trend
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_calculus_router import text_operation_pipeline
 from .meta_reasoner import build_meta_reasoning
@@ -268,6 +269,7 @@ def run_struct_full(
         snapshot = snapshot_equation(struct_node, isr)
         reasoning_node = build_meta_reasoning(trace.steps)
         reflection_node = build_meta_reflection(reasoning_node)
+        reflection_trend = build_reflection_trend(session.meta_history, reflection_node)
         isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
         isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
         language = _resolve_language(meta_info, session)
@@ -315,6 +317,7 @@ def run_struct_full(
                 calc_result,
                 meta_reasoning=reasoning_node,
                 meta_reflection=reflection_node,
+                meta_reflection_trend=reflection_trend,
                 meta_expression=meta_expression,
                 meta_memory=meta_memory,
                 meta_equation=equation_node,
@@ -468,6 +471,7 @@ def run_struct_full(
     snapshot = last_snapshot if last_snapshot is not None else snapshot_equation(struct_node, isr)
     reasoning_node = build_meta_reasoning(trace.steps)
     reflection_node = build_meta_reflection(reasoning_node)
+    reflection_trend = build_reflection_trend(session.meta_history, reflection_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
     language = _resolve_language(meta_info, session)
@@ -507,6 +511,7 @@ def run_struct_full(
             calc_result,
             meta_reasoning=reasoning_node,
             meta_reflection=reflection_node,
+            meta_reflection_trend=reflection_trend,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
             meta_equation=equation_node,
@@ -894,6 +899,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
     answer_text = _answer_text(isr)
     reasoning_node = build_meta_reasoning(trace.steps)
     reflection_node = build_meta_reflection(reasoning_node)
+    reflection_trend = build_reflection_trend(session.meta_history, reflection_node)
     isr = _apply_trace_summary_if_needed(isr, session, reasoning_node, trace)
     isr = _apply_reflection_summary_if_needed(isr, session, reflection_node, trace)
     language = _resolve_language(meta, session)
@@ -928,6 +934,7 @@ def _run_plan_only(meta: MetaTransformResult, session: SessionCtx) -> RunOutcome
         calc_result,
         meta_reasoning=reasoning_node,
         meta_reflection=reflection_node,
+        meta_reflection_trend=reflection_trend,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
         meta_equation=equation_node,

@@ -371,6 +371,18 @@ def test_reflection_summary_operator_adds_context():
     assert any("Φ_META[TRACE_REFLECTION]" in step for step in outcome.trace.steps)
 
 
+def test_reflection_trend_tracks_history():
+    session = SessionCtx()
+    run_text_full("Um carro existe", session)
+    outcome = run_text_full("O carro tem roda", session)
+    assert outcome.meta_summary is not None
+    summary_dict = meta_summary_to_dict(outcome.meta_summary)
+    assert summary_dict["reflection_trend_entries"] >= 2
+    history = summary_dict.get("reflection_trend_history") or []
+    assert len(history) >= 2
+    assert history[-1]["dominant_phase"]
+
+
 def test_meta_reasoning_includes_normalize_metrics():
     session = SessionCtx()
     session.config.normalize_aggressive = True
