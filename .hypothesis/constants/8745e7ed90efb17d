@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/lang/__init__.py
+# hypothesis_version: 6.148.2
+
+['lex', 'parse_utterance', 'tokenize']

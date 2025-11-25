@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/langpacks_validator.py
+# hypothesis_version: 6.148.2
+
+[':', ':CONJ:', 'ValidationIssue', 'error', 'has_errors', 'validate_pack', 'warning']

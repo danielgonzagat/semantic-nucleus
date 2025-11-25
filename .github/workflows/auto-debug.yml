@@ -1,0 +1,160 @@
+name: Auto Debug
+
+on:
+  workflow_dispatch:
+    inputs:
+      pytest_args:
+        description: Extra arguments passed to pytest
+        required: false
+        default: ""
+      domains:
+        description: Space/comma separated list of metanucleus-auto-evolve domains
+        required: false
+        default: "all"
+      max_cycles:
+        description: Number of nucleo-auto-debug attempts
+        required: false
+        default: "2"
+      keep_memory:
+        description: Set to true to keep NSR persistence enabled
+        required: false
+        default: "false"
+      report:
+        description: Set to true to print mismatch summaries between attempts
+        required: false
+        default: "false"
+      report_json:
+        description: Emit the mismatch summary in JSON when report is enabled
+        required: false
+        default: "false"
+      report_paths:
+        description: Optional space-separated list of extra JSONL files to include
+        required: false
+        default: ""
+      report_snapshot:
+        description: Optional path to store the latest report snapshot (JSON)
+        required: false
+        default: ""
+      report_diff:
+        description: Optional snapshot path used as baseline for diffing
+        required: false
+        default: ""
+  workflow_call:
+    inputs:
+      pytest_args:
+        required: false
+        type: string
+        default: ""
+      domains:
+        required: false
+        type: string
+        default: "all"
+      max_cycles:
+        required: false
+        type: string
+        default: "2"
+      keep_memory:
+        required: false
+        type: string
+        default: "false"
+      report:
+        required: false
+        type: string
+        default: "false"
+      report_json:
+        required: false
+        type: string
+        default: "false"
+      report_paths:
+        required: false
+        type: string
+        default: ""
+      report_snapshot:
+        required: false
+        type: string
+        default: ""
+      report_diff:
+        required: false
+        type: string
+        default: ""
+
+jobs:
+  auto-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install -e .[dev]
+
+      - name: Run nucleo-auto-debug
+        env:
+          WF_PYTEST_ARGS: ${{ inputs.pytest_args || github.event.inputs.pytest_args || '' }}
+          WF_DOMAINS: ${{ inputs.domains || github.event.inputs.domains || 'all' }}
+          WF_MAX_CYCLES: ${{ inputs.max_cycles || github.event.inputs.max_cycles || '2' }}
+          WF_KEEP_MEMORY: ${{ inputs.keep_memory || github.event.inputs.keep_memory || 'false' }}
+          WF_REPORT: ${{ inputs.report || github.event.inputs.report || 'false' }}
+          WF_REPORT_JSON: ${{ inputs.report_json || github.event.inputs.report_json || 'false' }}
+          WF_REPORT_PATHS: ${{ inputs.report_paths || github.event.inputs.report_paths || '' }}
+          WF_REPORT_SNAPSHOT: ${{ inputs.report_snapshot || github.event.inputs.report_snapshot || '' }}
+          WF_REPORT_DIFF: ${{ inputs.report_diff || github.event.inputs.report_diff || '' }}
+        run: |
+          set -euo pipefail
+          PYTEST_ARGS="${WF_PYTEST_ARGS}"
+          DOMAINS="${WF_DOMAINS}"
+          MAX_CYCLES="${WF_MAX_CYCLES}"
+          KEEP_MEMORY="${WF_KEEP_MEMORY}"
+          REPORT="${WF_REPORT}"
+          REPORT_JSON="${WF_REPORT_JSON}"
+          REPORT_PATHS="${WF_REPORT_PATHS}"
+          REPORT_SNAPSHOT="${WF_REPORT_SNAPSHOT}"
+          REPORT_DIFF="${WF_REPORT_DIFF}"
+          if [ "${KEEP_MEMORY,,}" = "true" ]; then
+            KEEP_FLAG="--keep-memory"
+          else
+            KEEP_FLAG=""
+          fi
+          if [ "${REPORT,,}" = "true" ]; then
+            REPORT_FLAG="--report"
+          else
+            REPORT_FLAG=""
+          fi
+          if [ "${REPORT_JSON,,}" = "true" ]; then
+            REPORT_JSON_FLAG="--report-json"
+          else
+            REPORT_JSON_FLAG=""
+          fi
+          REPORT_PATH_FLAGS=""
+          if [ -n "${REPORT_PATHS}" ]; then
+            for path in ${REPORT_PATHS}; do
+              REPORT_PATH_FLAGS="${REPORT_PATH_FLAGS} --report-path ${path}"
+            done
+          fi
+          SNAPSHOT_FLAG=""
+          if [ -n "${REPORT_SNAPSHOT}" ]; then
+            SNAPSHOT_FLAG="--report-snapshot ${REPORT_SNAPSHOT}"
+          fi
+          DIFF_FLAG=""
+          if [ -n "${REPORT_DIFF}" ]; then
+            DIFF_FLAG="--report-diff ${REPORT_DIFF}"
+          fi
+          echo "::group::nucleo-auto-debug output"
+          nucleo-auto-debug \
+            --pytest-args "${PYTEST_ARGS}" \
+            --auto-evolve-domains "${DOMAINS}" \
+            --max-cycles "${MAX_CYCLES}" \
+            ${KEEP_FLAG} \
+            ${REPORT_FLAG} \
+            ${REPORT_JSON_FLAG} \
+            ${REPORT_PATH_FLAGS} \
+            ${SNAPSHOT_FLAG} \
+            ${DIFF_FLAG}
+          echo "::endgroup::"

@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/meta_memory_store.py
+# hypothesis_version: 6.148.2
+
+['a', 'append_memory', 'load_recent_memory', 'r', 'utf-8']

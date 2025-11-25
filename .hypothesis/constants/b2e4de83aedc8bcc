@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/testing/calculus_asserts.py
+# hypothesis_version: 6.148.2
+
+['equivalence_mismatch', 'normal_form_mismatch']

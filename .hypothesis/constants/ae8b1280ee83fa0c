@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/evolution/meta_patch_generator.py
+# hypothesis_version: 6.148.2
+
+['*.py', ', ', '.', '.py', 'CodeUnit', 'INTENT_KEYWORDS', 'IntentLogEntry', 'MetaPatchGenerator', 'PHI_OPS', 'PhiFunctionInfo', '[auto] ', 'analyze', 'boa noite', 'boa tarde', 'bom dia', 'calculus', 'dispatch_phi', 'en', 'engine', 'evolution', 'evolve_', 'good afternoon', 'good evening', 'good morning', 'greeting', 'handle_turn', 'how many', 'how much', 'isr', 'kernel', 'liu', 'meta', 'meta_', 'metacalculus', 'metakernel', 'metanucleus', 'onde', 'phi', 'phi-tests-auto', 'phi_', 'pt', 'quais', 'qual', 'quando', 'quanto', 'quem', 'question', 'respond', 'run_', 'runtime', 'semantic_', 'semanticengine', 'semantics', 'src', 'step', 'test_phi_ops_auto.py', 'tests', 'utf-8', 'value', 'where', 'which', 'who', '{', '}', '},']

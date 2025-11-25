@@ -1,0 +1,4 @@
+# file: /workspace/src/nsr/meta_memory.py
+# hypothesis_version: 6.148.2
+
+['answer', 'answer_digest', 'answer_preview', 'build_meta_memory', 'equation_digest', 'equation_quality', 'equation_trend', 'expression_digest', 'expression_preview', 'logic_proof_digest', 'logic_proof_query', 'logic_proof_truth', 'memory_entry', 'meta_memory', 'position', 'reasoning_digest', 'reflection_digest', 'route', 'tag', 'unknown', 'utf-8']

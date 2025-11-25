@@ -1,0 +1,4 @@
+# file: /workspace/src/metanucleus/runtime/adapters.py
+# hypothesis_version: 6.148.2
+
+['/', 'async def ', 'class ', 'code', 'code_snippet', 'content', 'control', 'def ', 'from ', 'import ', 'lang', 'pt', 'python', 'statement', 'text', 'unknown']

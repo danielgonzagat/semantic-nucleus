@@ -1,0 +1,4 @@
+# file: /workspace/src/svm/opcode_traits.py
+# hypothesis_version: 6.148.2
+
+['CONST_OPERAND_OPS', 'COUNT_OPERAND_OPS', 'MAX_REGISTER_INDEX', 'OPTIONAL_OPERAND_OPS', 'REG_OPERAND_OPS', 'REQUIRE_OPERAND_OPS', 'TARGET_OPERAND_OPS']
