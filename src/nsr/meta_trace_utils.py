@@ -166,7 +166,5 @@ __all__ = [
     "decision_justification",
     "is_alert_decision",
     "phase_label",
-    "PHASE_LABELS",
-    "CATEGORY_JUSTIFICATION",
     "tree_depth",
 ]
