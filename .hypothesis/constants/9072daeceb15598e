@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/metanucleus/cli/auto_prune.py
+# hypothesis_version: 6.148.2
+
+[200, '%Y%m%d%H%M%S', '*', '--archive-dir', '--dry-run', '--glob', '--max-entries', '--paths', '--root', '.', '__main__', 'append', 'glob_patterns', 'nucleo-auto-prune', 'removed', 'store_true', 'utf-8', 'would remove']

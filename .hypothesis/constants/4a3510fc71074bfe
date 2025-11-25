@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/regression_bridge.py
+# hypothesis_version: 6.148.2
+
+[0.0, 0.9, ', ', 'REGRESS', 'RegressionHook', 'STAT[REGRESSION]', 'regress_answer', 'regress_coeff', 'regress_coefficients', 'regress_input', 'regress_metrics']

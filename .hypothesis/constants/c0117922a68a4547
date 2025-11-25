@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/meta_reflection.py
+# hypothesis_version: 6.148.2
+
+[b'alert', 0.0, 'alert', 'alert_phases', 'category', 'context', 'decision_count', 'decisions', 'delta_quality', 'delta_relations', 'digest', 'dominant_phase', 'enter_quality', 'enter_relations', 'exit_quality', 'exit_relations', 'justification', 'label', 'meta_reflection', 'name', 'order', 'phase_chain', 'phase_count', 'phases', 'quality', 'reflection_decision', 'reflection_phase', 'relations', 'tag', 'true', 'utf-8', '→']

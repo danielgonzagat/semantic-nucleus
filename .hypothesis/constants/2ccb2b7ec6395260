@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/meta_synthesis.py
+# hypothesis_version: 6.148.2
+
+['build_meta_synthesis', 'function_count', 'language', 'meta_synthesis', 'plan_id', 'plan_total', 'plans', 'program_total', 'programs', 'proof_digest', 'proof_total', 'proofs', 'query', 'source_digest', 'source_language', 'status', 'step_count', 'synth_plan', 'synth_plan_entry', 'synth_prog', 'synth_prog_entry', 'synth_proof', 'synth_proof_entry', 'tag', 'truth']

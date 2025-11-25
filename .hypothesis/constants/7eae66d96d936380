@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/meta_justification.py
+# hypothesis_version: 6.148.2
+
+[b'alert', 0.0, 'alert', 'alert_phases', 'category', 'children', 'context', 'delta_quality', 'delta_relations', 'depth', 'digest', 'enter_quality', 'enter_relations', 'exit_quality', 'exit_relations', 'impact', 'justification_impact', 'justification_phase', 'justification_root', 'justification_step', 'label', 'meta_justification', 'meta_pipeline', 'name', 'node_count', 'order', 'quality', 'reason', 'relations', 'root', 'step_count', 'tag', 'true', 'utf-8', 'width']

@@ -44,6 +44,10 @@ from .context_stats import build_context_probabilities
 from .meta_synthesis import build_meta_synthesis
 
 
+# Maximum iterations for synthesis drain loop
+MAX_SYNTHESIS_DRAIN_ITERATIONS = 6
+
+
 def _ensure_logic_engine(session: SessionCtx):
     if session.logic_engine is None and session.logic_serialized:
         session.logic_engine = deserialize_logic_engine(session.logic_serialized)
@@ -738,7 +742,7 @@ def _maybe_queue_synthesis_ops(isr: ISR) -> None:
 
 def _drain_synthesis_ops(isr: ISR, session: SessionCtx) -> ISR:
     # Bounded loop to execute any pending synthesis operators outside do/while
-    for _ in range(6):
+    for _ in range(MAX_SYNTHESIS_DRAIN_ITERATIONS):
         pending_plan = _latest_unsynthesized_plan(isr.context)
         if pending_plan:
             isr = apply_operator(isr, operation("SYNTH_PLAN"), session)

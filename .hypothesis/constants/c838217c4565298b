@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/bayes_engine.py
+# hypothesis_version: 6.148.2
+
+[0.0, 1e-06, 1.0, 'BayesNetwork', 'BayesVariable', 'edge_count', 'name', 'parents', 'values', 'variable_count', 'variables']

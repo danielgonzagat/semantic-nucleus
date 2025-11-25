@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/bayes_bridge.py
+# hypothesis_version: 6.148.2
+
+[0.92, ', ', 'BAYES', 'BayesHook', 'STAT[BAYES_QUERY]', 'bayes_answer', 'bayes_evidence', 'bayes_evidence_entry', 'bayes_input', 'bayes_network', 'bayes_outcome', 'bayes_posterior', 'bayes_variable', 'cpt', 'distribution', 'edge_count', 'evidence', 'given', 'maybe_route_bayes', 'name', 'parents', 'payload incomplete', 'query', 'query is required', 'values', 'variable_count', 'variables']

@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/meta_trace_utils.py
+# hypothesis_version: 6.148.2
+
+['CONTRADICTION', 'FAILURE', 'HALT', 'IAN[', 'INV[', 'LOGIC[', 'MATH[', 'Meta-CÓDIGO', 'Meta-GUARDA', 'Meta-HALT', 'Meta-LER', 'Meta-MEMÓRIA', 'Meta-META', 'Meta-MISC', 'Meta-PENSAR', 'Meta-PLANO', 'PHASE_LABELS', 'PLAN_ONLY', 'TEXT[', 'TraceOperation', '[', ']', 'context', 'delta_quality', 'delta_relations', 'index', 'is_alert_decision', 'label', 'meta_code', 'meta_guard', 'meta_halt', 'meta_ler', 'meta_memory', 'meta_meta', 'meta_misc', 'meta_phi', 'meta_plan', 'operations', 'phase_label', 'quality', 'relations', 'tree_depth', 'Φ_', 'Φ_CODE', 'Φ_MEMORY', 'Φ_META', 'Φ_PLAN']

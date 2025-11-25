@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/metanucleus/cli/auto_report.py
+# hypothesis_version: 6.148.2
+
+[0.0, 240, '*', '--diff', '--glob', '--json', '--paths', '--root', '--snapshot', '--watch', '.', '__main__', 'append', 'count', 'exists', 'glob_patterns', 'label', 'last_entry', 'meta_calculus', 'missing', 'nucleo-auto-report', 'ok', 'path', 'r', 'raw', 'rule', 'semantic', 'store_true', 'utf-8']

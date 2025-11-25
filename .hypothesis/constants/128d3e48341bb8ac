@@ -1,0 +1,4 @@
+# file: /home/runner/work/metanucleus/metanucleus/src/nsr/synthesis.py
+# hypothesis_version: 6.148.2
+
+['ProofSynthesis', 'SynthesisPlan', 'SynthesisStep', 'plan', 'synth_plan_meta', 'synth_proof_meta', 'synth_step']
