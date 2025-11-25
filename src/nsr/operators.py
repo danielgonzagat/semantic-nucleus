@@ -24,16 +24,19 @@ from liu import (
     fingerprint,
     struct as liu_struct,
 )
-def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
-    tag_lower = tag_name.lower()
-    for node in reversed(context):
-        if node.kind is not NodeKind.STRUCT:
-            continue
-        fields = dict(node.fields)
-        tag_field = fields.get("tag")
-        if tag_field and (tag_field.label or "").lower() == tag_lower:
-            return node
-    return None
+
+from .code_ast import build_code_ast_summary, compute_code_ast_stats
+from .explain import render_explanation, render_struct_sentence
+from .rules import apply_rules
+from .state import ISR, SessionCtx
+from .synthesis import SynthesisPlan, SynthesisStep, ProofSynthesis
+
+Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
+"""
+Operadores Φ do NSR.
+"""
+
+Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
 
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
