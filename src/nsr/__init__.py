@@ -40,6 +40,8 @@ from .logic_engine import LogicEngine, LogicRule, negate as logic_negate, normal
 from .logic_bridge import LogicBridgeResult, LogicHook, maybe_route_logic as logic_route, interpret_logic_command
 from .bayes_bridge import BayesHook, maybe_route_bayes
 from .bayes_engine import BayesNetwork, BayesVariable
+from .markov_bridge import MarkovHook, maybe_route_markov
+from .markov_engine import MarkovModel
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
@@ -105,6 +107,9 @@ __all__ = [
     "BayesNetwork",
     "BayesVariable",
     "maybe_route_bayes",
+    "MarkovHook",
+    "MarkovModel",
+    "maybe_route_markov",
     "MetaTransformer",
     "MetaTransformResult",
     "MetaRoute",

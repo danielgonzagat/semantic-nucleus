@@ -237,6 +237,33 @@ def test_meta_transformer_routes_bayes():
     assert summary_dict["phi_plan_digest"]
 
 
+def test_meta_transformer_routes_markov():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "states": ["Rain", "Dry"],
+        "initial": {"Rain": 0.6, "Dry": 0.4},
+        "transitions": [
+            {"from": "Rain", "to": {"Rain": 0.7, "Dry": 0.3}},
+            {"from": "Dry", "to": {"Rain": 0.2, "Dry": 0.8}},
+        ],
+        "emissions": [
+            {"state": "Rain", "symbols": {"umbrella": 0.9, "no": 0.1}},
+            {"state": "Dry", "symbols": {"umbrella": 0.2, "no": 0.8}},
+        ],
+        "observations": ["umbrella", "umbrella"],
+    }
+    command = f"MARKOV {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[MARKOV_FORWARD]"
+    assert result.preseed_answer is not None
+    summary_nodes = build_meta_summary(result, "Markov forward", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["route"] == "stat"
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),

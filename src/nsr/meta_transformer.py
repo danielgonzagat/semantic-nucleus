@@ -31,6 +31,7 @@ from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
 from .math_bridge import maybe_route_math
 from .bayes_bridge import maybe_route_bayes
+from .markov_bridge import maybe_route_markov
 from .parser import build_struct
 from .state import SessionCtx
 from .meta_structures import maybe_build_lc_meta_struct, meta_calculation_to_node
@@ -190,6 +191,33 @@ class MetaTransformer:
                 preseed_answer=bayes_hook.answer_node,
                 preseed_context=preseed_context,
                 preseed_quality=bayes_hook.quality,
+                calc_plan=plan,
+                language_profile=language_profile_node,
+                code_ast=None,
+                math_ast=None,
+            )
+
+        markov_hook = maybe_route_markov(text_value)
+        if markov_hook:
+            plan = _direct_answer_plan(MetaRoute.STAT, markov_hook.answer_node)
+            preseed_context = self._with_meta_context(
+                markov_hook.context_nodes,
+                MetaRoute.STAT,
+                self.session.language_hint,
+                text_value,
+                language_profile_node,
+            )
+            plan_node = _meta_plan_node(MetaRoute.STAT, None, plan)
+            if plan_node is not None:
+                preseed_context = tuple((*preseed_context, plan_node))
+            return MetaTransformResult(
+                struct_node=markov_hook.struct_node,
+                route=MetaRoute.STAT,
+                input_text=text_value,
+                trace_label=markov_hook.trace_label,
+                preseed_answer=markov_hook.answer_node,
+                preseed_context=preseed_context,
+                preseed_quality=markov_hook.quality,
                 calc_plan=plan,
                 language_profile=language_profile_node,
                 code_ast=None,

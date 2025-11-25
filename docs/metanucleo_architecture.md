@@ -8,7 +8,7 @@ O estágio Meta-LER recebe texto cru e determina, de maneira determinística, qu
 
 - **Matemática** (`MetaRoute.MATH`): ativa o `math_bridge`/`Math-Core` quando a entrada é equação ou instrução aritmética.
 - **Lógica** (`MetaRoute.LOGIC`): roteia comandos `FACT/IF/QUERY` para o `logic_bridge`.
-- **Estatística / Bayes** (`MetaRoute.STAT`): interpreta comandos `BAYES {json}` contendo redes bayesianas discretas e executa inferência determinística (enumeração exata) via `nsr.bayes_engine.BayesNetwork`, emitindo posterior auditável e plano ΣVM direto (`stat_direct_answer`).
+- **Estatística / Bayes / Markov** (`MetaRoute.STAT`): interpreta comandos `BAYES {json}` (redes bayesianas discretas) e `MARKOV {json}` (cadeias/hmms determinísticos), executando inferência exata via `nsr.bayes_engine.BayesNetwork` ou `nsr.markov_engine.MarkovModel`, sempre emitindo meta-estruturas auditáveis e plano ΣVM direto (`stat_direct_answer`).
 - **Código** (`MetaRoute.CODE`): detecta snippets Python determinísticos via `code_bridge` e converte diretamente para relações LIU de programação.
 - **Instinto Linguístico** (`MetaRoute.INSTINCT`): aciona o IAN-Ω quando a frase corresponde a um instinto nativo (saudações, diagnósticos etc.).
 - **Parser textual** (`MetaRoute.TEXT`): cai no LxU + PSE e produz um `STRUCT` LIU completo, anexando metadados de idioma.
