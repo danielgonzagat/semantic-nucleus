@@ -270,6 +270,26 @@ def _op_synth_prog(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR
     return _update(isr, relations=relations, context=context, quality=quality)
 
 
+def _op_synth_plan(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    plan_node = _latest_tagged_struct(isr.context, "plan_decompose")
+    if plan_node is None:
+        return isr
+    plan_fields = dict(plan_node.fields)
+    steps = plan_fields.get("steps")
+    if steps is None or steps.kind is not NodeKind.LIST:
+        return isr
+    plan_id = f"plan::{len(isr.context)}"
+    summary = struct(
+        tag=entity("synth_plan"),
+        plan_id=text(plan_id),
+        step_count=plan_fields.get("step_count") or number(len(steps.args)),
+    )
+    relations = isr.relations + (relation("plan/SYNTHESIZED", entity(plan_id)),)
+    context = isr.context + (summary,)
+    quality = min(1.0, max(isr.quality, 0.65))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
 def _op_align(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
     relations = tuple(sorted(dict.fromkeys(isr.relations), key=lambda rel: (rel.label, len(rel.args))))
     context = tuple(dict.fromkeys(isr.context))
@@ -542,6 +562,7 @@ _HANDLERS: Dict[str, Handler] = {
     "REWRITE": _op_rewrite,
     "REWRITE_SEMANTIC": _op_rewrite_semantic,
     "SYNTH_PROG": _op_synth_prog,
+    "SYNTH_PLAN": _op_synth_plan,
     "REWRITE_CODE": _op_rewrite_code,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,

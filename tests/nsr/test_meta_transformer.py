@@ -1,7 +1,7 @@
 import json
 import pytest
 
-from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full
+from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full, run_text
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode
@@ -409,6 +409,22 @@ def soma(a, b):
         if tag:
             tags.append((tag.label or "").upper())
     assert "SYNTH_PROG" in tags
+
+
+def test_synth_plan_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    from nsr.operators import apply_operator
+    from liu import operation
+
+    updated = apply_operator(outcome.isr, operation("SYNTH_PLAN"), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PLAN" in tags
 
 
 def _fake_meta_memory():
