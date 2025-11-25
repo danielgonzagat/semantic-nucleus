@@ -29,8 +29,8 @@ from .code_bridge import maybe_route_code
 from .ian_bridge import maybe_route_text
 from .lex import DEFAULT_LEXICON, tokenize
 from .logic_bridge import maybe_route_logic
-from .math_bridge import maybe_route_math
-from .polynomial_bridge import maybe_route_polynomial
+from .math_bridge import MathHook, maybe_route_math
+from .polynomial_bridge import PolynomialHook, maybe_route_polynomial
 from .bayes_bridge import maybe_route_bayes
 from .markov_bridge import maybe_route_markov
 from .regression_bridge import maybe_route_regression
@@ -56,6 +56,26 @@ class MetaRoute(str, Enum):
     INSTINCT = "instinct"
     TEXT = "text"
     STAT = "stat"
+
+
+def _route_math_hooks(text_value: str, is_code: bool) -> PolynomialHook | MathHook | None:
+    """
+    Route math-related hooks with explicit priority order.
+
+    Priority (highest to lowest):
+    1. Polynomial factorization (specialized math pattern)
+    2. General math expressions
+
+    Returns the first matching hook (PolynomialHook or MathHook) or None.
+    """
+    if is_code:
+        return None
+    # Try polynomial factorization first (more specific pattern)
+    poly_hook = maybe_route_polynomial(text_value)
+    if poly_hook is not None:
+        return poly_hook
+    # Fall back to general math routing
+    return maybe_route_math(text_value)
 
 
 @dataclass(frozen=True, slots=True)
@@ -114,66 +134,63 @@ class MetaTransformer:
             self.session.language_hint = language_hint
         should_build_code_ast = detection.category == "code" and detection.dialect == "python"
 
-        poly_hook = None
-        math_hook = None
-        if detection.category != "code":
-            poly_hook = maybe_route_polynomial(text_value)
-            if poly_hook is None:
-                math_hook = maybe_route_math(text_value)
-        if poly_hook:
-            plan = _direct_answer_plan(MetaRoute.MATH, poly_hook.answer_node)
-            preseed_context = self._with_meta_context(
-                poly_hook.context_nodes,
-                MetaRoute.MATH,
-                self.session.language_hint,
-                text_value,
-                language_profile_node,
-            )
-            plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
-            if plan_node is not None:
-                preseed_context = tuple((*preseed_context, plan_node))
-            return MetaTransformResult(
-                struct_node=poly_hook.struct_node,
-                route=MetaRoute.MATH,
-                input_text=text_value,
-                trace_label=poly_hook.trace_label,
-                preseed_answer=poly_hook.answer_node,
-                preseed_context=preseed_context,
-                preseed_quality=poly_hook.quality,
-                language_hint=self.session.language_hint,
-                calc_plan=plan,
-                language_profile=language_profile_node,
-                code_ast=None,
-                math_ast=None,
-            )
-
-        if math_hook:
-            plan = _direct_answer_plan(MetaRoute.MATH, math_hook.answer_node)
-            self.session.language_hint = math_hook.reply.language
-            preseed_context = self._with_meta_context(
-                math_hook.context_nodes,
-                MetaRoute.MATH,
-                math_hook.reply.language,
-                text_value,
-                language_profile_node,
-            )
-            plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
-            if plan_node is not None:
-                preseed_context = tuple((*preseed_context, plan_node))
-            return MetaTransformResult(
-                struct_node=math_hook.struct_node,
-                route=MetaRoute.MATH,
-                input_text=text_value,
-                trace_label=f"MATH[{math_hook.utterance.role}]",
-                preseed_answer=math_hook.answer_node,
-                preseed_context=preseed_context,
-                preseed_quality=math_hook.quality,
-                language_hint=math_hook.reply.language,
-                calc_plan=plan,
-                language_profile=language_profile_node,
-                code_ast=None,
-                math_ast=math_hook.math_ast,
-            )
+        # Route math-related hooks with explicit priority (poly > math)
+        math_or_poly_hook = _route_math_hooks(text_value, detection.category == "code")
+        if math_or_poly_hook is not None:
+            plan = _direct_answer_plan(MetaRoute.MATH, math_or_poly_hook.answer_node)
+            if isinstance(math_or_poly_hook, PolynomialHook):
+                preseed_context = self._with_meta_context(
+                    math_or_poly_hook.context_nodes,
+                    MetaRoute.MATH,
+                    self.session.language_hint,
+                    text_value,
+                    language_profile_node,
+                )
+                plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
+                if plan_node is not None:
+                    preseed_context = tuple((*preseed_context, plan_node))
+                return MetaTransformResult(
+                    struct_node=math_or_poly_hook.struct_node,
+                    route=MetaRoute.MATH,
+                    input_text=text_value,
+                    trace_label=math_or_poly_hook.trace_label,
+                    preseed_answer=math_or_poly_hook.answer_node,
+                    preseed_context=preseed_context,
+                    preseed_quality=math_or_poly_hook.quality,
+                    language_hint=self.session.language_hint,
+                    calc_plan=plan,
+                    language_profile=language_profile_node,
+                    code_ast=None,
+                    math_ast=None,
+                )
+            else:
+                # Type narrowing: must be MathHook since PolynomialHook was handled above
+                assert isinstance(math_or_poly_hook, MathHook)
+                self.session.language_hint = math_or_poly_hook.reply.language
+                preseed_context = self._with_meta_context(
+                    math_or_poly_hook.context_nodes,
+                    MetaRoute.MATH,
+                    math_or_poly_hook.reply.language,
+                    text_value,
+                    language_profile_node,
+                )
+                plan_node = _meta_plan_node(MetaRoute.MATH, None, plan)
+                if plan_node is not None:
+                    preseed_context = tuple((*preseed_context, plan_node))
+                return MetaTransformResult(
+                    struct_node=math_or_poly_hook.struct_node,
+                    route=MetaRoute.MATH,
+                    input_text=text_value,
+                    trace_label=f"MATH[{math_or_poly_hook.utterance.role}]",
+                    preseed_answer=math_or_poly_hook.answer_node,
+                    preseed_context=preseed_context,
+                    preseed_quality=math_or_poly_hook.quality,
+                    language_hint=math_or_poly_hook.reply.language,
+                    calc_plan=plan,
+                    language_profile=language_profile_node,
+                    code_ast=None,
+                    math_ast=math_or_poly_hook.math_ast,
+                )
 
         logic_hook = maybe_route_logic(text_value, engine=self.session.logic_engine)
         if logic_hook:

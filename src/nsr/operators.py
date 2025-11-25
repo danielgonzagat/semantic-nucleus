@@ -130,6 +130,8 @@ def _op_plan_decompose(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) ->
     goal_text = args[0].label or ""
     if not goal_text:
         return isr
+    # Normalize arrow separators: both Unicode '→' and ASCII '>' are treated as step delimiters
+    # to support plans written in natural language ("A → B") or technical notation ("A > B")
     segments = [segment.strip() for segment in goal_text.replace("→", ">").split(">") if segment.strip()]
     if not segments:
         segments = [goal_text]
