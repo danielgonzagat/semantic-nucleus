@@ -319,6 +319,44 @@ def test_plan_decompose_auto_operator():
     assert any("PLAN_DECOMPOSE" in step for step in outcome.trace.steps)
 
 
+def test_meta_transformer_routes_factor_graph():
+    session = SessionCtx()
+    transformer = MetaTransformer(session)
+    payload = {
+        "variables": [
+            {"name": "A", "values": ["t", "f"]},
+            {"name": "B", "values": ["t", "f"]},
+        ],
+        "factors": [
+            {
+                "name": "Prior",
+                "variables": ["A"],
+                "table": [
+                    {"assignment": {"A": "t"}, "value": 0.6},
+                    {"assignment": {"A": "f"}, "value": 0.4},
+                ],
+            },
+            {
+                "name": "Link",
+                "variables": ["A", "B"],
+                "table": [
+                    {"assignment": {"A": "t", "B": "t"}, "value": 0.8},
+                    {"assignment": {"A": "t", "B": "f"}, "value": 0.2},
+                    {"assignment": {"A": "f", "B": "t"}, "value": 0.3},
+                    {"assignment": {"A": "f", "B": "f"}, "value": 0.7},
+                ],
+            },
+        ],
+    }
+    command = f"FACTOR {json.dumps(payload)}"
+    result = transformer.transform(command)
+    assert result.route is MetaRoute.STAT
+    assert result.trace_label == "STAT[FACTOR_BP]"
+    summary_nodes = build_meta_summary(result, "Factor graph", result.preseed_quality or 0.9, "QUALITY_THRESHOLD")
+    summary_dict = meta_summary_to_dict(summary_nodes)
+    assert summary_dict["phi_plan_description"] == "stat_direct_answer"
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
