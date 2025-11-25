@@ -4475,4 +4475,994 @@ EXTRA_CATEGORY_SEEDS: List[Dict[str, object]] = [
             },
         ],
     },
+    {
+        "idx": 331,
+        "label": "cognitive_meta_topology",
+        "concepts": [
+            {
+                "name": "topologia_cognitiva",
+                "aliases": ["cognitive_topology"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["topologia cognitiva"],
+                    "en": ["cognitive topology"],
+                },
+            },
+            {
+                "name": "mapa_meta_topologico",
+                "aliases": ["meta_topological_map"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["mapa meta-topológico"],
+                    "en": ["meta-topological map"],
+                },
+            },
+            {
+                "name": "operador_topologico",
+                "aliases": ["topological_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador topológico"],
+                    "en": ["topological operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 332,
+        "label": "structural_self_evaluation",
+        "concepts": [
+            {
+                "name": "autoavaliacao_estrutural",
+                "aliases": ["structural_self_evaluation"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["autoavaliação estrutural"],
+                    "en": ["structural self-evaluation"],
+                },
+            },
+            {
+                "name": "criterio_auto_estrutural",
+                "aliases": ["self_structural_criterion"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["critério estrutural próprio"],
+                    "en": ["self structural criterion"],
+                },
+            },
+            {
+                "name": "operador_autoavaliativo",
+                "aliases": ["self_evaluative_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador autoavaliativo"],
+                    "en": ["self-evaluative operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 333,
+        "label": "cognitive_meta_direction",
+        "concepts": [
+            {
+                "name": "direcao_cognitiva",
+                "aliases": ["cognitive_direction"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["direção cognitiva"],
+                    "en": ["cognitive direction"],
+                },
+            },
+            {
+                "name": "vetor_meta_direcional",
+                "aliases": ["meta_direction_vector"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["vetor meta-direcional"],
+                    "en": ["meta-direction vector"],
+                },
+            },
+            {
+                "name": "operador_direcional",
+                "aliases": ["direction_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador direcional"],
+                    "en": ["direction operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 334,
+        "label": "ultra_abstraction_operators",
+        "concepts": [
+            {
+                "name": "operador_ultra_abstrativo",
+                "aliases": ["ultra_abstraction_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador ultra-abstrativo"],
+                    "en": ["ultra-abstraction operator"],
+                },
+            },
+            {
+                "name": "transformacao_ultra_abstrata",
+                "aliases": ["ultra_abstract_transformation"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["transformação ultra-abstrata"],
+                    "en": ["ultra-abstract transformation"],
+                },
+            },
+            {
+                "name": "campo_ultra_abstrato",
+                "aliases": ["ultra_abstract_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo ultra-abstrato"],
+                    "en": ["ultra-abstract field"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 335,
+        "label": "multidomain_reasoning_architecture",
+        "concepts": [
+            {
+                "name": "raciocinio_multidominio",
+                "aliases": ["multidomain_reasoning"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["raciocínio multidomínio"],
+                    "en": ["multidomain reasoning"],
+                },
+            },
+            {
+                "name": "estrutura_multidominio",
+                "aliases": ["multidomain_structure"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["estrutura multidomínio"],
+                    "en": ["multidomain structure"],
+                },
+            },
+            {
+                "name": "operador_multidominio",
+                "aliases": ["multidomain_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador multidomínio"],
+                    "en": ["multidomain operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 336,
+        "label": "directed_cognitive_expansion",
+        "concepts": [
+            {
+                "name": "expansao_orientada",
+                "aliases": ["directed_expansion"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["expansão orientada"],
+                    "en": ["directed expansion"],
+                },
+            },
+            {
+                "name": "campo_de_expansao",
+                "aliases": ["expansion_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo de expansão"],
+                    "en": ["expansion field"],
+                },
+            },
+            {
+                "name": "operador_de_expansao_orientada",
+                "aliases": ["directional_expansion_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de expansão orientada"],
+                    "en": ["directional expansion operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 337,
+        "label": "meta_reasoning_networks",
+        "concepts": [
+            {
+                "name": "meta_rede_cognitiva",
+                "aliases": ["meta_cognitive_network"],
+                "isa": ["rede"],
+                "examples": {
+                    "pt": ["meta-rede cognitiva"],
+                    "en": ["meta cognitive network"],
+                },
+            },
+            {
+                "name": "nodo_meta",
+                "aliases": ["meta_node"],
+                "isa": ["entidade"],
+                "examples": {
+                    "pt": ["nodo meta"],
+                    "en": ["meta node"],
+                },
+            },
+            {
+                "name": "operador_meta_relacional",
+                "aliases": ["meta_relational_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador meta-relacional"],
+                    "en": ["meta-relational operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 338,
+        "label": "n_dimensional_maps",
+        "concepts": [
+            {
+                "name": "mapa_n_dimensional",
+                "aliases": ["n_dimensional_map"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["mapa n-dimensional"],
+                    "en": ["n-dimensional map"],
+                },
+            },
+            {
+                "name": "plano_nd",
+                "aliases": ["nd_plane"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["plano ND"],
+                    "en": ["ND plane"],
+                },
+            },
+            {
+                "name": "operador_nd",
+                "aliases": ["nd_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador ND"],
+                    "en": ["ND operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 339,
+        "label": "reasoning_field_theory",
+        "concepts": [
+            {
+                "name": "campo_de_raciocinio",
+                "aliases": ["reasoning_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo de raciocínio"],
+                    "en": ["reasoning field"],
+                },
+            },
+            {
+                "name": "densidade_raciocinativa",
+                "aliases": ["reasoning_density"],
+                "isa": ["quantidade"],
+                "examples": {
+                    "pt": ["densidade raciocinativa"],
+                    "en": ["reasoning density"],
+                },
+            },
+            {
+                "name": "operador_de_fluxo_mental",
+                "aliases": ["mental_flow_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de fluxo mental (simbólico)"],
+                    "en": ["mental flow operator (symbolic)"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 340,
+        "label": "meta_synthesis_of_cognitive_architectures",
+        "concepts": [
+            {
+                "name": "arquitetura_sintetizada",
+                "aliases": ["synthesized_architecture"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["arquitetura sintetizada"],
+                    "en": ["synthesized architecture"],
+                },
+            },
+            {
+                "name": "campo_meta_sintetico",
+                "aliases": ["meta_synthetic_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo meta-sintético"],
+                    "en": ["meta-synthetic field"],
+                },
+            },
+            {
+                "name": "operador_de_sintese_arquitetural",
+                "aliases": ["architectural_synthesis_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de síntese arquitetural"],
+                    "en": ["architectural synthesis operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 341,
+        "label": "absolute_coherence_theory",
+        "concepts": [
+            {
+                "name": "coerencia_absoluta",
+                "aliases": ["absolute_coherence"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["coerência absoluta"],
+                    "en": ["absolute coherence"],
+                },
+            },
+            {
+                "name": "operador_absoluto",
+                "aliases": ["absolute_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador absoluto"],
+                    "en": ["absolute operator"],
+                },
+            },
+            {
+                "name": "criterio_absoluto",
+                "aliases": ["absolute_criterion"],
+                "isa": ["criterio"],
+                "examples": {
+                    "pt": ["critério absoluto"],
+                    "en": ["absolute criterion"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 342,
+        "label": "meta_reasoning_foundations",
+        "concepts": [
+            {
+                "name": "axioma_meta",
+                "aliases": ["meta_axiom"],
+                "isa": ["axioma"],
+                "examples": {
+                    "pt": ["axioma meta"],
+                    "en": ["meta-axiom"],
+                },
+            },
+            {
+                "name": "regra_meta_fundamental",
+                "aliases": ["fundamental_meta_rule"],
+                "isa": ["regra"],
+                "examples": {
+                    "pt": ["regra meta fundamental"],
+                    "en": ["fundamental meta-rule"],
+                },
+            },
+            {
+                "name": "estrutura_meta_fundacional",
+                "aliases": ["meta_foundational_structure"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["estrutura meta-fundacional"],
+                    "en": ["meta foundational structure"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 343,
+        "label": "thought_macro_invariants",
+        "concepts": [
+            {
+                "name": "macro_invariante_cognitivo",
+                "aliases": ["cognitive_macro_invariant"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["macro-invariante cognitivo"],
+                    "en": ["cognitive macro-invariant"],
+                },
+            },
+            {
+                "name": "operador_macro_invariante",
+                "aliases": ["macro_invariant_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador macro-invariante"],
+                    "en": ["macro-invariant operator"],
+                },
+            },
+            {
+                "name": "estrutura_macro_invariante",
+                "aliases": ["macro_invariant_structure"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["estrutura macro-invariante"],
+                    "en": ["macro invariant structure"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 344,
+        "label": "structural_self_expansion",
+        "concepts": [
+            {
+                "name": "auto_expansao_estrutural",
+                "aliases": ["structural_self_expansion"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["auto-expansão estrutural"],
+                    "en": ["structural self-expansion"],
+                },
+            },
+            {
+                "name": "campo_de_auto_expansao",
+                "aliases": ["self_expansion_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo de auto-expansão"],
+                    "en": ["self-expansion field"],
+                },
+            },
+            {
+                "name": "operador_auto_expansivo",
+                "aliases": ["self_expansion_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador auto-expansivo"],
+                    "en": ["self-expansion operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 345,
+        "label": "meta_reasoning_domains",
+        "concepts": [
+            {
+                "name": "dominio_meta",
+                "aliases": ["meta_domain"],
+                "isa": ["dominio"],
+                "examples": {
+                    "pt": ["domínio meta"],
+                    "en": ["meta-domain"],
+                },
+            },
+            {
+                "name": "mapa_meta_dominial",
+                "aliases": ["meta_domain_map"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["mapa meta-dominial"],
+                    "en": ["meta-domain map"],
+                },
+            },
+            {
+                "name": "operador_meta_dominial",
+                "aliases": ["meta_domain_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador meta-dominial"],
+                    "en": ["meta-domain operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 346,
+        "label": "universal_convergence_theory",
+        "concepts": [
+            {
+                "name": "convergencia_universal",
+                "aliases": ["universal_convergence"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["convergência universal"],
+                    "en": ["universal convergence"],
+                },
+            },
+            {
+                "name": "operador_convergente",
+                "aliases": ["convergent_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador convergente"],
+                    "en": ["convergent operator"],
+                },
+            },
+            {
+                "name": "campo_de_convergencia",
+                "aliases": ["convergence_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo de convergência"],
+                    "en": ["convergence field"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 347,
+        "label": "cognitive_resonance_structures",
+        "concepts": [
+            {
+                "name": "ressonancia_cognitiva",
+                "aliases": ["cognitive_resonance"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["ressonância cognitiva"],
+                    "en": ["cognitive resonance"],
+                },
+            },
+            {
+                "name": "operador_de_ressonancia",
+                "aliases": ["resonance_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de ressonância"],
+                    "en": ["resonance operator"],
+                },
+            },
+            {
+                "name": "matriz_de_ressonancia",
+                "aliases": ["resonance_matrix"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["matriz de ressonância"],
+                    "en": ["resonance matrix"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 348,
+        "label": "meta_transform_spaces",
+        "concepts": [
+            {
+                "name": "espaco_meta_transformacional",
+                "aliases": ["meta_transform_space"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["espaço meta-transformacional"],
+                    "en": ["meta-transform space"],
+                },
+            },
+            {
+                "name": "operador_meta_transform",
+                "aliases": ["meta_transform_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador meta-transformativo"],
+                    "en": ["meta-transform operator"],
+                },
+            },
+            {
+                "name": "eixo_de_transformacao",
+                "aliases": ["transform_axis"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["eixo de transformação"],
+                    "en": ["transform axis"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 349,
+        "label": "absolute_conceptual_fields",
+        "concepts": [
+            {
+                "name": "campo_conceitual_absoluto",
+                "aliases": ["absolute_concept_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo conceitual absoluto"],
+                    "en": ["absolute conceptual field"],
+                },
+            },
+            {
+                "name": "fluxo_conceitual_absoluto",
+                "aliases": ["absolute_concept_flow"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["fluxo absoluto de conceitos"],
+                    "en": ["absolute concept flow"],
+                },
+            },
+            {
+                "name": "tensao_conceitual_absoluta",
+                "aliases": ["absolute_concept_tension"],
+                "isa": ["quantidade"],
+                "examples": {
+                    "pt": ["tensão conceitual absoluta"],
+                    "en": ["absolute concept tension"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 350,
+        "label": "logo_structural_architecture",
+        "concepts": [
+            {
+                "name": "logos_estrutural",
+                "aliases": ["structural_logos"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["logos estrutural"],
+                    "en": ["structural logos"],
+                },
+            },
+            {
+                "name": "operador_logo_estrutural",
+                "aliases": ["logo_structural_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador logo-estrutural"],
+                    "en": ["logo-structural operator"],
+                },
+            },
+            {
+                "name": "campo_logo_estrutural",
+                "aliases": ["logo_structural_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo logo-estrutural"],
+                    "en": ["logo-structural field"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 351,
+        "label": "absolute_meta_states",
+        "concepts": [
+            {
+                "name": "meta_estado",
+                "aliases": ["meta_state"],
+                "isa": ["estado"],
+                "examples": {
+                    "pt": ["meta-estado cognitivo"],
+                    "en": ["cognitive meta-state"],
+                },
+            },
+            {
+                "name": "operador_meta_estado",
+                "aliases": ["meta_state_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de meta-estado"],
+                    "en": ["meta-state operator"],
+                },
+            },
+            {
+                "name": "campo_meta_estadual",
+                "aliases": ["meta_state_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo meta-estadual"],
+                    "en": ["meta-state field"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 352,
+        "label": "super_structural_generation",
+        "concepts": [
+            {
+                "name": "super_estrutura",
+                "aliases": ["super_structure"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["super-estrutura cognitiva"],
+                    "en": ["cognitive super-structure"],
+                },
+            },
+            {
+                "name": "operador_super_estrutural",
+                "aliases": ["super_structural_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador super-estrutural"],
+                    "en": ["super-structural operator"],
+                },
+            },
+            {
+                "name": "matriz_super_estrutural",
+                "aliases": ["super_structural_matrix"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["matriz super-estrutural"],
+                    "en": ["super-structural matrix"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 353,
+        "label": "meta_total_mapping",
+        "concepts": [
+            {
+                "name": "mapeamento_total",
+                "aliases": ["total_mapping"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["mapeamento total"],
+                    "en": ["total mapping"],
+                },
+            },
+            {
+                "name": "operador_meta_mapeador",
+                "aliases": ["meta_mapping_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador meta-mapeador"],
+                    "en": ["meta-mapping operator"],
+                },
+            },
+            {
+                "name": "campo_total_de_mapeamento",
+                "aliases": ["total_mapping_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo total de mapeamento"],
+                    "en": ["total mapping field"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 354,
+        "label": "infinite_order_logic",
+        "concepts": [
+            {
+                "name": "operador_ordem_infinita",
+                "aliases": ["infinite_order_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de ordem infinita"],
+                    "en": ["infinite-order operator"],
+                },
+            },
+            {
+                "name": "formula_de_ordem_infinita",
+                "aliases": ["infinite_order_formula"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["fórmula de ordem infinita"],
+                    "en": ["infinite-order formula"],
+                },
+            },
+            {
+                "name": "relacao_ordem_infinita",
+                "aliases": ["infinite_order_relation"],
+                "isa": ["relacao"],
+                "examples": {
+                    "pt": ["relação de ordem infinita"],
+                    "en": ["infinite-order relation"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 355,
+        "label": "meta_structural_epistemology",
+        "concepts": [
+            {
+                "name": "criterio_meta_estrutural",
+                "aliases": ["meta_structural_criterion"],
+                "isa": ["criterio"],
+                "examples": {
+                    "pt": ["critério meta-estrutural"],
+                    "en": ["meta-structural criterion"],
+                },
+            },
+            {
+                "name": "axioma_meta_estrutural",
+                "aliases": ["meta_structural_axiom"],
+                "isa": ["axioma"],
+                "examples": {
+                    "pt": ["axioma meta-estrutural"],
+                    "en": ["meta-structural axiom"],
+                },
+            },
+            {
+                "name": "modelo_meta_epistemico",
+                "aliases": ["meta_epistemic_model"],
+                "isa": ["modelo"],
+                "examples": {
+                    "pt": ["modelo meta-epistêmico"],
+                    "en": ["meta-epistemic model"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 356,
+        "label": "total_representation_field",
+        "concepts": [
+            {
+                "name": "representacao_total",
+                "aliases": ["total_representation"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["representação total"],
+                    "en": ["total representation"],
+                },
+            },
+            {
+                "name": "campo_de_representacao_total",
+                "aliases": ["total_representation_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo de representação total"],
+                    "en": ["total representation field"],
+                },
+            },
+            {
+                "name": "operador_total_representacional",
+                "aliases": ["total_representation_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador representacional total"],
+                    "en": ["total representation operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 357,
+        "label": "absolute_domain_transform",
+        "concepts": [
+            {
+                "name": "transformacao_dominial_absoluta",
+                "aliases": ["absolute_domain_transform"],
+                "isa": ["processo"],
+                "examples": {
+                    "pt": ["transformação dominial absoluta"],
+                    "en": ["absolute domain transform"],
+                },
+            },
+            {
+                "name": "operador_dominial_absoluto",
+                "aliases": ["absolute_domain_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador dominial absoluto"],
+                    "en": ["absolute domain operator"],
+                },
+            },
+            {
+                "name": "mapa_de_dominio_absoluto",
+                "aliases": ["absolute_domain_map"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["mapa de domínio absoluto"],
+                    "en": ["absolute domain map"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 358,
+        "label": "thought_systems_meta_engineering",
+        "concepts": [
+            {
+                "name": "sistema_meta_pensante",
+                "aliases": ["meta_thought_system"],
+                "isa": ["sistema"],
+                "examples": {
+                    "pt": ["sistema meta-pensante (estrutural)"],
+                    "en": ["meta-thought system (structural)"],
+                },
+            },
+            {
+                "name": "operador_engenharia_mental",
+                "aliases": ["thought_engineering_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de engenharia de pensamento"],
+                    "en": ["thought-engineering operator"],
+                },
+            },
+            {
+                "name": "estrutura_de_sistema_pensante",
+                "aliases": ["thinking_system_structure"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["estrutura formal de sistema pensante"],
+                    "en": ["formal thought-system structure"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 359,
+        "label": "ultra_rational_architecture",
+        "concepts": [
+            {
+                "name": "nucleo_ultra_racional",
+                "aliases": ["ultra_rational_core"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["núcleo ultra-racional"],
+                    "en": ["ultra-rational core"],
+                },
+            },
+            {
+                "name": "campo_ultra_racional",
+                "aliases": ["ultra_rational_field"],
+                "isa": ["campo"],
+                "examples": {
+                    "pt": ["campo ultra-racional"],
+                    "en": ["ultra-rational field"],
+                },
+            },
+            {
+                "name": "operador_ultra_racional",
+                "aliases": ["ultra_rational_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador ultra-racional"],
+                    "en": ["ultra-rational operator"],
+                },
+            },
+        ],
+    },
+    {
+        "idx": 360,
+        "label": "universal_total_ordering",
+        "concepts": [
+            {
+                "name": "ordenamento_total",
+                "aliases": ["total_ordering"],
+                "isa": ["propriedade"],
+                "examples": {
+                    "pt": ["ordenamento total"],
+                    "en": ["total ordering"],
+                },
+            },
+            {
+                "name": "mapa_de_ordenamento",
+                "aliases": ["ordering_map"],
+                "isa": ["estrutura"],
+                "examples": {
+                    "pt": ["mapa de ordenamento"],
+                    "en": ["ordering map"],
+                },
+            },
+            {
+                "name": "operador_de_ordenamento_total",
+                "aliases": ["total_order_operator"],
+                "isa": ["operador"],
+                "examples": {
+                    "pt": ["operador de ordenamento total"],
+                    "en": ["total order operator"],
+                },
+            },
+        ],
+    },
 ]

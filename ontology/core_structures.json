@@ -1,0 +1,216 @@
+{
+  "module": "A",
+  "range": "A010-A019",
+  "name": "core_structures",
+  "categories": [
+    {
+      "id": "A010",
+      "name": "value",
+      "concepts": [
+        {
+          "id": "A010-001",
+          "name": "value",
+          "aliases": ["val"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["valor"], "en": ["value"] }
+        },
+        {
+          "id": "A010-002",
+          "name": "abstract_value",
+          "aliases": ["a-val"],
+          "isa": ["A010-001"],
+          "examples": { "pt": ["valor abstrato"], "en": ["abstract value"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A011",
+      "name": "quantity",
+      "concepts": [
+        {
+          "id": "A011-001",
+          "name": "quantity",
+          "aliases": ["qty"],
+          "isa": ["A010-001"],
+          "examples": { "pt": ["quantidade"], "en": ["quantity"] }
+        },
+        {
+          "id": "A011-002",
+          "name": "magnitude",
+          "aliases": ["mag"],
+          "isa": ["A011-001"],
+          "examples": { "pt": ["magnitude"], "en": ["magnitude"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A012",
+      "name": "unit",
+      "concepts": [
+        {
+          "id": "A012-001",
+          "name": "unit",
+          "aliases": ["u"],
+          "isa": ["A010-001"],
+          "examples": { "pt": ["unidade"], "en": ["unit"] }
+        },
+        {
+          "id": "A012-002",
+          "name": "abstract_unit",
+          "aliases": ["a-unit"],
+          "isa": ["A012-001"],
+          "examples": { "pt": ["unidade abstrata"], "en": ["abstract unit"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A013",
+      "name": "metric",
+      "concepts": [
+        {
+          "id": "A013-001",
+          "name": "metric",
+          "aliases": ["mtr"],
+          "isa": ["A011-001"],
+          "examples": { "pt": ["métrica"], "en": ["metric"] }
+        },
+        {
+          "id": "A013-002",
+          "name": "semantic_metric",
+          "aliases": ["s-metric"],
+          "isa": ["A013-001"],
+          "examples": { "pt": ["métrica semântica"], "en": ["semantic metric"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A014",
+      "name": "limit",
+      "concepts": [
+        {
+          "id": "A014-001",
+          "name": "limit",
+          "aliases": ["lim"],
+          "isa": ["A010-001"],
+          "examples": { "pt": ["limite"], "en": ["limit"] }
+        },
+        {
+          "id": "A014-002",
+          "name": "upper_limit",
+          "aliases": ["ulim"],
+          "isa": ["A014-001"],
+          "examples": { "pt": ["limite superior"], "en": ["upper limit"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A015",
+      "name": "vector",
+      "concepts": [
+        {
+          "id": "A015-001",
+          "name": "vector",
+          "aliases": ["vec"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["vetor"], "en": ["vector"] }
+        },
+        {
+          "id": "A015-002",
+          "name": "semantic_vector",
+          "aliases": ["s-vec"],
+          "isa": ["A015-001"],
+          "examples": { "pt": ["vetor semântico"], "en": ["semantic vector"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A016",
+      "name": "node",
+      "concepts": [
+        {
+          "id": "A016-001",
+          "name": "node",
+          "aliases": ["nd"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["nó"], "en": ["node"] }
+        },
+        {
+          "id": "A016-002",
+          "name": "concept_node",
+          "aliases": ["c-node"],
+          "isa": ["A016-001"],
+          "examples": { "pt": ["nó conceitual"], "en": ["concept node"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A017",
+      "name": "interval",
+      "concepts": [
+        {
+          "id": "A017-001",
+          "name": "interval",
+          "aliases": ["int"],
+          "isa": ["A010-001"],
+          "examples": { "pt": ["intervalo"], "en": ["interval"] }
+        },
+        {
+          "id": "A017-002",
+          "name": "semantic_interval",
+          "aliases": ["s-int"],
+          "isa": ["A017-001"],
+          "examples": { "pt": ["intervalo semântico"], "en": ["semantic interval"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A018",
+      "name": "grammar",
+      "concepts": [
+        {
+          "id": "A018-001",
+          "name": "grammar",
+          "aliases": ["gram"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["gramática"], "en": ["grammar"] }
+        },
+        {
+          "id": "A018-002",
+          "name": "formal_grammar",
+          "aliases": ["f-gram"],
+          "isa": ["A018-001"],
+          "examples": { "pt": ["gramática formal"], "en": ["formal grammar"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A019",
+      "name": "logical_type",
+      "concepts": [
+        {
+          "id": "A019-001",
+          "name": "logical_type",
+          "aliases": ["l-type"],
+          "isa": ["A006-001"],
+          "examples": { "pt": ["tipo lógico"], "en": ["logical type"] }
+        },
+        {
+          "id": "A019-002",
+          "name": "meta_logical_type",
+          "aliases": ["ml-type"],
+          "isa": ["A019-001"],
+          "examples": { "pt": ["tipo meta-lógico"], "en": ["meta-logical type"] }
+        }
+      ]
+    }
+  ]
+}

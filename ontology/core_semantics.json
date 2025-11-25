@@ -1,0 +1,342 @@
+{
+  "module": "A",
+  "range": "A040-A059",
+  "name": "core_semantics",
+  "categories": [
+    {
+      "id": "A040",
+      "name": "reference_marker",
+      "concepts": [
+        {
+          "id": "A040-001",
+          "name": "reference_marker",
+          "aliases": ["ref-marker"],
+          "isa": ["A036-001"],
+          "examples": { "pt": ["marcador de referência"], "en": ["reference marker"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A041",
+      "name": "metric_base",
+      "concepts": [
+        {
+          "id": "A041-001",
+          "name": "metric_base",
+          "aliases": ["m-base"],
+          "isa": ["A013-001"],
+          "examples": { "pt": ["base métrica"], "en": ["metric base"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A042",
+      "name": "contrast_operator",
+      "concepts": [
+        {
+          "id": "A042-001",
+          "name": "contrast_operator",
+          "aliases": ["contrast-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de contraste"], "en": ["contrast operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A043",
+      "name": "equivalence_operator",
+      "concepts": [
+        {
+          "id": "A043-001",
+          "name": "equivalence_operator",
+          "aliases": ["eq-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de equivalência"], "en": ["equivalence operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A044",
+      "name": "filter_operator",
+      "concepts": [
+        {
+          "id": "A044-001",
+          "name": "filter_operator",
+          "aliases": ["f-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de filtragem"], "en": ["filter operator"] }
+        },
+        {
+          "id": "A044-002",
+          "name": "semantic_filter",
+          "aliases": ["s-filter"],
+          "isa": ["A044-001"],
+          "examples": { "pt": ["filtro semântico"], "en": ["semantic filter"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A045",
+      "name": "map_operator",
+      "concepts": [
+        {
+          "id": "A045-001",
+          "name": "map_operator",
+          "aliases": ["map-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de mapeamento"], "en": ["map operator"] }
+        },
+        {
+          "id": "A045-002",
+          "name": "deep_map_operator",
+          "aliases": ["d-map-op"],
+          "isa": ["A045-001"],
+          "examples": { "pt": ["mapeamento profundo"], "en": ["deep map operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A046",
+      "name": "reduce_operator",
+      "concepts": [
+        {
+          "id": "A046-001",
+          "name": "reduce_operator",
+          "aliases": ["red-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de redução"], "en": ["reduce operator"] }
+        },
+        {
+          "id": "A046-002",
+          "name": "semantic_reduce",
+          "aliases": ["s-reduce"],
+          "isa": ["A046-001"],
+          "examples": { "pt": ["redução semântica"], "en": ["semantic reduction"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A047",
+      "name": "projection_operator",
+      "concepts": [
+        {
+          "id": "A047-001",
+          "name": "projection_operator",
+          "aliases": ["proj-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de projeção"], "en": ["projection operator"] }
+        },
+        {
+          "id": "A047-002",
+          "name": "semantic_projection",
+          "aliases": ["s-projection"],
+          "isa": ["A047-001"],
+          "examples": { "pt": ["projeção semântica"], "en": ["semantic projection"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A048",
+      "name": "expansion_operator",
+      "concepts": [
+        {
+          "id": "A048-001",
+          "name": "expansion_operator",
+          "aliases": ["exp-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de expansão"], "en": ["expansion operator"] }
+        },
+        {
+          "id": "A048-002",
+          "name": "semantic_expansion",
+          "aliases": ["s-expand"],
+          "isa": ["A048-001"],
+          "examples": { "pt": ["expansão semântica"], "en": ["semantic expansion"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A049",
+      "name": "analysis_operator",
+      "concepts": [
+        {
+          "id": "A049-001",
+          "name": "analysis_operator",
+          "aliases": ["anal-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de análise"], "en": ["analysis operator"] }
+        },
+        {
+          "id": "A049-002",
+          "name": "semantic_analysis",
+          "aliases": ["s-analysis"],
+          "isa": ["A049-001"],
+          "examples": { "pt": ["análise semântica"], "en": ["semantic analysis"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A050",
+      "name": "synthesis_operator",
+      "concepts": [
+        {
+          "id": "A050-001",
+          "name": "synthesis_operator",
+          "aliases": ["syn-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de síntese"], "en": ["synthesis operator"] }
+        },
+        {
+          "id": "A050-002",
+          "name": "semantic_synthesis",
+          "aliases": ["s-synthesis"],
+          "isa": ["A050-001"],
+          "examples": { "pt": ["síntese semântica"], "en": ["semantic synthesis"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A051",
+      "name": "relational_connector",
+      "concepts": [
+        {
+          "id": "A051-001",
+          "name": "relational_connector",
+          "aliases": ["rel-conn"],
+          "isa": ["A006-001"],
+          "examples": { "pt": ["conector relacional"], "en": ["relational connector"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A052",
+      "name": "coherence_structure",
+      "concepts": [
+        {
+          "id": "A052-001",
+          "name": "coherence_structure",
+          "aliases": ["coh-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura de coerência"], "en": ["coherence structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A053",
+      "name": "semantic_modulator",
+      "concepts": [
+        {
+          "id": "A053-001",
+          "name": "semantic_modulator",
+          "aliases": ["s-mod"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["modulador semântico"], "en": ["semantic modulator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A054",
+      "name": "structural_link",
+      "concepts": [
+        {
+          "id": "A054-001",
+          "name": "structural_link",
+          "aliases": ["s-link"],
+          "isa": ["A005-001"],
+          "examples": { "pt": ["ligação estrutural"], "en": ["structural link"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A055",
+      "name": "token",
+      "concepts": [
+        {
+          "id": "A055-001",
+          "name": "token",
+          "aliases": ["tkn"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["token"], "en": ["token"] }
+        },
+        {
+          "id": "A055-002",
+          "name": "semantic_token",
+          "aliases": ["s-tkn"],
+          "isa": ["A055-001"],
+          "examples": { "pt": ["token semântico"], "en": ["semantic token"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A056",
+      "name": "structured_list",
+      "concepts": [
+        {
+          "id": "A056-001",
+          "name": "structured_list",
+          "aliases": ["s-list"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["lista estrutural"], "en": ["structured list"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A057",
+      "name": "symbolic_array",
+      "concepts": [
+        {
+          "id": "A057-001",
+          "name": "symbolic_array",
+          "aliases": ["sym-array"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["array simbólico"], "en": ["symbolic array"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A058",
+      "name": "abstract_container",
+      "concepts": [
+        {
+          "id": "A058-001",
+          "name": "abstract_container",
+          "aliases": ["a-cont"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["recipiente abstrato"], "en": ["abstract container"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A059",
+      "name": "mapping_space",
+      "concepts": [
+        {
+          "id": "A059-001",
+          "name": "mapping_space",
+          "aliases": ["map-space"],
+          "isa": ["A007-001"],
+          "examples": { "pt": ["espaço de mapeamento"], "en": ["mapping space"] }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,48 @@
+{
+  "frames": [
+    {
+      "id": "physical_action",
+      "label": "physical_action",
+      "language": "pt",
+      "patterns": [
+        "X bateu em Y",
+        "X empurrou Y",
+        "X quebrou Y"
+      ],
+      "role_hints": {
+        "AGENT": ["quem faz", "sujeito"],
+        "PATIENT": ["quem recebe", "objeto"],
+        "ACTION": ["verbo"]
+      }
+    },
+    {
+      "id": "communication",
+      "label": "communication",
+      "language": "pt",
+      "patterns": [
+        "X disse Y",
+        "X falou com Y",
+        "X pediu para Y"
+      ],
+      "role_hints": {
+        "AGENT": ["quem fala"],
+        "PATIENT": ["quem recebe"],
+        "ACTION": ["disse", "falou", "pediu"]
+      }
+    },
+    {
+      "id": "definition_request",
+      "label": "definition_request",
+      "language": "pt",
+      "patterns": [
+        "o que é X",
+        "o que e X",
+        "me explique X",
+        "me explica X"
+      ],
+      "role_hints": {
+        "TOPIC": ["X"]
+      }
+    }
+  ]
+}

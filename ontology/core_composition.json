@@ -1,0 +1,328 @@
+{
+  "module": "A",
+  "range": "A060-A079",
+  "name": "core_composition",
+  "categories": [
+    {
+      "id": "A060",
+      "name": "combination_operator",
+      "concepts": [
+        {
+          "id": "A060-001",
+          "name": "combination_operator",
+          "aliases": ["comb-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de combinação"], "en": ["combination operator"] }
+        },
+        {
+          "id": "A060-002",
+          "name": "deep_combination",
+          "aliases": ["d-comb"],
+          "isa": ["A060-001"],
+          "examples": { "pt": ["combinação profunda"], "en": ["deep combination"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A061",
+      "name": "composition_operator",
+      "concepts": [
+        {
+          "id": "A061-001",
+          "name": "composition_operator",
+          "aliases": ["comp-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de composição"], "en": ["composition operator"] }
+        },
+        {
+          "id": "A061-002",
+          "name": "hybrid_composition_operator",
+          "aliases": ["h-comp-op"],
+          "isa": ["A061-001"],
+          "examples": { "pt": ["operador de composição híbrida"], "en": ["hybrid composition operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A062",
+      "name": "merge_operator",
+      "concepts": [
+        {
+          "id": "A062-001",
+          "name": "merge_operator",
+          "aliases": ["merge-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de merge"], "en": ["merge operator"] }
+        },
+        {
+          "id": "A062-002",
+          "name": "semantic_merge",
+          "aliases": ["s-merge"],
+          "isa": ["A062-001"],
+          "examples": { "pt": ["merge semântico"], "en": ["semantic merge"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A063",
+      "name": "split_operator",
+      "concepts": [
+        {
+          "id": "A063-001",
+          "name": "split_operator",
+          "aliases": ["split-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de divisão"], "en": ["split operator"] }
+        },
+        {
+          "id": "A063-002",
+          "name": "semantic_split",
+          "aliases": ["s-split"],
+          "isa": ["A063-001"],
+          "examples": { "pt": ["divisão semântica"], "en": ["semantic split"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A064",
+      "name": "polymorphic_structure",
+      "concepts": [
+        {
+          "id": "A064-001",
+          "name": "polymorphic_structure",
+          "aliases": ["poly-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura polimórfica"], "en": ["polymorphic structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A065",
+      "name": "functional_field",
+      "concepts": [
+        {
+          "id": "A065-001",
+          "name": "functional_field",
+          "aliases": ["f-field"],
+          "isa": ["A007-001"],
+          "examples": { "pt": ["campo funcional"], "en": ["functional field"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A066",
+      "name": "expansion_contraction_operator",
+      "concepts": [
+        {
+          "id": "A066-001",
+          "name": "expansion_contraction_operator",
+          "aliases": ["excon-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de expansão/contração"], "en": ["expansion/contraction operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A067",
+      "name": "alignment_operator",
+      "concepts": [
+        {
+          "id": "A067-001",
+          "name": "alignment_operator",
+          "aliases": ["align-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de alinhamento"], "en": ["alignment operator"] }
+        },
+        {
+          "id": "A067-002",
+          "name": "semantic_alignment",
+          "aliases": ["s-align"],
+          "isa": ["A067-001"],
+          "examples": { "pt": ["alinhamento semântico"], "en": ["semantic alignment"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A068",
+      "name": "flow_pattern",
+      "concepts": [
+        {
+          "id": "A068-001",
+          "name": "flow_pattern",
+          "aliases": ["f-pattern"],
+          "isa": ["A008-001"],
+          "examples": { "pt": ["padrão de fluxo"], "en": ["flow pattern"] }
+        },
+        {
+          "id": "A068-002",
+          "name": "semantic_flow_pattern",
+          "aliases": ["s-f-pattern"],
+          "isa": ["A068-001"],
+          "examples": { "pt": ["padrão semântico de fluxo"], "en": ["semantic flow pattern"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A069",
+      "name": "serial_structure",
+      "concepts": [
+        {
+          "id": "A069-001",
+          "name": "serial_structure",
+          "aliases": ["ser-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura serial"], "en": ["serial structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A070",
+      "name": "parallel_structure",
+      "concepts": [
+        {
+          "id": "A070-001",
+          "name": "parallel_structure",
+          "aliases": ["par-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura paralela"], "en": ["parallel structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A071",
+      "name": "shape_operator",
+      "concepts": [
+        {
+          "id": "A071-001",
+          "name": "shape_operator",
+          "aliases": ["shape-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de forma"], "en": ["shape operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A072",
+      "name": "sequence_constructor",
+      "concepts": [
+        {
+          "id": "A072-001",
+          "name": "sequence_constructor",
+          "aliases": ["seq-con"],
+          "isa": ["A022-001"],
+          "examples": { "pt": ["construtor de sequência"], "en": ["sequence constructor"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A073",
+      "name": "context_structure",
+      "concepts": [
+        {
+          "id": "A073-001",
+          "name": "context_structure",
+          "aliases": ["ctx-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura de contexto"], "en": ["context structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A074",
+      "name": "context_operator",
+      "concepts": [
+        {
+          "id": "A074-001",
+          "name": "context_operator",
+          "aliases": ["ctx-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de contexto"], "en": ["context operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A075",
+      "name": "context_anchor",
+      "concepts": [
+        {
+          "id": "A075-001",
+          "name": "context_anchor",
+          "aliases": ["ctx-anchor"],
+          "isa": ["A037-001"],
+          "examples": { "pt": ["âncora de contexto"], "en": ["context anchor"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A076",
+      "name": "context_flow",
+      "concepts": [
+        {
+          "id": "A076-001",
+          "name": "context_flow",
+          "aliases": ["ctx-flow"],
+          "isa": ["A068-001"],
+          "examples": { "pt": ["fluxo de contexto"], "en": ["context flow"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A077",
+      "name": "trace_structure",
+      "concepts": [
+        {
+          "id": "A077-001",
+          "name": "trace_structure",
+          "aliases": ["tr-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura de traço"], "en": ["trace structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A078",
+      "name": "trace_operator",
+      "concepts": [
+        {
+          "id": "A078-001",
+          "name": "trace_operator",
+          "aliases": ["tr-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador de traço"], "en": ["trace operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A079",
+      "name": "trace_anchor",
+      "concepts": [
+        {
+          "id": "A079-001",
+          "name": "trace_anchor",
+          "aliases": ["tr-anchor"],
+          "isa": ["A037-001"],
+          "examples": { "pt": ["âncora de traço"], "en": ["trace anchor"] }
+        }
+      ]
+    }
+  ]
+}
