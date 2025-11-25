@@ -123,6 +123,30 @@ def _op_infer(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
     return _update(isr, relations=merged, quality=min(1.0, isr.quality + 0.05))
 
 
+def _op_plan_decompose(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    if not args or args[0].kind is not NodeKind.TEXT:
+        return isr
+    goal_text = args[0].label or ""
+    if not goal_text:
+        return isr
+    segments = [segment.strip() for segment in goal_text.replace("→", ">").split(">") if segment.strip()]
+    if not segments:
+        segments = [goal_text]
+    plan_nodes = [
+        struct(tag=entity("plan_step"), index=number(idx + 1), description=text(segment))
+        for idx, segment in enumerate(segments)
+    ]
+    plan_struct = struct(
+        tag=entity("plan_decompose"),
+        original=text(goal_text),
+        step_count=number(len(plan_nodes)),
+        steps=list_node(plan_nodes),
+    )
+    context = isr.context + (plan_struct,)
+    quality = min(1.0, max(isr.quality, 0.58))
+    return _update(isr, context=context, quality=quality)
+
+
 def _op_compare(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     if len(args) != 2:
         return isr
@@ -456,6 +480,7 @@ _HANDLERS: Dict[str, Handler] = {
     "EXPLAIN": _op_explain,
     "SUMMARIZE": _op_summarize,
     "INFER": _op_infer,
+    "PLAN_DECOMPOSE": _op_plan_decompose,
     "COMPARE": _op_compare,
     "EXTRACT": _op_extract,
     "EXPAND": _op_expand,
