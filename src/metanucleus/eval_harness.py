@@ -14,6 +14,7 @@ class EvalCase:
     expected_intent: Optional[str] = None
     expected_semantics: Optional[str] = None
     expected_calculus: Optional[float] = None
+    expected_frame_id: Optional[str] = None
 
 
 EVAL_SUITE: List[EvalCase] = [
@@ -21,6 +22,7 @@ EVAL_SUITE: List[EvalCase] = [
     EvalCase(text="o que é um operador?", expected_intent="question", expected_semantics="semantic_statement"),
     EvalCase(text="2 + 2", expected_calculus=4.0),
     EvalCase(text="quanto é 7 vezes 8?", expected_intent="question", expected_calculus=56.0),
+    EvalCase(text="o carro bateu no muro", expected_frame_id="physical_action"),
 ]
 
 
@@ -62,6 +64,26 @@ def run_eval_suite() -> None:
                         extra={
                             "expr": result.calculus.expression_normalized,
                             "steps": result.calculus.steps,
+                        },
+                    )
+                )
+        if case.expected_frame_id is not None:
+            predicted_frame = result.frames.frame_id or ""
+            if predicted_frame != case.expected_frame_id:
+                print(
+                    f"[eval][frame] erro: {case.text!r} esperado={case.expected_frame_id} "
+                    f"obtido={predicted_frame or result.frames.frame_type}"
+                )
+                log_mismatch(
+                    MismatchRecord(
+                        kind="semantics",
+                        text=case.text,
+                        expected=case.expected_frame_id,
+                        predicted=predicted_frame or result.frames.frame_type,
+                        extra={
+                            "type": "frame",
+                            "frame_type": result.frames.frame_type,
+                            "roles": result.frames.roles,
                         },
                     )
                 )

@@ -5,9 +5,9 @@
       "label": "physical_action",
       "language": "pt",
       "patterns": [
-        "X bateu em Y",
-        "X empurrou Y",
-        "X quebrou Y"
+        "bateu",
+        "empurrou",
+        "quebrou"
       ],
       "role_hints": {
         "AGENT": ["quem faz", "sujeito"],
@@ -20,9 +20,9 @@
       "label": "communication",
       "language": "pt",
       "patterns": [
-        "X disse Y",
-        "X falou com Y",
-        "X pediu para Y"
+        "disse",
+        "falou com",
+        "pediu para"
       ],
       "role_hints": {
         "AGENT": ["quem fala"],
@@ -35,13 +35,13 @@
       "label": "definition_request",
       "language": "pt",
       "patterns": [
-        "o que é X",
-        "o que e X",
-        "me explique X",
-        "me explica X"
+        "o que é",
+        "o que e",
+        "me explique",
+        "me explica"
       ],
       "role_hints": {
-        "TOPIC": ["X"]
+        "TOPIC": ["alvo"]
       }
     }
   ]
