@@ -290,6 +290,26 @@ def _op_synth_plan(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR
     return _update(isr, relations=relations, context=context, quality=quality)
 
 
+def _op_synth_proof(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    proof_node = _latest_tagged_struct(isr.context, "logic_proof")
+    if proof_node is None:
+        return isr
+    fields = dict(proof_node.fields)
+    query = fields.get("query")
+    truth = fields.get("truth")
+    digest = fingerprint(proof_node)
+    summary = struct(
+        tag=entity("synth_proof"),
+        query=query or text(""),
+        truth=truth or entity("unknown"),
+        proof_digest=text(digest),
+    )
+    context = isr.context + (summary,)
+    relations = isr.relations + (relation("logic/SYNTH", entity("proof"), text(digest)),)
+    quality = min(1.0, max(isr.quality, 0.88))
+    return _update(isr, relations=relations, context=context, quality=quality)
+
+
 def _op_align(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
     relations = tuple(sorted(dict.fromkeys(isr.relations), key=lambda rel: (rel.label, len(rel.args))))
     context = tuple(dict.fromkeys(isr.context))
@@ -563,6 +583,7 @@ _HANDLERS: Dict[str, Handler] = {
     "REWRITE_SEMANTIC": _op_rewrite_semantic,
     "SYNTH_PROG": _op_synth_prog,
     "SYNTH_PLAN": _op_synth_plan,
+    "SYNTH_PROOF": _op_synth_proof,
     "REWRITE_CODE": _op_rewrite_code,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,

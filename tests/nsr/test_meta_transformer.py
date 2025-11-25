@@ -427,6 +427,24 @@ def test_synth_plan_operator():
     assert "SYNTH_PLAN" in tags
 
 
+def test_synth_proof_operator():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    from nsr.operators import apply_operator
+    from liu import operation
+
+    updated = apply_operator(outcome.isr, operation("SYNTH_PROOF"), session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append((tag.label or "").upper())
+    assert "SYNTH_PROOF" in tags
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),
