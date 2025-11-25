@@ -369,6 +369,24 @@ def test_context_probabilities_recorded():
     assert summary_dict["context_context_probs"]
 
 
+def test_rewrite_semantic_operator():
+    session = SessionCtx()
+    outcome = run_text_full("Descreva: Um plano detalhado para viajar", session)
+    from nsr.operators import apply_operator
+    from liu import operation, text as liu_text
+
+    expr = outcome.meta_expression or outcome.isr.answer
+    op_node = operation("REWRITE_SEMANTIC", expr or liu_text("placeholder"))
+    updated = apply_operator(outcome.isr, op_node, session)
+    tags = []
+    for node in updated.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if tag:
+            tags.append(tag.label.upper())
+    assert "SEMANTIC_REWRITE" in tags
+
+
 def _fake_meta_memory():
     entry = struct(
         tag=entity("memory_entry"),

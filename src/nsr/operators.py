@@ -22,6 +22,7 @@ from liu import (
     number,
     normalize,
     fingerprint,
+    struct as liu_struct,
 )
 
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
@@ -215,6 +216,29 @@ def _op_rewrite(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
     target = normalize(args[0])
     context = isr.context + (target,)
     return _update(isr, context=context)
+
+
+def _op_rewrite_semantic(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    if not args or args[0].kind is not NodeKind.STRUCT:
+        return isr
+    target = args[0]
+    fields = dict(target.fields)
+    tag = fields.get("tag")
+    if not tag or (tag.label or "").lower() != "meta_expression":
+        summary = struct(tag=entity("semantic_rewrite"), status=entity("skipped"))
+        return _update(isr, context=isr.context + (summary,))
+    preview = fields.get("preview").label if fields.get("preview") else ""
+    language = fields.get("language").label if fields.get("language") else session.language_hint or "pt"
+    summary_fields = {
+        "tag": entity("semantic_rewrite"),
+        "language": entity(language),
+        "preview": text(preview or ""),
+    }
+    relationships = [relation("semantic/PRESERVE", entity(language), text(preview or ""))]
+    context = tuple((*isr.context, liu_struct(**summary_fields)))
+    relations = tuple((*isr.relations, *relationships))
+    quality = min(1.0, max(isr.quality, 0.6))
+    return _update(isr, relations=relations, context=context, quality=quality)
 
 
 def _op_align(isr: ISR, _: Tuple[Node, ...], __: SessionCtx) -> ISR:
@@ -487,6 +511,7 @@ _HANDLERS: Dict[str, Handler] = {
     "MAP": _op_map,
     "REDUCE": _op_reduce,
     "REWRITE": _op_rewrite,
+    "REWRITE_SEMANTIC": _op_rewrite_semantic,
     "REWRITE_CODE": _op_rewrite_code,
     "ALIGN": _op_align,
     "STABILIZE": _op_stabilize,
