@@ -78,7 +78,21 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
     proof_query = str(payload.get("logic_proof_query") or "")
     proof_digest = str(payload.get("logic_proof_digest") or "")
     reflection_digest = str(payload.get("reflection_digest") or "")
-    if not preview and not expression_digest and not reasoning_digest and not equation_digest:
+    plan_total = _as_int(payload.get("synthesis_plan_total"))
+    proof_total = _as_int(payload.get("synthesis_proof_total"))
+    program_total = _as_int(payload.get("synthesis_program_total"))
+    plan_sources = _extract_synthesis_sources(payload, "synthesis_plan_sources", "synthesis_plans", "source_digest")
+    proof_sources = _extract_synthesis_sources(payload, "synthesis_proof_sources", "synthesis_proofs", "proof_digest")
+    program_sources = _extract_synthesis_sources(payload, "synthesis_program_sources", "synthesis_programs", "source_digest")
+    if (
+        not preview
+        and not expression_digest
+        and not reasoning_digest
+        and not equation_digest
+        and not plan_total
+        and not proof_total
+        and not program_total
+    ):
         return None
     fields = {
         "tag": entity("memory_entry"),
@@ -104,7 +118,60 @@ def _entry_from_mapping(payload: Mapping[str, object], position: int) -> Node | 
         fields["logic_proof_digest"] = liu_text(proof_digest)
     if reflection_digest:
         fields["reflection_digest"] = liu_text(reflection_digest)
+    if plan_total:
+        fields["synthesis_plan_total"] = number(plan_total)
+    if proof_total:
+        fields["synthesis_proof_total"] = number(proof_total)
+    if program_total:
+        fields["synthesis_program_total"] = number(program_total)
+    if plan_sources:
+        fields["synthesis_plan_sources"] = list_node(liu_text(src) for src in plan_sources)
+    if proof_sources:
+        fields["synthesis_proof_sources"] = list_node(liu_text(src) for src in proof_sources)
+    if program_sources:
+        fields["synthesis_program_sources"] = list_node(liu_text(src) for src in program_sources)
     return liu_struct(**fields)
+
+
+def _as_int(value: object) -> int | None:
+    if value is None:
+        return None
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def _extract_synthesis_sources(
+    payload: Mapping[str, object],
+    direct_key: str,
+    structured_key: str,
+    attr: str,
+) -> list[str]:
+    direct = payload.get(direct_key)
+    sources: list[str] = []
+    if isinstance(direct, str):
+        if direct:
+            sources.append(direct)
+    elif isinstance(direct, Sequence) and not isinstance(direct, (str, bytes)):
+        for item in direct:
+            if isinstance(item, str):
+                if item:
+                    sources.append(item)
+            elif isinstance(item, Mapping):
+                value = item.get(attr)
+                if value:
+                    sources.append(str(value))
+    if sources:
+        return sources
+    structured = payload.get(structured_key)
+    if isinstance(structured, Sequence) and not isinstance(structured, (str, bytes)):
+        for entry in structured:
+            if isinstance(entry, Mapping):
+                value = entry.get(attr)
+                if value:
+                    sources.append(str(value))
+    return sources
 
 
 __all__ = ["build_meta_memory"]

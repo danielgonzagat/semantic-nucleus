@@ -42,3 +42,41 @@ def test_meta_memory_persistence_roundtrip(tmp_path):
     new_session.config.memory_store_path = str(store)
     outcome = run_text_full("O carro tem roda", new_session)
     assert any("Φ_MEMORY[RECALL]" in step for step in outcome.trace.steps)
+
+
+def test_meta_memory_includes_plan_synthesis_snapshot():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    memory = outcome.meta_memory
+    assert memory is not None
+    entries_node = dict(memory.fields)["entries"]
+    latest = entries_node.args[-1]
+    latest_fields = dict(latest.fields)
+    plan_total = latest_fields.get("synthesis_plan_total")
+    assert plan_total is not None and int(plan_total.value) >= 1
+    sources = latest_fields.get("synthesis_plan_sources")
+    assert sources is not None
+    assert sources.kind.name == "LIST"
+    assert sources.args
+
+
+def test_meta_memory_includes_program_synthesis_snapshot():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    memory = outcome.meta_memory
+    assert memory is not None
+    entries_node = dict(memory.fields)["entries"]
+    latest = entries_node.args[-1]
+    latest_fields = dict(latest.fields)
+    program_total = latest_fields.get("synthesis_program_total")
+    assert program_total is not None and int(program_total.value) >= 1
+    sources = latest_fields.get("synthesis_program_sources")
+    assert sources is not None
+    assert sources.kind.name == "LIST"
+    assert sources.args

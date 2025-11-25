@@ -46,6 +46,8 @@ Para fechar o elo de auditoria, o `meta_summary` agora inclui um bloco `meta_syn
 
 Além disso, `Φ_SYNTH_PROG` passou a ser disparado automaticamente: sempre que `REWRITE_CODE` cria um `code_ast_summary`, o runtime identifica resumos ainda não sintetizados (via digest) e agenda `SYNTH_PROG` antes do halt. O operador grava o `source_digest` no próprio nó e nas relações `code/SYNTH`, garantindo que o bloco `meta_synthesis` consiga rastrear com o mesmo nível de detalhe usado para planos e provas.
 
+Por fim, `meta_memory` incorpora esses mesmos campos: cada `memory_entry` guarda os totais de síntese detectados na execução atual e uma lista determinística dos digests (`source_digest`/`proof_digest`) utilizados. Isso significa que chamadas subsequentes a `MEMORY_RECALL` podem reativar não apenas rota/preview/razões, mas também quais planos, provas e programas foram concretizados naquele ponto da linha do tempo.
+
 O histórico curto também é materializado: `meta_memory` agrega os últimos meta-resultados (rota, digestos de raciocínio/expressão e prévias) e é anexado no `meta_summary`, garantindo que cada execução carregue um mapa determinístico das iterações anteriores — base para memória auditável e evolução multi-turno.
 
 Esse mesmo pacote é persistido automaticamente em `.nsr_memory/memory.jsonl` (JSONL com hashes BLAKE2b), permitindo recarregar sessões seguintes e iniciar cada Meta-LER com operações `MEMORY_RECALL` que inserem, no contexto LIU, as entradas anteriores antes do novo raciocínio Φ.

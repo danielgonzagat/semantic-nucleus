@@ -323,6 +323,7 @@ def run_struct_full(
             justification_node,
             equation_node,
             logic_proof_node,
+            synthesis_node,
         )
         meta_memory = build_meta_memory(session.meta_history, memory_entry)
         summary = (
@@ -533,6 +534,7 @@ def run_struct_full(
         justification_node,
         equation_node,
         logic_proof_node,
+        synthesis_node,
     )
     meta_memory = build_meta_memory(session.meta_history, memory_entry)
     meta_summary = (
@@ -867,6 +869,7 @@ def _memory_entry_payload(
     justification_node: Node | None,
     meta_equation: Node | None,
     logic_proof: Node | None = None,
+    meta_synthesis: Node | None = None,
 ) -> dict[str, object]:
     route = meta_info.route.value if meta_info else ""
     payload = {
@@ -896,7 +899,48 @@ def _memory_entry_payload(
         payload["logic_proof_truth"] = _node_field_label(logic_proof, "truth")
         payload["logic_proof_query"] = _node_field_label(logic_proof, "query")
         payload["logic_proof_digest"] = fingerprint(logic_proof)
+    if meta_synthesis is not None:
+        payload.update(_synthesis_snapshot(meta_synthesis))
     return payload
+
+
+def _synthesis_snapshot(meta_synthesis: Node) -> dict[str, object]:
+    if meta_synthesis.kind is not NodeKind.STRUCT:
+        return {}
+    fields = dict(meta_synthesis.fields)
+    snapshot: dict[str, object] = {}
+    plan_total = _node_numeric(fields.get("plan_total"))
+    proof_total = _node_numeric(fields.get("proof_total"))
+    program_total = _node_numeric(fields.get("program_total"))
+    if plan_total:
+        snapshot["synthesis_plan_total"] = plan_total
+    if proof_total:
+        snapshot["synthesis_proof_total"] = proof_total
+    if program_total:
+        snapshot["synthesis_program_total"] = program_total
+    plans_node = fields.get("plans")
+    if plans_node is not None:
+        snapshot["synthesis_plan_sources"] = _collect_synthesis_sources(plans_node, "source_digest")
+    proofs_node = fields.get("proofs")
+    if proofs_node is not None:
+        snapshot["synthesis_proof_sources"] = _collect_synthesis_sources(proofs_node, "proof_digest")
+    programs_node = fields.get("programs")
+    if programs_node is not None:
+        snapshot["synthesis_program_sources"] = _collect_synthesis_sources(programs_node, "source_digest")
+    return snapshot
+
+
+def _collect_synthesis_sources(node: Node, field_name: str) -> list[str]:
+    if node.kind is not NodeKind.LIST:
+        return []
+    values: list[str] = []
+    for entry in node.args:
+        if entry.kind is not NodeKind.STRUCT:
+            continue
+        value_node = dict(entry.fields).get(field_name)
+        if value_node and value_node.label:
+            values.append(value_node.label)
+    return values
 
 
 def _node_field_label(node: Node | None, field: str) -> str:
