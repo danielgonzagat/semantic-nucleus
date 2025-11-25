@@ -130,6 +130,7 @@ class ISR:
     ops_queue: Deque[Node]
     answer: Node
     quality: float
+    uncertainty_level: float = 0.0
     graph: SemanticGraph = field(default_factory=lambda: SemanticGraph.from_relations([]))
 
     def snapshot(self) -> "ISR":
@@ -143,6 +144,7 @@ class ISR:
             ops_queue=deque(self.ops_queue),
             answer=self.answer,
             quality=self.quality,
+            uncertainty_level=self.uncertainty_level,
             graph=self.graph,
         )
 
@@ -166,6 +168,7 @@ def initial_isr(struct_node: Node, session: SessionCtx) -> ISR:
         ops_queue=ops,
         answer=struct(),
         quality=0.0,
+        uncertainty_level=1.0,  # Máxima incerteza inicial até prova em contrário
         graph=SemanticGraph.from_relations(session.kb_ontology + base_relations),
     )
 

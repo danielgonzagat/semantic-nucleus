@@ -24,6 +24,7 @@ from liu import (
     fingerprint,
 )
 
+from .ambiguity import AmbiguityResolver, detect_ambiguity
 from .semantic_graph import SemanticGraph
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
@@ -50,6 +51,7 @@ def _update(
     ops_queue: Iterable[Node] | None = None,
     answer: Node | None = None,
     quality: float | None = None,
+    uncertainty_level: float | None = None,
 ) -> ISR:
     new_relations = relations if relations is not None else isr.relations
     
@@ -67,6 +69,7 @@ def _update(
         ops_queue=deque(ops_queue if ops_queue is not None else isr.ops_queue),
         answer=answer if answer is not None else isr.answer,
         quality=quality if quality is not None else isr.quality,
+        uncertainty_level=uncertainty_level if uncertainty_level is not None else isr.uncertainty_level,
         graph=new_graph,
     )
 
@@ -107,6 +110,71 @@ def _op_conceptualize(isr: ISR, args: Tuple[Node, ...], _: SessionCtx) -> ISR:
 
     quality = min(1.0, max(isr.quality, 0.45))
     return _update(isr, context=tuple(new_context), quality=quality)
+
+
+def _op_disambiguate(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    """
+    Identifica termos ambíguos no contexto e escolhe o significado mais denso (coerente).
+    """
+    resolver = AmbiguityResolver(isr.graph)
+    ambiguities = detect_ambiguity(isr)
+    
+    if not ambiguities:
+        return isr
+    
+    new_context = list(isr.context)
+    new_relations = list(isr.relations)
+    resolved_count = 0
+    
+    for term, candidates in ambiguities:
+        interpretations = resolver.resolve(term, candidates, isr.context)
+        if not interpretations:
+            continue
+            
+        best = interpretations[0]
+        
+        # Cria um resumo da resolução
+        # struct(tag="resolution", term="manga", selected="manga_fruta", score=1.5, evidence=...)
+        summary = struct(
+            tag=entity("RESOLUTION"),
+            term=text(term),
+            selected=best.meaning_node,
+            score=number(best.score),
+            alternatives=number(len(candidates) - 1)
+        )
+        new_context.append(summary)
+        
+        # Adiciona as evidências como relações justificadas
+        # relation("JUSTIFIED_BY", resolution_node, evidence_node)
+        for ev in best.evidence:
+            new_relations.append(ev)
+            
+        resolved_count += 1
+
+    if resolved_count == 0:
+        return isr
+
+    # Remove os nós de ambiguidade originais para limpar o contexto?
+    # Por enquanto mantemos para histórico, mas o ideal seria substituir.
+    
+    quality = min(1.0, max(isr.quality, 0.5 + (0.1 * resolved_count)))
+    
+    # Atualiza grafo pois adicionamos relações de evidência
+    new_graph = SemanticGraph.from_relations(isr.ontology + tuple(new_relations))
+    
+    new_uncertainty = max(0.0, isr.uncertainty_level - (0.2 * resolved_count))
+
+    return ISR(
+        ontology=isr.ontology,
+        relations=tuple(new_relations),
+        context=tuple(new_context),
+        goals=deque(isr.goals),
+        ops_queue=deque(isr.ops_queue),
+        answer=isr.answer,
+        quality=quality,
+        uncertainty_level=new_uncertainty,
+        graph=new_graph
+    )
 
 
 def _op_normalize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
@@ -520,6 +588,7 @@ _HANDLERS: Dict[str, Handler] = {
     "MEMORY_LINK": _op_memory_link,
     "PROVE": _op_prove,
     "CONCEPTUALIZE": _op_conceptualize,
+    "DISAMBIGUATE": _op_disambiguate,
 }
 
 
