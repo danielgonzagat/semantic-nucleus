@@ -5,7 +5,7 @@ from nsr import MetaTransformer, MetaRoute, SessionCtx, run_text_full, run_text
 from nsr.meta_transformer import build_meta_summary, meta_summary_to_dict
 from nsr.lc_omega import MetaCalculation, LCTerm
 from svm.opcodes import Opcode
-from liu import struct, entity, number, list_node, text
+from liu import struct, entity, number, list_node, text, fingerprint
 
 
 def test_meta_transformer_routes_math():
@@ -319,6 +319,32 @@ def test_plan_decompose_auto_operator():
     assert any("PLAN_DECOMPOSE" in step for step in outcome.trace.steps)
 
 
+def test_runtime_auto_builds_synth_plan():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    plan_digest = None
+    synth_source = None
+    tags = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        tags.append((tag.label or "").upper())
+        lowered = (tag.label or "").lower()
+        if lowered == "plan_decompose":
+            digest_field = fields.get("digest")
+            if digest_field:
+                plan_digest = digest_field.label
+        if lowered == "synth_plan":
+            source = fields.get("source_digest")
+            if source:
+                synth_source = source.label
+    assert "SYNTH_PLAN" in tags
+    assert plan_digest
+    assert synth_source == plan_digest
+
+
 def test_meta_transformer_routes_factor_graph():
     session = SessionCtx()
     transformer = MetaTransformer(session)
@@ -443,6 +469,33 @@ def test_synth_proof_operator():
         if tag:
             tags.append((tag.label or "").upper())
     assert "SYNTH_PROOF" in tags
+
+
+def test_runtime_auto_builds_synth_proof():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    proof_digest = None
+    synth_digest = None
+    tags = []
+    for node in outcome.isr.context:
+        fields = dict(node.fields)
+        tag = fields.get("tag")
+        if not tag:
+            continue
+        label = (tag.label or "").upper()
+        tags.append(label)
+        lowered = (tag.label or "").lower()
+        if lowered == "logic_proof":
+            proof_digest = fingerprint(node)
+        if lowered == "synth_proof":
+            digest_field = fields.get("proof_digest")
+            if digest_field:
+                synth_digest = digest_field.label
+    assert "SYNTH_PROOF" in tags
+    assert proof_digest
+    assert synth_digest == proof_digest
 
 
 def _fake_meta_memory():

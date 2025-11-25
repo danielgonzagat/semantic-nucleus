@@ -19,7 +19,12 @@ from .equation import (
     EquationSnapshotStats,
     snapshot_equation,
 )
-from .operators import apply_operator
+from .operators import (
+    apply_operator,
+    _latest_tagged_struct,
+    _latest_unsynthesized_plan,
+    _latest_unsynthesized_proof,
+)
 from .state import ISR, SessionCtx, initial_isr
 from .explain import render_explanation
 from .logic_persistence import deserialize_logic_engine, serialize_logic_engine
@@ -284,6 +289,7 @@ def run_struct_full(
             and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
         ):
             isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+            isr = _drain_synthesis_ops(isr, session)
             logic_proof_node = _latest_logic_proof(isr.context)
         meta_expression = build_meta_expression(
             isr.answer,
@@ -371,6 +377,7 @@ def run_struct_full(
     last_stats: Optional[EquationSnapshotStats] = None
     while steps < session.config.max_steps:
         steps += 1
+        _maybe_queue_synthesis_ops(isr)
         if not isr.ops_queue:
             if isr.answer.fields:
                 if isr.quality < session.config.min_quality:
@@ -415,6 +422,7 @@ def run_struct_full(
                     trace.add_contradiction(contradiction, isr)
                 halt_reason = HaltReason.CONTRADICTION
                 break
+        _maybe_queue_synthesis_ops(isr)
         signature = _state_signature(isr)
         if signature in seen_signatures:
             idle_loops += 1
@@ -437,6 +445,9 @@ def run_struct_full(
             seen_signatures.add(signature)
             idle_loops = 0
         if isr.answer.fields and isr.quality >= session.config.min_quality:
+            if _latest_unsynthesized_plan(isr.context) or _latest_unsynthesized_proof(isr.context):
+                _maybe_queue_synthesis_ops(isr)
+                continue
             halt_reason = HaltReason.QUALITY_THRESHOLD
             break
     if halt_reason is None:
@@ -459,6 +470,7 @@ def run_struct_full(
         and (meta_info.trace_label or "").startswith("LOGIC[QUERY")
     ):
         isr = apply_operator(isr, operation("PROVE", meta_info.struct_node), session)
+        isr = _drain_synthesis_ops(isr, session)
         logic_proof_node = _latest_logic_proof(isr.context)
     answer_text = _answer_text(isr)
     if session.logic_engine:
@@ -694,6 +706,36 @@ def _context_node_label(node: Node) -> str:
     return (node.label or "").upper()
 
 
+def _queue_contains_label(queue: deque[Node], label: str) -> bool:
+    target = label.upper()
+    for op in queue:
+        if (op.label or "").upper() == target:
+            return True
+    return False
+
+
+def _maybe_queue_synthesis_ops(isr: ISR) -> None:
+    if _latest_unsynthesized_plan(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PLAN"):
+        isr.ops_queue.appendleft(operation("SYNTH_PLAN"))
+    if _latest_unsynthesized_proof(isr.context) and not _queue_contains_label(isr.ops_queue, "SYNTH_PROOF"):
+        isr.ops_queue.appendleft(operation("SYNTH_PROOF"))
+
+
+def _drain_synthesis_ops(isr: ISR, session: SessionCtx) -> ISR:
+    # Bounded loop to execute any pending synthesis operators outside do/while
+    for _ in range(6):
+        pending_plan = _latest_unsynthesized_plan(isr.context)
+        if pending_plan:
+            isr = apply_operator(isr, operation("SYNTH_PLAN"), session)
+            continue
+        pending_proof = _latest_unsynthesized_proof(isr.context)
+        if pending_proof:
+            isr = apply_operator(isr, operation("SYNTH_PROOF"), session)
+            continue
+        break
+    return isr
+
+
 def _apply_code_rewrite_if_needed(
     isr: ISR,
     session: SessionCtx,
@@ -860,18 +902,6 @@ def _node_numeric(node: Node | None) -> int | None:
         return int(node.value)
     except (TypeError, ValueError):
         return None
-
-
-def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
-    tag_lower = tag_name.lower()
-    for node in reversed(context):
-        if node.kind is not NodeKind.STRUCT:
-            continue
-        fields = dict(node.fields)
-        tag_field = fields.get("tag")
-        if tag_field and (tag_field.label or "").lower() == tag_lower:
-            return node
-    return None
 
 
 def _latest_logic_proof(context: Tuple[Node, ...]) -> Node | None:

@@ -32,18 +32,6 @@ from .state import ISR, SessionCtx
 from .synthesis import SynthesisPlan, SynthesisStep, ProofSynthesis
 
 Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
-"""
-Operadores Φ do NSR.
-"""
-
-Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
-
-from .code_ast import build_code_ast_summary, compute_code_ast_stats
-from .explain import render_explanation, render_struct_sentence
-from .rules import apply_rules
-from .state import ISR, SessionCtx
-
-Handler = Callable[[ISR, Tuple[Node, ...], SessionCtx], ISR]
 
 
 def apply_operator(isr: ISR, op: Node, session: SessionCtx) -> ISR:
@@ -150,12 +138,16 @@ def _op_plan_decompose(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) ->
         struct(tag=entity("plan_step"), index=number(idx + 1), description=text(segment))
         for idx, segment in enumerate(segments)
     ]
-    plan_struct = struct(
-        tag=entity("plan_decompose"),
-        original=text(goal_text),
-        step_count=number(len(plan_nodes)),
-        steps=list_node(plan_nodes),
-    )
+    plan_fields = {
+        "tag": entity("plan_decompose"),
+        "original": text(goal_text),
+        "step_count": number(len(plan_nodes)),
+        "steps": list_node(plan_nodes),
+    }
+    plan_struct = struct(**plan_fields)
+    plan_digest = fingerprint(plan_struct)
+    plan_fields["digest"] = text(plan_digest)
+    plan_struct = struct(**plan_fields)
     context = isr.context + (plan_struct,)
     quality = min(1.0, max(isr.quality, 0.58))
     return _update(isr, context=context, quality=quality)
@@ -274,9 +266,10 @@ def _op_synth_prog(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR
 
 
 def _op_synth_plan(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
-    plan_node = _latest_tagged_struct(isr.context, "plan_decompose")
-    if plan_node is None:
+    pending = _latest_unsynthesized_plan(isr.context)
+    if pending is None:
         return isr
+    plan_node, plan_digest = pending
     plan_fields = dict(plan_node.fields)
     steps = plan_fields.get("steps")
     if steps is None or steps.kind is not NodeKind.LIST:
@@ -286,29 +279,30 @@ def _op_synth_plan(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR
         tag=entity("synth_plan"),
         plan_id=text(plan_id),
         step_count=plan_fields.get("step_count") or number(len(steps.args)),
+        source_digest=text(plan_digest),
     )
-    relations = isr.relations + (relation("plan/SYNTHESIZED", entity(plan_id)),)
+    relations = isr.relations + (relation("plan/SYNTHESIZED", entity(plan_id), text(plan_digest)),)
     context = isr.context + (summary,)
     quality = min(1.0, max(isr.quality, 0.65))
     return _update(isr, relations=relations, context=context, quality=quality)
 
 
 def _op_synth_proof(isr: ISR, args: Tuple[Node, ...], session: SessionCtx) -> ISR:
-    proof_node = _latest_tagged_struct(isr.context, "logic_proof")
-    if proof_node is None:
+    pending = _latest_unsynthesized_proof(isr.context)
+    if pending is None:
         return isr
+    proof_node, proof_digest = pending
     fields = dict(proof_node.fields)
     query = fields.get("query")
     truth = fields.get("truth")
-    digest = fingerprint(proof_node)
     summary = struct(
         tag=entity("synth_proof"),
         query=query or text(""),
         truth=truth or entity("unknown"),
-        proof_digest=text(digest),
+        proof_digest=text(proof_digest),
     )
     context = isr.context + (summary,)
-    relations = isr.relations + (relation("logic/SYNTH", entity("proof"), text(digest)),)
+    relations = isr.relations + (relation("logic/SYNTH", entity("proof"), text(proof_digest)),)
     quality = min(1.0, max(isr.quality, 0.88))
     return _update(isr, relations=relations, context=context, quality=quality)
 
@@ -619,6 +613,64 @@ def _node_numeric_value(node: Node | None) -> float:
         return float(node.value)
     except (TypeError, ValueError):
         return 0.0
+
+
+def _latest_tagged_struct(context: Tuple[Node, ...], tag_name: str) -> Node | None:
+    tag_lower = tag_name.lower()
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if tag_field and (tag_field.label or "").lower() == tag_lower:
+            return node
+    return None
+
+
+def _latest_unsynthesized_plan(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_plan", "source_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "plan_decompose":
+            continue
+        digest_value = _node_text(fields.get("digest")) or fingerprint(node)
+        if digest_value and digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _latest_unsynthesized_proof(context: Tuple[Node, ...]) -> Tuple[Node, str] | None:
+    synthesized = _collect_digest_set(context, "synth_proof", "proof_digest")
+    for node in reversed(context):
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != "logic_proof":
+            continue
+        digest_value = fingerprint(node)
+        if digest_value not in synthesized:
+            return node, digest_value
+    return None
+
+
+def _collect_digest_set(context: Tuple[Node, ...], tag_name: str, field_name: str) -> set[str]:
+    values: set[str] = set()
+    for node in context:
+        if node.kind is not NodeKind.STRUCT:
+            continue
+        fields = dict(node.fields)
+        tag_field = fields.get("tag")
+        if not tag_field or (tag_field.label or "").lower() != tag_name:
+            continue
+        digest_field = fields.get(field_name)
+        digest_value = _node_text(digest_field)
+        if digest_value:
+            values.add(digest_value)
+    return values
 
 
 def _build_trace_summary(reasoning: Node | None) -> Node | None:
