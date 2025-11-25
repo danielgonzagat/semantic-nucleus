@@ -73,6 +73,17 @@ def test_multi_ontology_infers_domains_from_text() -> None:
     relation_total = scope_fields["relation_total"]
     assert relation_total.value is not None and relation_total.value > 0
 
+
+def test_universal_domains_are_registered() -> None:
+    manager = build_default_multi_ontology_manager()
+    assert any(name.startswith("universal::") for name in manager.domains)
+    manager.activate_domain("universal::existence")
+    active = manager.get_active_relations()
+    assert any(
+        rel.label == "IN_CATEGORY" and rel.args[0].label == "coisa"
+        for rel in active
+    )
+
 def test_meta_learning_operator() -> None:
     session = SessionCtx()
     start_struct = struct(relations=list_node([]))

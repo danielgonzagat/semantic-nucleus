@@ -24,6 +24,7 @@ from liu import (
     struct,
     text,
 )
+from ontology.universal import build_universal_domain_specs
 
 
 @dataclass(frozen=True, slots=True)
@@ -188,7 +189,7 @@ def build_default_multi_ontology_manager(
     return manager
 
 
-DEFAULT_EXTRA_DOMAINS: Tuple[OntologyDomain, ...] = (
+STATIC_EXTRA_DOMAINS: Tuple[OntologyDomain, ...] = (
     OntologyDomain(
         name="medical",
         version="medical.v1",
@@ -246,6 +247,25 @@ DEFAULT_EXTRA_DOMAINS: Tuple[OntologyDomain, ...] = (
         ),
     ),
 )
+
+
+def _load_universal_domains() -> Tuple[OntologyDomain, ...]:
+    specs = build_universal_domain_specs()
+    domains: List[OntologyDomain] = []
+    for spec in specs:
+        domains.append(
+            OntologyDomain(
+                name=spec["name"],
+                version=spec["version"],
+                relations=spec["relations"],
+                keywords=spec["keywords"],
+                dependencies=tuple(),
+            )
+        )
+    return tuple(domains)
+
+
+DEFAULT_EXTRA_DOMAINS: Tuple[OntologyDomain, ...] = STATIC_EXTRA_DOMAINS + _load_universal_domains()
 
 
 def _normalize_keywords(keywords: Iterable[str], relations: Tuple[Node, ...]) -> Set[str]:
