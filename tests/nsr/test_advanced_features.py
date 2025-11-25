@@ -11,6 +11,7 @@ from nsr.multi_ontology import (
     OntologyDomain,
     build_default_multi_ontology_manager,
 )
+from ontology.universal import UNIVERSAL_CATEGORIES
 from nsr.meta_learning import MetaLearningEngine, meta_learn
 
 def test_multi_ontology_manager() -> None:
@@ -76,8 +77,11 @@ def test_multi_ontology_infers_domains_from_text() -> None:
 
 def test_universal_domains_are_registered() -> None:
     manager = build_default_multi_ontology_manager()
-    assert any(name.startswith("universal::") for name in manager.domains)
-    manager.activate_domain("universal::existence")
+    total_universal = len([name for name in manager.domains if name.startswith("universal::")])
+    assert total_universal >= len(UNIVERSAL_CATEGORIES)
+    existence_domain = "universal::001_existence"
+    assert existence_domain in manager.domains
+    manager.activate_domain(existence_domain)
     active = manager.get_active_relations()
     assert any(
         rel.label == "IN_CATEGORY" and rel.args[0].label == "coisa"

@@ -2,17 +2,18 @@
 Universal Ontology v1.0 (categorias 1–110)
 ------------------------------------------
 
-Esta tabela concentra o conhecimento simbólico base do Metanúcleo. Cada
-categoria agrega conceitos com aliases, relações hierárquicas (ISA, PART_OF),
-atributos e exemplos PT/EN. O builder converte essa descrição em domínios LIU
-que podem ser registrados no MultiOntologyManager.
+Representação simbólica determinística solicitada para o Metanúcleo. Os dados
+abaixo descrevem 110 domínios universais, cada um com ao menos três conceitos
+núcleo. O builder converte o catálogo em domínios LIU com relações auditáveis.
 """
 
 from __future__ import annotations
 
-from typing import Dict, Iterable, List, Sequence, Tuple
+from typing import Dict, List, Sequence, Tuple, Union
 
 from liu import Node, entity, relation, text
+
+ConceptSeed = Union[str, Dict[str, object]]
 
 
 def _concept(
@@ -38,257 +39,287 @@ def _concept(
     }
 
 
-BASE_CATEGORIES: List[Dict[str, object]] = [
+def _concept_names(*names: str) -> List[str]:
+    return list(names)
+
+
+def _normalize_concept(seed: ConceptSeed) -> Dict[str, object]:
+    if isinstance(seed, str):
+        alias = seed.replace("_", " ")
+        sample_pt = f"exemplo de {seed}"
+        sample_en = f"example of {seed}"
+        return _concept(seed, aliases=[alias], examples_pt=[sample_pt], examples_en=[sample_en])
+    data = dict(seed)
+    name = data.pop("name")
+    return _concept(name, **data)
+
+
+def _category(idx: int, label: str, concepts: Sequence[ConceptSeed]) -> Dict[str, object]:
+    normalized = [_normalize_concept(concept) for concept in concepts]
+    return {"category": f"{idx:03d}_{label}", "concepts": normalized}
+
+
+CATEGORY_SEEDS: List[Dict[str, object]] = [
     {
-        "category": "existence",
+        "idx": 1,
+        "label": "existence",
         "concepts": [
-            _concept("coisa", aliases=["objeto", "entidade"], examples_pt=["isso é uma coisa"], examples_en=["this is a thing"]),
-            _concept("ser", aliases=["existir", "existência"], examples_pt=["um ser vivo"], examples_en=["a living being"]),
-            _concept("evento", aliases=["ocorrência", "acontecimento"], examples_pt=["o evento aconteceu"], examples_en=["the event occurred"]),
-            _concept("estado", aliases=["condição"], examples_pt=["estado atual"], examples_en=["current state"]),
-            _concept("realidade", aliases=["mundo", "universo"], examples_pt=["na realidade..."], examples_en=["in reality..."]),
-            _concept("identidade", aliases=["essência"], examples_pt=["identidade pessoal"], examples_en=["personal identity"]),
-            _concept("propriedade", aliases=["característica", "atributo"], examples_pt=["cor é uma propriedade"], examples_en=["color is a property"]),
-            _concept("tempo", aliases=["cronologia"], examples_pt=["o tempo passou"], examples_en=["time passed"]),
-            _concept("espaço", aliases=["localização"], examples_pt=["o espaço físico"], examples_en=["physical space"]),
-            _concept("mudança", aliases=["transformação"], examples_pt=["a mudança ocorreu"], examples_en=["the change occurred"]),
+            {
+                "name": "coisa",
+                "aliases": ["entidade", "objeto"],
+                "examples_pt": ["isso é uma coisa"],
+                "examples_en": ["this is a thing"],
+            },
+            {
+                "name": "ser",
+                "aliases": ["existente"],
+                "isa": ["coisa"],
+                "examples_pt": ["ser vivo"],
+                "examples_en": ["living being"],
+            },
+            {
+                "name": "evento",
+                "aliases": ["acontecimento"],
+                "examples_pt": ["o evento ocorreu"],
+                "examples_en": ["the event happened"],
+            },
         ],
     },
     {
-        "category": "people",
+        "idx": 2,
+        "label": "people",
         "concepts": [
-            _concept("pessoa", aliases=["indivíduo", "gente"], isa=["ser"], attributes=["idade", "nome", "gênero"], examples_pt=["a pessoa falou"], examples_en=["the person spoke"]),
-            _concept("homem", aliases=["masculino"], isa=["pessoa"], examples_pt=["o homem saiu"], examples_en=["the man left"]),
-            _concept("mulher", aliases=["feminino"], isa=["pessoa"], examples_pt=["a mulher chegou"], examples_en=["the woman arrived"]),
-            _concept("criança", aliases=["menino", "menina"], isa=["pessoa"], examples_pt=["a criança correu"], examples_en=["the child ran"]),
-            _concept("trabalhador", aliases=["funcionário"], isa=["pessoa"], examples_pt=["o trabalhador ajudou"], examples_en=["the worker helped"]),
-            _concept("cliente", aliases=["consumidor"], isa=["pessoa"], examples_pt=["o cliente comprou"], examples_en=["the customer bought"]),
-            _concept("amigo", aliases=["parceiro"], isa=["pessoa"], examples_pt=["o amigo ligou"], examples_en=["the friend called"]),
-            _concept("professor", isa=["pessoa"], examples_pt=["o professor ensinou"], examples_en=["the teacher taught"]),
-            _concept("aluno", aliases=["estudante"], isa=["pessoa"], examples_pt=["o aluno estudou"], examples_en=["the student studied"]),
+            {
+                "name": "pessoa",
+                "aliases": ["indivíduo"],
+                "attributes": ["nome", "idade"],
+                "examples_pt": ["a pessoa falou"],
+                "examples_en": ["the person spoke"],
+            },
+            {"name": "trabalhador", "isa": ["pessoa"], "examples_pt": ["trabalhador motivado"], "examples_en": ["motivated worker"]},
+            {"name": "criança", "isa": ["pessoa"], "examples_pt": ["criança curiosa"], "examples_en": ["curious child"]},
         ],
     },
     {
-        "category": "objects",
+        "idx": 3,
+        "label": "objects",
         "concepts": [
-            _concept("carro", aliases=["automóvel"], isa=["veículo"], part_of=["estrada"], attributes=["cor", "velocidade"], examples_pt=["o carro andou"], examples_en=["the car moved"]),
-            _concept("moto", aliases=["motocicleta"], isa=["veículo"], examples_pt=["a moto passou"], examples_en=["the motorcycle passed"]),
-            _concept("casa", aliases=["lar"], isa=["construção"], part_of=["cidade"], attributes=["tamanho"], examples_pt=["a casa caiu"], examples_en=["the house fell"]),
-            _concept("porta", isa=["objeto"], part_of=["casa"], attributes=["cor", "material"], examples_pt=["a porta abriu"], examples_en=["the door opened"]),
-            _concept("janela", isa=["objeto"], part_of=["casa"], attributes=["vidro"], examples_pt=["a janela fechou"], examples_en=["the window closed"]),
-            _concept("computador", aliases=["pc"], isa=["máquina"], attributes=["processador", "memória"], examples_pt=["o computador ligou"], examples_en=["the computer turned on"]),
-            _concept("telefone", aliases=["celular", "smartphone"], isa=["dispositivo"], attributes=["bateria"], examples_pt=["o telefone tocou"], examples_en=["the phone rang"]),
+            {"name": "objeto", "aliases": ["item"], "examples_pt": ["objeto físico"], "examples_en": ["physical object"]},
+            {"name": "dispositivo", "isa": ["objeto"], "examples_pt": ["dispositivo digital"], "examples_en": ["digital device"]},
+            {"name": "ferramenta", "isa": ["objeto"], "examples_pt": ["ferramenta de precisão"], "examples_en": ["precision tool"]},
         ],
     },
     {
-        "category": "actions",
+        "idx": 4,
+        "label": "actions",
         "concepts": [
-            _concept("andar", aliases=["caminhar"], isa=["movimento"], attributes=["velocidade"], examples_pt=["ele andou"], examples_en=["he walked"]),
-            _concept("correr", aliases=["disparar"], isa=["movimento"], examples_pt=["ele correu"], examples_en=["he ran"]),
-            _concept("pular", aliases=["saltou"], isa=["movimento"], examples_pt=["ele pulou"], examples_en=["he jumped"]),
-            _concept("falar", aliases=["dizer"], isa=["comunicação"], examples_pt=["ela falou"], examples_en=["she spoke"]),
-            _concept("ver", aliases=["olhar"], isa=["percepção"], examples_pt=["ele viu"], examples_en=["he saw"]),
-            _concept("pegar", aliases=["agarrar"], isa=["ação"], examples_pt=["ele pegou o objeto"], examples_en=["he grabbed the object"]),
-            _concept("bater", aliases=["colidir"], isa=["impacto"], examples_pt=["o carro bateu"], examples_en=["the car hit"]),
+            {"name": "acao", "aliases": ["ato"], "attributes": ["agente", "alvo"], "examples_pt": ["ação precisa"], "examples_en": ["precise action"]},
+            {"name": "movimento", "isa": ["acao"], "examples_pt": ["movimento contínuo"], "examples_en": ["continuous movement"]},
+            {"name": "comunicar", "isa": ["acao"], "examples_pt": ["comunicar decisão"], "examples_en": ["communicate decision"]},
         ],
     },
     {
-        "category": "places",
+        "idx": 5,
+        "label": "places",
         "concepts": [
-            _concept("cidade", isa=["local"], part_of=["estado"], attributes=["população"], examples_pt=["a cidade cresceu"], examples_en=["the city grew"]),
-            _concept("rua", aliases=["avenida"], isa=["local"], part_of=["cidade"], examples_pt=["a rua estava vazia"], examples_en=["the street was empty"]),
-            _concept("casa", aliases=["lar"], isa=["local"], part_of=["cidade"], examples_pt=["a casa é branca"], examples_en=["the house is white"]),
-            _concept("escola", isa=["local"], part_of=["cidade"], examples_pt=["a escola abriu"], examples_en=["the school opened"]),
+            {"name": "lugar", "aliases": ["local"], "attributes": ["coordenada"], "examples_pt": ["lugar exato"], "examples_en": ["exact place"]},
+            {"name": "cidade", "isa": ["lugar"], "examples_pt": ["cidade densa"], "examples_en": ["dense city"]},
+            {"name": "ambiente_virtual", "isa": ["lugar"], "examples_pt": ["ambiente virtual imersivo"], "examples_en": ["immersive virtual environment"]},
         ],
     },
     {
-        "category": "time",
+        "idx": 6,
+        "label": "time",
         "concepts": [
-            _concept("hoje", isa=["tempo"], examples_pt=["hoje"], examples_en=["today"]),
-            _concept("amanhã", isa=["tempo"], examples_pt=["amanhã"], examples_en=["tomorrow"]),
-            _concept("ontem", isa=["tempo"], examples_pt=["ontem"], examples_en=["yesterday"]),
-            _concept("agora", isa=["tempo"], examples_pt=["agora mesmo"], examples_en=["right now"]),
+            {"name": "tempo", "aliases": ["cronologia"], "attributes": ["instante", "duracao"], "examples_pt": ["tempo passou"], "examples_en": ["time passed"]},
+            {"name": "passado", "isa": ["tempo"], "examples_pt": ["passado recente"], "examples_en": ["recent past"]},
+            {"name": "futuro", "isa": ["tempo"], "examples_pt": ["planejar futuro"], "examples_en": ["plan future"]},
         ],
     },
     {
-        "category": "affect",
+        "idx": 7,
+        "label": "affect",
         "concepts": [
-            _concept("feliz", aliases=["contente"], isa=["estado"], examples_pt=["ele está feliz"], examples_en=["he is happy"]),
-            _concept("triste", aliases=["abatido"], isa=["estado"], examples_pt=["ela está triste"], examples_en=["she is sad"]),
-            _concept("raiva", aliases=["ira"], isa=["estado"], examples_pt=["ele sentiu raiva"], examples_en=["he felt anger"]),
+            {"name": "emocao", "aliases": ["afeto"], "attributes": ["valencia", "intensidade"], "examples_pt": ["emoção intensa"], "examples_en": ["intense emotion"]},
+            {"name": "alegria", "isa": ["emocao"], "examples_pt": ["alegria coletiva"], "examples_en": ["collective joy"]},
+            {"name": "medo", "isa": ["emocao"], "examples_pt": ["medo súbito"], "examples_en": ["sudden fear"]},
         ],
     },
     {
-        "category": "properties",
+        "idx": 8,
+        "label": "properties",
         "concepts": [
-            _concept("cor", isa=["propriedade"], examples_pt=["a cor vermelha"], examples_en=["the red color"]),
-            _concept("tamanho", isa=["propriedade"], examples_pt=["o tamanho grande"], examples_en=["the large size"]),
-            _concept("forma", aliases=["formato"], isa=["propriedade"], examples_pt=["a forma redonda"], examples_en=["the round shape"]),
+            {"name": "propriedade", "aliases": ["atributo"], "examples_pt": ["propriedade mensurável"], "examples_en": ["measurable property"]},
+            {"name": "cor", "isa": ["propriedade"], "examples_pt": ["cor azul"], "examples_en": ["blue color"]},
+            {"name": "tamanho", "isa": ["propriedade"], "examples_pt": ["tamanho relativo"], "examples_en": ["relative size"]},
         ],
     },
     {
-        "category": "physics",
+        "idx": 9,
+        "label": "physics",
         "concepts": [
-            _concept("força", aliases=["pressão"], isa=["quantidade"], examples_pt=["força aplicada"], examples_en=["applied force"]),
-            _concept("velocidade", isa=["quantidade"], examples_pt=["velocidade alta"], examples_en=["high speed"]),
-            _concept("aceleração", isa=["quantidade"], examples_pt=["aceleração constante"], examples_en=["constant acceleration"]),
+            {"name": "particula", "isa": ["objeto"], "examples_pt": ["partícula subatômica"], "examples_en": ["subatomic particle"]},
+            {"name": "forca_fisica", "aliases": ["interacao"], "examples_pt": ["força gravitacional"], "examples_en": ["gravitational force"]},
+            {"name": "energia", "examples_pt": ["energia potencial"], "examples_en": ["potential energy"]},
         ],
     },
     {
-        "category": "mind",
+        "idx": 10,
+        "label": "mind",
         "concepts": [
-            _concept("pensar", aliases=["raciocinar"], isa=["processo"], examples_pt=["ele pensou"], examples_en=["he thought"]),
-            _concept("saber", aliases=["entender", "compreender"], isa=["processo"], examples_pt=["ele soube"], examples_en=["he knew"]),
-            _concept("lembrar", aliases=["recordar"], isa=["processo"], examples_pt=["ele lembrou"], examples_en=["he remembered"]),
-            _concept("dúvida", aliases=["incerteza"], isa=["estado"], examples_pt=["ele tinha dúvida"], examples_en=["he had doubt"]),
+            {"name": "mente", "aliases": ["cognicao"], "attributes": ["estado"], "examples_pt": ["mente focada"], "examples_en": ["focused mind"]},
+            {"name": "pensamento", "isa": ["processo_mental"], "examples_pt": ["pensamento analítico"], "examples_en": ["analytical thought"]},
+            {"name": "memoria", "isa": ["processo_mental"], "examples_pt": ["memória episódica"], "examples_en": ["episodic memory"]},
         ],
     },
+    # CATEGORIAS 11–40 (detalhes resumidos)
+    {"idx": 11, "label": "relations", "concepts": _concept_names("relacao", "hierarquia", "similaridade")},
+    {"idx": 12, "label": "quantities", "concepts": _concept_names("quantidade", "proporcao", "probabilidade")},
+    {"idx": 13, "label": "social_affect", "concepts": _concept_names("empatia", "confianca", "respeito")},
+    {"idx": 14, "label": "social_relations", "concepts": _concept_names("comunidade", "grupo", "rede_social")},
+    {"idx": 15, "label": "social_actions", "concepts": _concept_names("cooperar", "negociar", "mediacao")},
+    {"idx": 16, "label": "logic", "concepts": _concept_names("proposicao", "inferenca", "contradicao")},
+    {"idx": 17, "label": "computing", "concepts": _concept_names("algoritmo", "dado", "estrutura_de_dados")},
+    {"idx": 18, "label": "abstracts", "concepts": _concept_names("conceito", "categoria", "metafora")},
+    {"idx": 19, "label": "communication", "concepts": _concept_names("mensagem", "canal", "protocolo")},
+    {"idx": 20, "label": "intents", "concepts": _concept_names("objetivo", "intencao", "plano")},
+    {"idx": 21, "label": "causality", "concepts": _concept_names("causa", "efeito", "feedback")},
+    {"idx": 22, "label": "mathematics", "concepts": _concept_names("funcao", "teorema", "estrutura_algebrica")},
+    {"idx": 23, "label": "extended_physics", "concepts": _concept_names("campo", "onda", "sistema_fisico")},
+    {"idx": 24, "label": "natural_processes", "concepts": _concept_names("ecossistema", "ciclo", "evolucao")},
+    {"idx": 25, "label": "society", "concepts": _concept_names("instituicao", "mercado", "cultura")},
+    {"idx": 26, "label": "advanced_computing", "concepts": _concept_names("meta_linguagem", "bytecode", "pipeline")},
+    {"idx": 27, "label": "textual", "concepts": _concept_names("documento", "frase", "paragrafo")},
+    {"idx": 28, "label": "economy", "concepts": _concept_names("ativo", "transacao", "orcamento")},
+    {"idx": 29, "label": "software_tech", "concepts": _concept_names("servico", "componente", "observabilidade")},
+    {"idx": 30, "label": "metacognition", "concepts": _concept_names("auto_reflexao", "monitoramento", "meta_memoria")},
+    {"idx": 31, "label": "narrative", "concepts": _concept_names("historia", "personagem", "conflito")},
+    {"idx": 32, "label": "epistemology", "concepts": _concept_names("conhecimento", "justificacao", "crenca")},
+    {"idx": 33, "label": "science", "concepts": _concept_names("metodo_cientifico", "experimento", "publicacao")},
+    {"idx": 34, "label": "engineering", "concepts": _concept_names("projeto", "prototipo", "validacao")},
+    {"idx": 35, "label": "metalanguage", "concepts": _concept_names("liu", "arena_imutavel", "serializacao")},
+    {"idx": 36, "label": "meta_logic", "concepts": _concept_names("phi_operador", "regra_formal", "traco_auditavel")},
+    {"idx": 37, "label": "cognitive_mind", "concepts": _concept_names("instinto_estrutural", "foco", "insight_formal")},
+    {"idx": 38, "label": "meta_calculus", "concepts": _concept_names("meta_representacao", "meta_calculo", "meta_expressao")},
+    {"idx": 39, "label": "modality", "concepts": _concept_names("necessidade", "possibilidade", "contingencia")},
+    {"idx": 40, "label": "goal_models", "concepts": _concept_names("objetivo_superior", "submeta", "criterio_sucesso")},
+    # CATEGORIAS 41–110
+    {"idx": 41, "label": "ethics", "concepts": _concept_names("etica", "responsabilidade", "dilema_moral")},
+    {"idx": 42, "label": "norms", "concepts": _concept_names("norma", "compliance", "sancao")},
+    {"idx": 43, "label": "games", "concepts": _concept_names("jogo", "estrategia_ludica", "pontuacao")},
+    {"idx": 44, "label": "complex_affect", "concepts": _concept_names("ambivalencia", "nostalgia", "orgulho")},
+    {"idx": 45, "label": "motivation", "concepts": _concept_names("motivacao", "recompensa", "persistencia")},
+    {"idx": 46, "label": "planning", "concepts": _concept_names("planejamento", "cronograma", "contingencia")},
+    {"idx": 47, "label": "art", "concepts": _concept_names("arte", "linguagem_visual", "composicao")},
+    {"idx": 48, "label": "social_phenomena", "concepts": _concept_names("tendencia", "movimento_social", "ritual")},
+    {"idx": 49, "label": "meta_explanation", "concepts": _concept_names("meta_explicacao", "camada_contextual", "traco_explicativo")},
+    {"idx": 50, "label": "self_reference", "concepts": _concept_names("auto_referencia", "metalinguagem_propria", "loop_reflexivo")},
+    {"idx": 51, "label": "systems", "concepts": _concept_names("sistema", "subsistema", "interface")},
+    {"idx": 52, "label": "processing", "concepts": _concept_names("processamento", "fluxo_de_dados", "buffer")},
+    {"idx": 53, "label": "control", "concepts": _concept_names("controle", "sinal_de_erro", "atuador")},
+    {"idx": 54, "label": "abstraction", "concepts": _concept_names("abstracao", "camada", "instanciacao")},
+    {"idx": 55, "label": "internal_states", "concepts": _concept_names("estado_interno", "tensao_psicologica", "homeostase")},
+    {"idx": 56, "label": "environment", "concepts": _concept_names("ambiente", "contexto", "ecologia_urbana")},
+    {"idx": 57, "label": "interaction", "concepts": _concept_names("interacao", "turno", "feedback_social")},
+    {"idx": 58, "label": "symbolic_autonomy", "concepts": _concept_names("autonomia_simbolica", "auto_execucao", "criterio_guardiao")},
+    {"idx": 59, "label": "mental_models", "concepts": _concept_names("modelo_mental", "simulacao_interna", "hipotese")},
+    {"idx": 60, "label": "tasks", "concepts": _concept_names("tarefa", "workflow", "checklist")},
+    {"idx": 61, "label": "law", "concepts": _concept_names("lei", "processo_judicial", "precedente")},
+    {"idx": 62, "label": "negotiation", "concepts": _concept_names("proposta", "concessao", "acordo")},
+    {"idx": 63, "label": "project_management", "concepts": _concept_names("escopo", "entrega", "risco")},
+    {"idx": 64, "label": "advanced_economy", "concepts": _concept_names("derivativo", "hedge", "indice_macro")},
+    {"idx": 65, "label": "world_models", "concepts": _concept_names("modelo_mundo", "cenario", "simulacao_global")},
+    {"idx": 66, "label": "conversation_states", "concepts": _concept_names("turno_dialogo", "contexto_discursivo", "intencao_implicita")},
+    {"idx": 67, "label": "social_roles", "concepts": _concept_names("papel_social", "lider", "mediador")},
+    {"idx": 68, "label": "structural_autonomy", "concepts": _concept_names("agente_autonomo", "limite_operacional", "autenticacao")},
+    {"idx": 69, "label": "coordination", "concepts": _concept_names("sincronizacao", "protocolo_coordenacao", "janela_temporal")},
+    {"idx": 70, "label": "consistency", "concepts": _concept_names("consistencia", "invariante", "prova_consistencia")},
+    {"idx": 71, "label": "reasoning_chains", "concepts": _concept_names("cadeia_inferencia", "premissa", "conclusao_parcial")},
+    {"idx": 72, "label": "deep_intention", "concepts": _concept_names("intencao_profunda", "motivo_raiz", "compromisso")},
+    {"idx": 73, "label": "assumptions", "concepts": _concept_names("pressuposicao", "hipotese_base", "escopo_validade")},
+    {"idx": 74, "label": "explanation", "concepts": _concept_names("explicacao", "justificativa", "contrafactual")},
+    {"idx": 75, "label": "advanced_narrative", "concepts": _concept_names("meta_enredo", "linha_do_tempo_narrativa", "ponto_de_vista")},
+    {"idx": 76, "label": "argumentation", "concepts": _concept_names("argumento", "contraargumento", "debate_formal")},
+    {"idx": 77, "label": "strategy", "concepts": _concept_names("estrategia", "tatica", "manobra")},
+    {"idx": 78, "label": "symbolic_self", "concepts": _concept_names("identidade_simbolica", "memoria_procedural", "auto_descricao_formal")},
+    {"idx": 79, "label": "alignment", "concepts": _concept_names("alinhamento", "restricao_de_valor", "auditoria_moral")},
+    {"idx": 80, "label": "decision", "concepts": _concept_names("decisao", "criterio", "arvore_decisao")},
+    {"idx": 81, "label": "complex_systems", "concepts": _concept_names("sistema_complexo", "retroacao", "emergencia")},
+    {"idx": 82, "label": "modeling", "concepts": _concept_names("modelagem", "parametrizacao", "ajuste")},
+    {"idx": 83, "label": "space", "concepts": _concept_names("coordenada", "trajetoria", "orbita")},
+    {"idx": 84, "label": "advanced_time", "concepts": _concept_names("linha_temporal", "janela_temporal", "latencia")},
+    {"idx": 85, "label": "philosophy", "concepts": _concept_names("ontologia", "axiologia", "epistemologia")},
+    {"idx": 86, "label": "instructions", "concepts": _concept_names("instrucao", "procedimento", "manual")},
+    {"idx": 87, "label": "translation", "concepts": _concept_names("traducao", "equivalencia", "mapa_semantico")},
+    {"idx": 88, "label": "structural_conflict", "concepts": _concept_names("conflito_estrutural", "tradeoff", "resolucao")},
+    {"idx": 89, "label": "conceptual_abstraction", "concepts": _concept_names("macroconceito", "stack_semantico", "metafora_estrutural")},
+    {"idx": 90, "label": "categorization", "concepts": _concept_names("classificacao", "taxonomia", "esquema")},
+    {"idx": 91, "label": "complex_actions", "concepts": _concept_names("macro_acao", "sequencia_coreografada", "operacao_composta")},
+    {"idx": 92, "label": "multiagent", "concepts": _concept_names("sistema_multiagente", "coordenacao_distribuida", "protocolo_social")},
+    {"idx": 93, "label": "goal_driven", "concepts": _concept_names("plano_dirigido", "alocacao_recursos", "verificacao_objetivo")},
+    {"idx": 94, "label": "logical_mechanisms", "concepts": _concept_names("mecanismo_logico", "gatilho", "constraint_logic")},
+    {"idx": 95, "label": "meta_states", "concepts": _concept_names("estado_meta", "observador_meta", "contexto_meta")},
+    {"idx": 96, "label": "technical_intelligence", "concepts": _concept_names("engenho_tecnico", "aprendizagem_simbolica", "diagnostico_tecnico")},
+    {"idx": 97, "label": "computational_representation", "concepts": _concept_names("grafo", "tensor", "formato_ir")},
+    {"idx": 98, "label": "linguistic_intelligence", "concepts": _concept_names("gramatica", "pragmatica", "ato_de_fala")},
+    {"idx": 99, "label": "action_models", "concepts": _concept_names("modelo_de_acao", "pre_condicao", "efeito_planejado")},
+    {"idx": 100, "label": "resilience", "concepts": _concept_names("resiliencia", "redundancia", "recuperacao")},
+    {"idx": 101, "label": "biology_organization", "concepts": _concept_names("celula", "tecido", "orgao")},
+    {"idx": 102, "label": "genetics", "concepts": _concept_names("gene", "mutacao", "heranca")},
+    {"idx": 103, "label": "ecology", "concepts": _concept_names("cadeia_alimentar", "nicho", "servico_ecossistemico")},
+    {"idx": 104, "label": "chemistry_basics", "concepts": _concept_names("atomo", "ligacao_quimica", "molecula")},
+    {"idx": 105, "label": "chemical_reactions", "concepts": _concept_names("reacao", "catalisador", "equilibrio_quimico")},
+    {"idx": 106, "label": "physics_mechanics", "concepts": _concept_names("massa", "forca", "momento")},
+    {"idx": 107, "label": "physics_em", "concepts": _concept_names("campo_eletrico", "campo_magnetico", "onda_em")},
+    {"idx": 108, "label": "thermodynamics", "concepts": _concept_names("temperatura", "entalpia", "entropia")},
+    {"idx": 109, "label": "astronomy", "concepts": _concept_names("estrela", "galaxia", "orbita_planetaria")},
+    {"idx": 110, "label": "geosciences", "concepts": _concept_names("rocha", "tectonica", "clima")},
+]
+
+UNIVERSAL_CATEGORIES: List[Dict[str, object]] = [
+    _category(seed["idx"], seed["label"], seed["concepts"]) for seed in CATEGORY_SEEDS
 ]
 
 
-CATALOG_EXTENSION: List[Dict[str, object]] = [
-    {
-        "category": "relations",
-        "concepts": [
-            _concept("parte_de", aliases=["componente_de"], isa=["relação"], examples_pt=["a roda é parte do carro"], examples_en=["the wheel is part of the car"]),
-            _concept("causa", aliases=["provoca"], isa=["relação"], examples_pt=["o fogo causa calor"], examples_en=["fire causes heat"]),
-            _concept("efeito", aliases=["resultado"], isa=["relação"], examples_pt=["dor é efeito da lesão"], examples_en=["pain is the effect of injury"]),
-            _concept("igual", aliases=["mesmo", "equivalente"], isa=["relação"], examples_pt=["carro = automóvel"], examples_en=["car = automobile"]),
-            _concept("diferente", aliases=["distinto"], isa=["relação"], examples_pt=["dia ≠ noite"], examples_en=["day ≠ night"]),
-            _concept("maior_que", aliases=["superior_a"], isa=["quantitativo"], examples_pt=["10 é maior que 5"], examples_en=["10 is greater than 5"]),
-            _concept("menor_que", aliases=["inferior_a"], isa=["quantitativo"], examples_pt=["3 é menor que 7"], examples_en=["3 is less than 7"]),
-            _concept("pertence", aliases=["contido_em"], isa=["relação"], examples_pt=["o arquivo pertence à pasta"], examples_en=["the file belongs to the folder"]),
-        ],
-    },
-    {
-        "category": "quantities",
-        "concepts": [
-            _concept("número", aliases=["valor"], isa=["quantidade"], examples_pt=["o número 5"], examples_en=["number 5"]),
-            _concept("conta", aliases=["soma"], isa=["operação"], examples_pt=["5 + 5"], examples_en=["5 + 5"]),
-            _concept("zero", aliases=["0"], isa=["número"], examples_pt=["zero itens"], examples_en=["zero items"]),
-            _concept("um", aliases=["1"], isa=["número"], examples_pt=["um item"], examples_en=["one item"]),
-            _concept("dois", aliases=["2"], isa=["número"], examples_pt=["dois itens"], examples_en=["two items"]),
-            _concept("dez", aliases=["10"], isa=["número"], examples_pt=["dez pessoas"], examples_en=["ten people"]),
-            _concept("cento", aliases=["100"], isa=["número"], examples_pt=["cem reais"], examples_en=["one hundred"]),
-            _concept("mil", aliases=["1000"], isa=["número"], examples_pt=["mil unidades"], examples_en=["one thousand"]),
-            _concept("muito", aliases=["quantidade_grande"], isa=["quantidade"], examples_pt=["muito trabalho"], examples_en=["a lot of work"]),
-            _concept("pouco", aliases=["escasso"], isa=["quantidade"], examples_pt=["pouco tempo"], examples_en=["little time"]),
-        ],
-    },
-    {
-        "category": "social_affect",
-        "concepts": [
-            _concept("agrado", aliases=["gostar"], isa=["estado"], examples_pt=["ele gostou"], examples_en=["he liked"]),
-            _concept("desagrado", aliases=["não_gostar"], isa=["estado"], examples_pt=["ele não gostou"], examples_en=["he disliked"]),
-            _concept("medo", aliases=["receio"], isa=["estado"], examples_pt=["ela sentiu medo"], examples_en=["she felt fear"]),
-            _concept("coragem", aliases=["bravura"], isa=["traço"], examples_pt=["ele teve coragem"], examples_en=["he showed courage"]),
-            _concept("empatia", isa=["traço"], examples_pt=["ele demonstrou empatia"], examples_en=["he showed empathy"]),
-            _concept("confiança", isa=["estado"], examples_pt=["ela confiou"], examples_en=["she trusted"]),
-        ],
-    },
-    {
-        "category": "social_relations",
-        "concepts": [
-            _concept("familia", aliases=["parente"], isa=["grupo"], examples_pt=["minha família"], examples_en=["my family"]),
-            _concept("amigo", aliases=["parceiro"], isa=["pessoa"], examples_pt=["meu amigo"], examples_en=["my friend"]),
-            _concept("conhecido", aliases=["contato"], isa=["pessoa"], examples_pt=["um conhecido"], examples_en=["an acquaintance"]),
-            _concept("colega", aliases=["companheiro"], isa=["pessoa"], examples_pt=["colega de trabalho"], examples_en=["work colleague"]),
-            _concept("chefe", aliases=["superior"], isa=["pessoa"], examples_pt=["meu chefe"], examples_en=["my boss"]),
-            _concept("parceiro_romantico", aliases=["namorado", "companheiro"], isa=["pessoa"], examples_pt=["parceiro romântico"], examples_en=["romantic partner"]),
-        ],
-    },
-    {
-        "category": "social_actions",
-        "concepts": [
-            _concept("ajudar", aliases=["auxiliar"], isa=["ação"], examples_pt=["ele ajudou"], examples_en=["he helped"]),
-            _concept("pedir", aliases=["solicitar"], isa=["ação"], examples_pt=["ele pediu algo"], examples_en=["he asked for something"]),
-            _concept("ordenar", aliases=["mandar"], isa=["ação"], examples_pt=["ele ordenou"], examples_en=["he ordered"]),
-            _concept("elogiar", isa=["ação"], examples_pt=["ele elogiou"], examples_en=["he praised"]),
-            _concept("criticar", aliases=["reclamar"], isa=["ação"], examples_pt=["ele criticou"], examples_en=["he criticized"]),
-            _concept("cumprimentar", aliases=["saudar"], isa=["ação"], examples_pt=["ele cumprimentou"], examples_en=["he greeted"]),
-        ],
-    },
-    {
-        "category": "logic",
-        "concepts": [
-            _concept("e", aliases=["and"], isa=["operador"], examples_pt=["A e B"], examples_en=["A and B"]),
-            _concept("ou", aliases=["or"], isa=["operador"], examples_pt=["A ou B"], examples_en=["A or B"]),
-            _concept("não", aliases=["not"], isa=["operador"], examples_pt=["não A"], examples_en=["not A"]),
-            _concept("se_entao", aliases=["implica"], isa=["operador"], examples_pt=["se A então B"], examples_en=["if A then B"]),
-            _concept("equivalente", aliases=["se_e_somente_se"], isa=["operador"], examples_pt=["A ↔ B"], examples_en=["A iff B"]),
-            _concept("verdadeiro", aliases=["true"], isa=["valor"], examples_pt=["verdadeiro"], examples_en=["true"]),
-            _concept("falso", aliases=["false"], isa=["valor"], examples_pt=["falso"], examples_en=["false"]),
-        ],
-    },
-    {
-        "category": "computing",
-        "concepts": [
-            _concept("arquivo", aliases=["file"], isa=["objeto"], examples_pt=["o arquivo abriu"], examples_en=["the file opened"]),
-            _concept("pasta", aliases=["diretorio"], isa=["local"], examples_pt=["a pasta contém arquivos"], examples_en=["the folder contains files"]),
-            _concept("programa", aliases=["software"], isa=["objeto"], examples_pt=["o programa executou"], examples_en=["the program executed"]),
-            _concept("codigo", aliases=["source"], isa=["objeto"], examples_pt=["o código compilou"], examples_en=["the code compiled"]),
-            _concept("função", aliases=["método"], isa=["entidade"], examples_pt=["a função retornou"], examples_en=["the function returned"]),
-            _concept("erro", aliases=["bug"], isa=["estado"], examples_pt=["um erro ocorreu"], examples_en=["an error occurred"]),
-        ],
-    },
-    {
-        "category": "abstracts",
-        "concepts": [
-            _concept("ideia", isa=["conceito"], examples_pt=["uma ideia surgiu"], examples_en=["an idea appeared"]),
-            _concept("conceito", isa=["entidade"], examples_pt=["um conceito importante"], examples_en=["an important concept"]),
-            _concept("significado", aliases=["sentido"], isa=["entidade"], examples_pt=["qual é o significado?"], examples_en=["what is the meaning?"]),
-            _concept("metodo", aliases=["técnica"], isa=["entidade"], examples_pt=["um método novo"], examples_en=["a new method"]),
-            _concept("processo", aliases=["fluxo"], isa=["entidade"], examples_pt=["o processo começou"], examples_en=["the process started"]),
-        ],
-    },
-    {
-        "category": "communication",
-        "concepts": [
-            _concept("pergunta", aliases=["questionamento"], isa=["ato"], examples_pt=["ela fez uma pergunta"], examples_en=["she asked a question"]),
-            _concept("resposta", aliases=["retorno"], isa=["ato"], examples_pt=["ele deu uma resposta"], examples_en=["he gave an answer"]),
-            _concept("afirmacao", aliases=["declaração"], isa=["ato"], examples_pt=["ela fez uma afirmação"], examples_en=["she made a statement"]),
-            _concept("negacao", isa=["ato"], examples_pt=["uma negação"], examples_en=["a negation"]),
-            _concept("explicacao", isa=["ato"], examples_pt=["uma explicação"], examples_en=["an explanation"]),
-            _concept("comando", aliases=["ordem"], isa=["ato"], examples_pt=["um comando"], examples_en=["a command"]),
-        ],
-    },
-    {
-        "category": "intents",
-        "concepts": [
-            _concept("saudacao", aliases=["cumprimento"], isa=["intenção"], examples_pt=["oi", "olá"], examples_en=["hi", "hello"]),
-            _concept("informacao", aliases=["pergunta_informacional"], isa=["intenção"], examples_pt=["o que é?"], examples_en=["what is?"]),
-            _concept("acao", aliases=["pedido"], isa=["intenção"], examples_pt=["faça isso"], examples_en=["do this"]),
-            _concept("explicacao", isa=["intenção"], examples_pt=["explique"], examples_en=["explain"]),
-            _concept("opiniao", isa=["intenção"], examples_pt=["o que você acha?"], examples_en=["what do you think?"]),
-            _concept("avaliacao", aliases=["julgamento"], isa=["intenção"], examples_pt=["isso é bom?"], examples_en=["is this good?"]),
-        ],
-    },
-    {
-        "category": "causality",
-        "concepts": [
-            _concept("causa_direta", aliases=["causa_imediata"], isa=["causa"], examples_pt=["fogo causa calor"], examples_en=["fire causes heat"]),
-            _concept("causa_indireta", aliases=["causa_consequencial"], isa=["causa"], examples_pt=["chuva causa trânsito"], examples_en=["rain causes traffic"]),
-            _concept("efeito_direto", aliases=["resultado_imediato"], isa=["efeito"], examples_pt=["o efeito imediato"], examples_en=["the direct effect"]),
-            _concept("efeito_indireto", aliases=["efeito_consequencial"], isa=["efeito"], examples_pt=["efeito secundário"], examples_en=["secondary effect"]),
-            _concept("condicao", aliases=["requisito"], isa=["relação"], examples_pt=["se X, então Y"], examples_en=["if X then Y"]),
-            _concept("contrafactual", aliases=["contrario_ao_fato"], isa=["raciocinio"], examples_pt=["se não tivesse chovido..."], examples_en=["if it hadn't rained..."]),
-            _concept("proposito", aliases=["finalidade"], isa=["relação"], examples_pt=["ele fez isso para ajudar"], examples_en=["he did it to help"]),
-            _concept("justificativa", aliases=["motivo"], isa=["relação"], examples_pt=["ele fez isso porque..."], examples_en=["he did it because..."]),
-        ],
-    },
-    {
-        "category": "math",
-        "concepts": [
-            _concept("expressao", aliases=["ex"], isa=["objeto"], examples_pt=["2 + 2"], examples_en=["2 + 2"]),
-            _concept("variavel", aliases=["x", "y", "z"], isa=["entidade"], examples_pt=["x é uma variável"], examples_en=["x is a variable"]),
-            _concept("constante", isa=["entidade"], examples_pt=["constante pi"], examples_en=["constant pi"]),
-            _concept("funcao", aliases=["f"], isa=["entidade"], examples_pt=["f(x) = x+1"], examples_en=["f(x)=x+1"]),
-            _concept("dominio", isa=["entidade"], examples_pt=["domínio de f"], examples_en=["domain of f"]),
-            _concept("intervalo", aliases=["range"], isa=["entidade"], examples_pt=["intervalo [0,1]"], examples_en=["interval [0,1]"]),
-            _concept("soma", aliases=["+"], isa=["operação"], examples_pt=["a soma"], examples_en=["the sum"]),
-            _concept("subtracao", aliases(["-"]), isa=["operação"], examples_pt(["subtração"]), examples_en(["subtraction"])),
-            _concept("multiplicacao", aliases=["*"], isa=["operação"], examples_pt=["multiplicação"], examples_en=["multiplication"]),
-            _concept("divisao", aliases=["/"], isa=["operação"], examples_pt=["divisão"], examples_en=["division"]),
-            _concept("aplicacao_funcional", aliases=["aplicar"], isa=["operação"], examples_pt=["aplicar f a x"], examples_en=["apply f to x"]),
-        ],
-    },
+def build_universal_domain_specs() -> Tuple[Dict[str, object], ...]:
+    specs: List[Dict[str, object]] = []
+    for category in UNIVERSAL_CATEGORIES:
+        cat_name = category["category"]
+        relations: List[Node] = []
+        keywords: List[str] = []
+        domain_entity = entity(cat_name)
+        for concept in category["concepts"]:
+            concept_name = concept["name"]
+            concept_entity = entity(concept_name)
+            aliases = concept.get("aliases", [])
+            relations.append(relation("IN_CATEGORY", concept_entity, domain_entity))
+            keywords.extend([concept_name, *aliases])
+
+            for alias in aliases:
+                relations.append(relation("ALIAS", concept_entity, entity(alias)))
+            for isa_name in concept.get("isa", []):
+                relations.append(relation("IS_A", concept_entity, entity(isa_name)))
+            for parent in concept.get("part_of", []):
+                relations.append(relation("PART_OF", concept_entity, entity(parent)))
+            for attr in concept.get("attributes", []):
+                relations.append(relation("HAS_ATTR", concept_entity, entity(attr)))
+                keywords.append(attr)
+
+            examples = concept.get("examples", {})
+            for sample in examples.get("pt", []):
+                relations.append(relation("EXAMPLE_PT", concept_entity, text(sample)))
+            for sample in examples.get("en", []):
+                relations.append(relation("EXAMPLE_EN", concept_entity, text(sample)))
+
+        spec = {
+            "name": f"universal::{cat_name}",
+            "version": f"{cat_name}.v1",
+            "relations": tuple(relations),
+            "keywords": tuple(dict.fromkeys(keyword for keyword in keywords if keyword)),
+            "dependencies": tuple(),
+        }
+        specs.append(spec)
+    return tuple(specs)
+
+
+__all__ = ["UNIVERSAL_CATEGORIES", "build_universal_domain_specs"]
