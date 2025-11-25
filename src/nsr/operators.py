@@ -25,6 +25,7 @@ from liu import (
 )
 
 from .ambiguity import AmbiguityResolver, detect_ambiguity
+from .meta_reflection import MetaReflectionEngine
 from .semantic_graph import SemanticGraph
 from .code_ast import build_code_ast_summary, compute_code_ast_stats
 from .explain import render_explanation, render_struct_sentence
@@ -175,6 +176,35 @@ def _op_disambiguate(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
         uncertainty_level=new_uncertainty,
         graph=new_graph
     )
+
+
+def _op_reflect(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
+    """
+    Constrói a árvore de justificativa (Meta-Reflexão) para a resposta atual.
+    """
+    if not isr.answer.fields:
+        return isr
+        
+    # Pega o conteúdo da resposta para justificar
+    # Estrutura padrão da resposta é struct(answer=TEXT)
+    answer_payload = dict(isr.answer.fields).get("answer")
+    if not answer_payload:
+        return isr
+
+    engine = MetaReflectionEngine(session.meta_history)
+    tree = engine.build_justification_tree(answer_payload, isr.context)
+    
+    if not tree:
+        return isr
+        
+    tree_node = tree.to_liu()
+    
+    # Anexa a árvore de reflexão à resposta
+    new_fields = list(isr.answer.fields)
+    new_fields.append(("justification_tree", tree_node))
+    new_answer = struct(**dict(new_fields))
+    
+    return _update(isr, answer=new_answer, quality=min(1.0, isr.quality + 0.1))
 
 
 def _op_normalize(isr: ISR, _: Tuple[Node, ...], session: SessionCtx) -> ISR:
@@ -589,6 +619,7 @@ _HANDLERS: Dict[str, Handler] = {
     "PROVE": _op_prove,
     "CONCEPTUALIZE": _op_conceptualize,
     "DISAMBIGUATE": _op_disambiguate,
+    "REFLECT": _op_reflect,
 }
 
 
