@@ -386,6 +386,24 @@ def soma(a, b):
     assert programs[0].get("source_digest")
 
 
+def test_meta_memory_entries_include_program_synthesis():
+    session = SessionCtx()
+    outcome = run_text_full(
+        """
+def soma(a, b):
+    return a + b
+""",
+        session,
+    )
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    entries = summary.get("memory_entries")
+    assert entries
+    latest = entries[-1]
+    assert latest.get("synthesis_program_total", 0) >= 1
+    assert latest.get("synthesis_program_sources")
+
+
 def test_meta_summary_reports_synthesis_plan():
     session = SessionCtx()
     outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
@@ -395,6 +413,18 @@ def test_meta_summary_reports_synthesis_plan():
     plans = summary.get("synthesis_plans")
     assert plans
     assert plans[0].get("source_digest")
+
+
+def test_meta_memory_entries_include_plan_synthesis():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    entries = summary.get("memory_entries")
+    assert entries
+    latest = entries[-1]
+    assert latest.get("synthesis_plan_total", 0) >= 1
+    assert latest.get("synthesis_plan_sources")
 
 
 def test_meta_transformer_routes_factor_graph():

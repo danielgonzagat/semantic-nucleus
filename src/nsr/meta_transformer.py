@@ -900,14 +900,49 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
             memory_entries: list[dict[str, object]] = []
             for entry in entries_node.args:
                 entry_fields = _fields(entry)
-                memory_entries.append(
-                    {
-                        "route": _label(entry_fields.get("route")),
-                        "answer_preview": _label(entry_fields.get("answer_preview")),
-                        "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
-                        "expression_digest": _label(entry_fields.get("expression_digest")),
-                    }
-                )
+                memory_entry: dict[str, object] = {
+                    "route": _label(entry_fields.get("route")),
+                    "answer_preview": _label(entry_fields.get("answer_preview")),
+                    "reasoning_digest": _label(entry_fields.get("reasoning_digest")),
+                    "expression_digest": _label(entry_fields.get("expression_digest")),
+                }
+                if entry_fields.get("position") is not None:
+                    memory_entry["position"] = int(_value(entry_fields.get("position")))
+                if entry_fields.get("equation_digest") is not None:
+                    memory_entry["equation_digest"] = _label(entry_fields.get("equation_digest"))
+                if entry_fields.get("equation_trend") is not None:
+                    memory_entry["equation_trend"] = _label(entry_fields.get("equation_trend"))
+                if entry_fields.get("equation_quality") is not None:
+                    memory_entry["equation_quality"] = _value(entry_fields.get("equation_quality"))
+                if entry_fields.get("equation_delta_quality") is not None:
+                    memory_entry["equation_delta_quality"] = _value(entry_fields.get("equation_delta_quality"))
+                if entry_fields.get("logic_proof_truth") is not None:
+                    memory_entry["logic_proof_truth"] = _label(entry_fields.get("logic_proof_truth"))
+                if entry_fields.get("logic_proof_query") is not None:
+                    memory_entry["logic_proof_query"] = _label(entry_fields.get("logic_proof_query"))
+                if entry_fields.get("logic_proof_digest") is not None:
+                    memory_entry["logic_proof_digest"] = _label(entry_fields.get("logic_proof_digest"))
+                if entry_fields.get("reflection_digest") is not None:
+                    memory_entry["reflection_digest"] = _label(entry_fields.get("reflection_digest"))
+                plan_total = entry_fields.get("synthesis_plan_total")
+                if plan_total is not None:
+                    memory_entry["synthesis_plan_total"] = int(_value(plan_total))
+                proof_total = entry_fields.get("synthesis_proof_total")
+                if proof_total is not None:
+                    memory_entry["synthesis_proof_total"] = int(_value(proof_total))
+                program_total = entry_fields.get("synthesis_program_total")
+                if program_total is not None:
+                    memory_entry["synthesis_program_total"] = int(_value(program_total))
+                plan_sources_node = entry_fields.get("synthesis_plan_sources")
+                if plan_sources_node is not None and plan_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_plan_sources"] = [_label(item) for item in plan_sources_node.args]
+                proof_sources_node = entry_fields.get("synthesis_proof_sources")
+                if proof_sources_node is not None and proof_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_proof_sources"] = [_label(item) for item in proof_sources_node.args]
+                program_sources_node = entry_fields.get("synthesis_program_sources")
+                if program_sources_node is not None and program_sources_node.kind.name == "LIST":
+                    memory_entry["synthesis_program_sources"] = [_label(item) for item in program_sources_node.args]
+                memory_entries.append(memory_entry)
             result["memory_entries"] = memory_entries
     equation_node = nodes.get("meta_equation")
     if equation_node is not None:
