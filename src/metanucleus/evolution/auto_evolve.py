@@ -74,6 +74,8 @@ def run_auto_patches(
     apply_changes: bool,
     source: str,
     filters: Optional[AutoEvolutionFilters] = None,
+    report_path: Optional[Path] = None,
+    report_metadata: Optional[Dict[str, Any]] = None,
 ) -> Tuple[List[EvolutionPatch], List[Dict[str, str]]]:
     kernel = MetaKernel()
     patches = kernel.run_auto_evolution_cycle(
@@ -82,6 +84,8 @@ def run_auto_patches(
         apply_changes=apply_changes,
         source=source,
         filters=filters,
+        report_path=report_path,
+        report_metadata=report_metadata,
     )
     stats = getattr(kernel, "last_evolution_stats", [])
     return patches, stats
@@ -182,6 +186,11 @@ def main(argv: Optional[List[str]] = None) -> None:
         log_since=args.log_since,
         frame_languages=args.frame_languages or None,
     )
+    report_meta = {
+        "cli": "metanucleus.evolution.auto_evolve",
+        "commit_requested": args.commit,
+        "dry_run": args.dry_run,
+    }
 
     patches, stats = run_auto_patches(
         args.domains,
@@ -189,9 +198,13 @@ def main(argv: Optional[List[str]] = None) -> None:
         apply_changes=not args.dry_run,
         source=args.source,
         filters=filters,
+        report_path=REPORT_PATH,
+        report_metadata=report_meta,
     )
 
     def emit_report(applied_flag: bool, branch: Optional[str]) -> None:
+        meta = dict(report_meta)
+        meta["branch"] = branch
         write_auto_evolve_report(
             REPORT_PATH,
             domains=args.domains,
@@ -201,11 +214,7 @@ def main(argv: Optional[List[str]] = None) -> None:
             applied=applied_flag,
             source=args.source,
             max_patches=args.max_patches,
-            extra={
-                "cli": "metanucleus.evolution.auto_evolve",
-                "branch": branch,
-                "commit_requested": args.commit,
-            },
+            extra=meta,
         )
 
     if stats:

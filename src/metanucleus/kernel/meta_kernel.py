@@ -24,6 +24,7 @@ from metanucleus.evolution.rule_patch_generator import RulePatchGenerator
 from metanucleus.evolution.semantic_frames_auto_patch import suggest_frame_patches
 from metanucleus.evolution.semantic_patch_generator import SemanticPatchGenerator
 from metanucleus.evolution.types import EvolutionPatch
+from metanucleus.evolution.report import write_auto_evolve_report
 from metanucleus.evolution.intent_mismatch_log import (
     INTENT_MISMATCH_LOG_PATH,
     configure_intent_log_limit,
@@ -209,6 +210,8 @@ class MetaKernel:
         apply_changes: bool = False,
         source: str = "cli",
         filters: Optional[AutoEvolutionFilters] = None,
+        report_path: Optional[Path] = None,
+        report_metadata: Optional[Dict[str, Any]] = None,
     ) -> List[EvolutionPatch]:
         """
         Executa uma rodada de autoevolução agregando patches por domínio.
@@ -394,6 +397,19 @@ class MetaKernel:
         if apply_changes:
             for patch in patches:
                 patch.apply()
+
+        if report_path is not None:
+            write_auto_evolve_report(
+                report_path,
+                domains=domains or [],
+                patches=patches,
+                domain_stats=self.last_evolution_stats,
+                filters=filters,
+                applied=apply_changes,
+                source=source,
+                max_patches=max_patches,
+                extra=report_metadata,
+            )
 
         return patches
 

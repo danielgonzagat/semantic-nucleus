@@ -143,6 +143,13 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         frame_languages=frame_languages or None,
     )
 
+    report_meta = {
+        "cli": "metanucleus-auto-evolve",
+        "commit_requested": args.commit,
+        "dry_run": args.dry_run,
+        "frame_languages": sorted(frame_languages),
+    }
+
     try:
         patches = kernel.run_auto_evolution_cycle(
             domains=domains,
@@ -150,6 +157,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             apply_changes=apply_changes,
             source=args.source,
             filters=filters,
+            report_path=REPORT_PATH,
+            report_metadata=report_meta,
         )
     except Exception as exc:  # pragma: no cover - surfaced to CLI
         print(f"[metanucleus-auto-evolve] erro ao executar ciclo: {exc!r}", file=sys.stderr)
@@ -182,7 +191,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         applied=apply_changes,
         source=args.source,
         max_patches=args.max_patches,
-        extra={"cli": "metanucleus-auto-evolve"},
+        extra=report_meta,
     )
 
     if not patches:
