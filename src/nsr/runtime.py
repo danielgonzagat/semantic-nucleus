@@ -40,6 +40,7 @@ from .meta_equation import build_meta_equation_node
 from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
 from .context_stats import build_context_probabilities
+from .meta_synthesis import build_meta_synthesis
 
 
 def _ensure_logic_engine(session: SessionCtx):
@@ -124,6 +125,7 @@ class RunOutcome:
     meta_justification: Node | None = None
     meta_expression: Node | None = None
     meta_memory: Node | None = None
+    meta_synthesis: Node | None = None
     calc_plan: MetaCalculationPlan | None = None
     calc_result: MetaCalculationResult | None = None
     lc_meta: Node | None = None
@@ -308,6 +310,7 @@ def run_struct_full(
             else None
         )
         context_prob_node = build_context_probabilities(isr)
+        synthesis_node = build_meta_synthesis(isr.context)
         equation_stats = snapshot.stats()
         memory_entry = _memory_entry_payload(
             meta_info,
@@ -335,6 +338,7 @@ def run_struct_full(
                 meta_equation=equation_node,
                 meta_proof=logic_proof_node,
                 meta_context_prob=context_prob_node,
+                meta_synthesis=synthesis_node,
             )
             if meta_info
             else None
@@ -359,6 +363,7 @@ def run_struct_full(
             meta_justification=justification_node if meta_info else None,
             meta_expression=meta_expression,
             meta_memory=meta_memory,
+            meta_synthesis=synthesis_node,
             calc_plan=calc_plan,
             calc_result=calc_result,
             lc_meta=meta_info.lc_meta if meta_info else None,
@@ -514,6 +519,7 @@ def run_struct_full(
         else None
     )
     context_prob_node = build_context_probabilities(isr)
+    synthesis_node = build_meta_synthesis(isr.context)
     equation_stats = snapshot.stats()
     memory_entry = _memory_entry_payload(
         meta_info,
@@ -541,6 +547,7 @@ def run_struct_full(
             meta_equation=equation_node,
             meta_proof=logic_proof_node,
             meta_context_prob=context_prob_node,
+            meta_synthesis=synthesis_node,
         )
         if meta_info
         else None
@@ -570,6 +577,7 @@ def run_struct_full(
         meta_justification=justification_node if meta_info else None,
         meta_expression=meta_expression,
         meta_memory=meta_memory,
+        meta_synthesis=synthesis_node,
         calc_plan=calc_plan,
         calc_result=calc_result,
         lc_meta=meta_info.lc_meta if meta_info else None,

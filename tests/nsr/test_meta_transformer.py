@@ -345,6 +345,17 @@ def test_runtime_auto_builds_synth_plan():
     assert synth_source == plan_digest
 
 
+def test_meta_summary_reports_synthesis_plan():
+    session = SessionCtx()
+    outcome = run_text_full("Planeje: pesquisar -> resumir -> responder", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_plan_total"] >= 1
+    plans = summary.get("synthesis_plans")
+    assert plans
+    assert plans[0].get("source_digest")
+
+
 def test_meta_transformer_routes_factor_graph():
     session = SessionCtx()
     transformer = MetaTransformer(session)
@@ -496,6 +507,19 @@ def test_runtime_auto_builds_synth_proof():
     assert "SYNTH_PROOF" in tags
     assert proof_digest
     assert synth_digest == proof_digest
+
+
+def test_meta_summary_reports_synthesis_proof():
+    session = SessionCtx()
+    run_text_full("FACT chuva", session)
+    run_text_full("Se chuva então molhado", session)
+    outcome = run_text_full("QUERY molhado", session)
+    assert outcome.meta_summary is not None
+    summary = meta_summary_to_dict(outcome.meta_summary)
+    assert summary["synthesis_proof_total"] >= 1
+    proofs = summary.get("synthesis_proofs")
+    assert proofs
+    assert proofs[0]["proof_digest"]
 
 
 def _fake_meta_memory():

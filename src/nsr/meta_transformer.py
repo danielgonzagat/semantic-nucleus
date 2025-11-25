@@ -596,6 +596,7 @@ def build_meta_summary(
     meta_equation: Node | None = None,
     meta_proof: Node | None = None,
     meta_context_prob: Node | None = None,
+    meta_synthesis: Node | None = None,
 ) -> Tuple[Node, ...]:
     nodes = [
         _meta_route_node(meta.route, meta.language_hint),
@@ -630,6 +631,8 @@ def build_meta_summary(
         nodes.append(meta_expression)
     if meta_memory is not None:
         nodes.append(meta_memory)
+    if meta_synthesis is not None:
+        nodes.append(meta_synthesis)
     if meta_context_prob is not None:
         nodes.append(meta_context_prob)
     if meta_equation is not None:
@@ -988,6 +991,63 @@ def meta_summary_to_dict(summary: Tuple[Node, ...]) -> dict[str, object]:
                     }
                 )
             result["context_goal_probs"] = goal_entries
+    synthesis_node = nodes.get("meta_synthesis")
+    if synthesis_node is not None:
+        syn_fields = _fields(synthesis_node)
+        plan_total = syn_fields.get("plan_total")
+        proof_total = syn_fields.get("proof_total")
+        program_total = syn_fields.get("program_total")
+        if plan_total is not None:
+            result["synthesis_plan_total"] = int(_value(plan_total))
+        if proof_total is not None:
+            result["synthesis_proof_total"] = int(_value(proof_total))
+        if program_total is not None:
+            result["synthesis_program_total"] = int(_value(program_total))
+        plans_node = syn_fields.get("plans")
+        if plans_node is not None and plans_node.kind.name == "LIST":
+            plan_entries = []
+            for entry in plans_node.args:
+                entry_fields = _fields(entry)
+                payload: dict[str, object] = {}
+                payload["plan_id"] = _label(entry_fields.get("plan_id"))
+                source_node = entry_fields.get("source_digest")
+                if source_node is not None:
+                    payload["source_digest"] = _label(source_node)
+                step_node = entry_fields.get("step_count")
+                if step_node is not None:
+                    payload["step_count"] = int(_value(step_node))
+                plan_entries.append(payload)
+            result["synthesis_plans"] = plan_entries
+        proofs_node = syn_fields.get("proofs")
+        if proofs_node is not None and proofs_node.kind.name == "LIST":
+            proof_entries = []
+            for entry in proofs_node.args:
+                entry_fields = _fields(entry)
+                proof_entries.append(
+                    {
+                        "query": _label(entry_fields.get("query")),
+                        "truth": _label(entry_fields.get("truth")),
+                        "proof_digest": _label(entry_fields.get("proof_digest")),
+                    }
+                )
+            result["synthesis_proofs"] = proof_entries
+        programs_node = syn_fields.get("programs")
+        if programs_node is not None and programs_node.kind.name == "LIST":
+            program_entries = []
+            for entry in programs_node.args:
+                entry_fields = _fields(entry)
+                payload: dict[str, object] = {
+                    "language": _label(entry_fields.get("language")),
+                    "status": _label(entry_fields.get("status")),
+                }
+                src_lang = entry_fields.get("source_language")
+                if src_lang is not None:
+                    payload["source_language"] = _label(src_lang)
+                fn_count = entry_fields.get("function_count")
+                if fn_count is not None:
+                    payload["function_count"] = int(_value(fn_count))
+                program_entries.append(payload)
+            result["synthesis_programs"] = program_entries
     proof_node = nodes.get("meta_proof")
     if proof_node is not None:
         proof_fields = _fields(proof_node)
