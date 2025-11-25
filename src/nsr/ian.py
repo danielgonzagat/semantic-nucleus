@@ -1,5 +1,5 @@
 """
-Instinto Alfabético Numérico (IAN-Ω) – camada linguística determinística.
+Instinto Alfabético Numérico (IAN-Ω) – camada linguística determinística + NCD (No-Neural AI).
 """
 
 from __future__ import annotations
@@ -10,6 +10,8 @@ import re
 from typing import Dict, List, Mapping, Sequence, Tuple
 
 from .langpacks import iter_language_packs
+from .compression_classifier import NCDClassifier
+from .ian_ncd_data import IAN_NCD_CORPUS
 
 # ---------------------------------------------------------------------------
 # Alfabeto ↔ código (nascimento alfabetizado)
@@ -202,6 +204,7 @@ class Utterance:
     semantics: str
     language: str
     tokens: Tuple[IANToken, ...]
+    original_text: str = ""
 
 
 @dataclass(frozen=True)
@@ -296,12 +299,16 @@ class IANInstinct:
     lexicon: Tuple[Lexeme, ...] = field(default_factory=tuple)
     dialog_rules: Tuple[DialogRule, ...] = field(default_factory=tuple)
     unknown_reply: Tuple[str, ...] = ("não", "sei", ".")
+    ncd_classifier: NCDClassifier = field(default_factory=NCDClassifier)
 
     def __post_init__(self) -> None:
         self._lexeme_index: Dict[str, Lexeme] = {}
         for lex in self.lexicon:
             for form in lex.forms:
                 self._lexeme_index[form.upper()] = lex
+        # Treina o classificador NCD inato
+        if not self.ncd_classifier.exemplars:
+             self.ncd_classifier.train(IAN_NCD_CORPUS)
 
     # ------------------------------------------------------------------
     # Pipeline principal
@@ -327,9 +334,9 @@ class IANInstinct:
 
     def analyze(self, text: str) -> Utterance:
         tokens = self.tokenize(text)
-        role, semantics = self._infer_role(tokens)
+        role, semantics = self._infer_role(tokens, original_text=text)
         language = self._infer_language(role, tokens)
-        return Utterance(role=role, semantics=semantics, language=language, tokens=tokens)
+        return Utterance(role=role, semantics=semantics, language=language, tokens=tokens, original_text=text)
 
     def reply(self, text: str) -> ReplyPlan:
         utterance = self.analyze(text)
@@ -370,7 +377,45 @@ class IANInstinct:
     def _encode_token_surface(self, token: str) -> Tuple[int, ...]:
         return encode_word(token, self.char_to_code)
 
-    def _infer_role(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
+    def _infer_role(self, tokens: Sequence[IANToken], original_text: str = "") -> Tuple[str, str]:
+        # 1. Tenta regras exatas (mais rápido e seguro)
+        role, semantics = self._infer_role_rules(tokens)
+        if role != "UNKNOWN":
+            return role, semantics
+
+        # 2. Se falhar, usa NCD (Inteligência sem Neurônios)
+        if original_text and len(original_text) > 3:
+            return self._infer_role_ncd(original_text)
+            
+        return "UNKNOWN", "UNKNOWN"
+
+    def _infer_role_ncd(self, text: str) -> Tuple[str, str]:
+        results = self.ncd_classifier.predict(text, top_k=1)
+        if not results:
+             return "UNKNOWN", "UNKNOWN"
+        
+        label, score = results[0]
+        # Limiar de confiança para NCD (empiricamente > 0.3 já é bom para textos curtos com LZMA)
+        if score < 0.25:
+             return "UNKNOWN", "UNKNOWN"
+
+        if label == "GREETING":
+            return "GREETING_SIMPLE", "GREETING_SIMPLE"
+        if label == "FAREWELL":
+            return "FAREWELL", "FAREWELL"
+        if label == "COMMAND":
+             return "COMMAND", "COMMAND"
+        if label == "QUESTION_FACT":
+             return "QUESTION_FACT", "QUESTION_FACT"
+        if label == "QUESTION_MATH":
+             # Encaminha matemática para ser tratada depois, mas já identifica como pergunta factual
+             return "QUESTION_FACT", "QUESTION_FACT"
+        if label == "IDENTITY":
+             return "QUESTION_FACT", "QUESTION_FACT"
+
+        return "UNKNOWN", "UNKNOWN"
+
+    def _infer_role_rules(self, tokens: Sequence[IANToken]) -> Tuple[str, str]:
         content_tokens = tuple(token for token in tokens if not token.is_punctuation)
         semantics_seq = [t.lexeme.semantics if t.lexeme else None for t in content_tokens]
         verbose_role = self._matches_verbose_health_question(tokens, semantics_seq)

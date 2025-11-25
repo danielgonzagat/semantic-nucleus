@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import List, Optional, Tuple, Dict, Any
 
-from liu import Node, NodeKind, struct, text, list_node, entity, fingerprint
+from liu import Node, NodeKind, struct, text, list_node, entity, fingerprint, number
 
 
 @dataclass(frozen=True)
