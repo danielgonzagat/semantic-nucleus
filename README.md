@@ -212,6 +212,7 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
   - `meta_reasoner`, `meta_reflection`, `meta_justification`, `meta_expression`, `meta_equation` – trilhas de raciocínio, fases, árvore de justificativas, expressão final e snapshots da equação LIU.
   - `meta_calculator.py`, `meta_calculus_router.py` – planos ΣVM, verificação estática e pipelines Φ (NORMALIZE/INFER/SUMMARIZE, MEMORY_* etc.).
   - `nsr_evo/` – autoevolução determinística: consumo de mismatches, geração de patches (lexicon, regras, semântica, meta cálculo) e ferramentas CLI (`cli_cycle`, `cli_genome`, `cli_promote_kb`, etc.).
+  - `bayes_engine.py`, `markov_engine.py`, `regression_engine.py` – bibliotecas estatísticas sem pesos (redes bayesianas, cadeias/hmms e regressões lineares fechadas) para alimentar a rota `STAT`.
 - `src/svm/` – ΣVM/Ω-VM: assembler (`opcodes.py`, `assembler.py`), runtime (`vm.py`), snapshots (`snapshots.py`), assinatura (`signing.py`), verificador (`verifier.py`) e integração com o MetaKernel.
 - `src/frontend_*` – compiladores determinísticos (Python, Rust, Elixir, lógica) que convertem código em LIU/ΣVM IR para testes e CTS.
 - `tests/` – suites abrangentes:
