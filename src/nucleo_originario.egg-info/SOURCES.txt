@@ -107,6 +107,7 @@ src/metanucleus/utils/project.py
 src/metanucleus/utils/suites.py
 src/nsr/__init__.py
 src/nsr/abstraction_hierarchy.py
+src/nsr/advanced_inference.py
 src/nsr/ambiguity.py
 src/nsr/analogical_learning.py
 src/nsr/bayes_bridge.py
