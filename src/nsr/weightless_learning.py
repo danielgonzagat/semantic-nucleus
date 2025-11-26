@@ -21,6 +21,10 @@ from liu import Node, NodeKind, entity, fingerprint, relation, struct, text, var
 
 from .state import Rule
 from .weightless_index import EpisodeIndex
+from .structural_alignment import StructuralAligner, find_common_patterns
+from .analogical_learning import AnalogicalLearner
+from .knowledge_compression import KnowledgeCompressor
+from .hypothesis_generation import HypothesisGenerator
 
 
 @dataclass(frozen=True, slots=True)
@@ -85,6 +89,11 @@ class WeightlessLearner:
     episodes_since_learning: int = 0
     # Sistema de avaliação de regras
     rule_evaluator: "RuleEvaluator | None" = None
+    # Sistemas avançados de aprendizado
+    structural_aligner: "StructuralAligner | None" = None
+    analogical_learner: "AnalogicalLearner | None" = None
+    knowledge_compressor: "KnowledgeCompressor | None" = None
+    hypothesis_generator: "HypothesisGenerator | None" = None
     
     def add_episode(
         self,
@@ -157,15 +166,56 @@ class WeightlessLearner:
         if len(self.episodes) < self.min_pattern_support:
             return
         
-        # Extrai padrões
+        # Inicializa sistemas avançados se necessário
+        if self.structural_aligner is None:
+            from .structural_alignment import StructuralAligner
+            self.structural_aligner = StructuralAligner()
+        
+        if self.analogical_learner is None:
+            from .analogical_learning import AnalogicalLearner
+            self.analogical_learner = AnalogicalLearner()
+        
+        if self.knowledge_compressor is None:
+            from .knowledge_compression import KnowledgeCompressor
+            self.knowledge_compressor = KnowledgeCompressor()
+        
+        if self.hypothesis_generator is None:
+            from .hypothesis_generation import HypothesisGenerator
+            self.hypothesis_generator = HypothesisGenerator(
+                min_support=self.min_pattern_support,
+                min_confidence=self.min_confidence,
+            )
+        
+        # 1. Extrai padrões básicos
         patterns = self.extract_patterns()
         
-        # Aprende regras
+        # 2. Aprende por analogia
+        episodes_list = list(self.episodes.values())
+        analogical_rules = self.analogical_learner.learn_from_episodes(episodes_list)
+        
+        # 3. Gera e testa hipóteses
+        hypotheses = self.hypothesis_generator.generate_from_episodes(episodes_list)
+        for hypothesis in hypotheses:
+            tested = self.hypothesis_generator.test_hypothesis(hypothesis, episodes_list)
+            if self.hypothesis_generator.accept_or_reject(tested):
+                # Adiciona regra aceita
+                if tested.rule not in self.learned_rules:
+                    self.learned_rules.append(tested.rule)
+        
+        # 4. Aprende regras de padrões
         new_rules = self.learn_rules_from_patterns(patterns)
         
+        # 5. Comprime conhecimento (opcional, para otimização)
+        if len(episodes_list) > 100:
+            compressed = self.knowledge_compressor.compress(episodes_list, min_episodes=5)
+            # Usa conhecimento comprimido para melhorar busca
+        
         # Log (pode ser removido em produção)
-        if new_rules:
-            print(f"[WeightlessLearning] Aprendidas {len(new_rules)} novas regras de {len(self.episodes)} episódios")
+        total_new = len(new_rules) + len(self.hypothesis_generator.accepted_rules)
+        if total_new > 0:
+            print(f"[WeightlessLearning] Aprendidas {total_new} novas regras de {len(self.episodes)} episódios")
+            print(f"  - Padrões: {len(new_rules)}")
+            print(f"  - Hipóteses aceitas: {len(self.hypothesis_generator.accepted_rules)}")
     
     def _evolve_rules(self) -> None:
         """Evolui regras: avalia e remove regras ruins."""
