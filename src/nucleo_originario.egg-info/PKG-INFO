@@ -115,9 +115,10 @@ flowchart LR
 
 ### Meta-LER determinístico
 
-- O módulo `nsr.meta_transformer.MetaTransformer` concentra o estágio **Meta-LER** do pipeline, decidindo de forma determinística qual rota aplicar (Math-Core, Logic-Bridge, Code-Bridge/Python, IAN-Ω ou parser LIU).
+- O módulo `nsr.meta_transformer.MetaTransformer` concentra o estágio **Meta-LER** do pipeline, decidindo de forma determinística qual rota aplicar (Math-Core, POLY bridge, Logic-Bridge, Code-Bridge/Python, IAN-Ω ou parser LIU).
 - Cada transformação gera um `MetaTransformResult` com `struct_node`, contexto pré-semeado (`meta_route` + `meta_input`) e `trace_label`, garantindo rastreabilidade total antes do loop Φ.
 - Quando a rota fornece `preseed_answer`, o `MetaTransformResult` também inclui um `calc_plan`, que nada mais é que um `MetaCalculationPlan` contendo um programa ΣVM pronto para executar o meta-cálculo mínimo (por enquanto, um programa direto que escreve a resposta determinística na pilha e finaliza).
+- A rota estatística `MetaRoute.STAT` aceita comandos `BAYES {json}` (redes bayesianas discretas), `MARKOV {json}` (cadeias/hmms determinísticos), `REGRESS {json}` (regressão linear múltipla) e `FACTOR {json}` (belief propagation em grafos fatoriais). Cada payload descreve a estrutura completa, o núcleo roda o motor correspondente (`nsr.bayes_engine`, `nsr.markov_engine`, `nsr.regression_engine`, `nsr.factor_graph_engine`) e devolve LIU + plano ΣVM direto (`stat_direct_answer`) auditável no `meta_summary`.
 - `run_text_full` expõe `RunOutcome.calc_plan` + `RunOutcome.calc_result`: o plano descreve o bytecode ΣVM e o resultado mantém snapshot + resposta retornada pela VM. O CLI pode serializar esse pacote com `--include-calc`. Mesmo quando a rota cai no parser textual padrão, já emitimos um plano ΣVM determinístico (`Φ_NORMALIZE → Φ_SUMMARIZE → HALT`) para materializar a resposta no hardware.
 - A rota TEXT agora injeta `lc_meta` na STRUCT inicial e no contexto, construído via `nsr.meta_structures` a partir do `lc_parse`: tokens, sequência semântica e, quando disponível, o `meta_calculation` LC-Ω acompanham o pacote Meta-LER, conectando imediatamente Meta-LER → Meta-CALCULAR.
 - Quando o `lc_meta` inclui um `meta_calculation`, o plano ΣVM do fallback textual se adapta automaticamente (ex.: `STATE_QUERY` → `Φ_NORMALIZE · Φ_INFER · Φ_SUMMARIZE`, `STATE_ASSERT` → `Φ_NORMALIZE · Φ_ANSWER · Φ_EXPLAIN · Φ_SUMMARIZE`) **e** grava um snapshot `lc_meta_calc` no `answer` da ΣVM via `PUSH_CONST → STORE_ANSWER`, permitindo auditar no hardware qual cálculo LC-Ω foi detectado.
@@ -138,7 +139,15 @@ flowchart LR
 - `python -m nsr.cli "QUERY ... " --include-meta --include-proof` publica um bloco `proof_detail` com verdade/query/digest e o `logic_proof` completo produzido por `Φ_PROVE`, garantindo auditoria determinística de consultas lógicas.
 - `--include-code-summary` injeta o `code_ast_summary` serializado diretamente no payload principal (sem depender do pacote meta), permitindo exportar idioma, contagem de nós/funções e digest do AST para auditoria externa.
 - Cada `code_ast_summary` inclui a lista determinística de funções detectadas (nome + `param_count` quando disponível), garantindo rastreabilidade simbólica do snippet analisado.
+- O `MultiOntologyManager` embutido ativa domínios `core`, `code`, `medical`, `legal`, `finance` **e agora toda a Ontologia Universal v1.0 (categorias 1–10)**, infere quais deles aparecem no texto/estrutura corrente e grava um nó `ontology_scope` no contexto/meta_summary com lista de domínios ativos/inferidos, contagem total de relações e digest BLAKE2b do escopo — fechando a auditoria “entrada → ontologia usada → resposta” em nível de domínio.
 - O `meta_reasoner` expõe `delta_quality` e `delta_relations` em cada `reasoning_step`, quantificando numericamente o impacto de cada operador Φ no estado LIU.
+- Probabilidades contextuais determinísticas (`context_probabilities`) acompanham cada meta_summary: contagens normalizadas de relações, tags de contexto e goals são calculadas a partir do ISR. Essas distribuições também priorizam deterministamente a fila Φ, orientando qual operador roda primeiro sem recorrer a pesos ocultos.
+- MetaPlanner e síntese formal funcionam de ponta a ponta sem intervenção manual: `detect_plan_goal` injeta `Φ_PLAN_DECOMPOSE`, o runtime observa quando um `plan_decompose` surge e enfileira `Φ_SYNTH_PLAN` automaticamente (apenas se ainda não existir `synth_plan` com o mesmo digest). Consultas lógicas (`QUERY ...`) executam `Φ_PROVE` no final do loop, e sempre que um `logic_proof` novo aparece o núcleo agenda `Φ_SYNTH_PROOF`. Ambos operadores gravam `source_digest`/`proof_digest` e relações `plan/SYNTHESIZED`/`logic/SYNTH`, permitindo auditar a trilha “plano → síntese” e “prova → síntese” diretamente no `meta_summary`.
+- `Φ_SYNTH_PROG` segue a mesma lógica determinística: sempre que `REWRITE_CODE` gera um `code_ast_summary`, o runtime detecta resumos ainda não sintetizados (via digest) e agenda `SYNTH_PROG` automaticamente. O operador escreve `source_digest` no `synth_prog` e na relação `code/SYNTH`, garantindo a mesma rastreabilidade aplicada a planos e provas.
+- Um novo bloco `meta_synthesis` é emitido junto ao `meta_summary`, consolidando todos os `synth_plan`, `synth_proof` e `synth_prog` presentes no contexto. Cada entrada replica o digest de origem (`source_digest`/`proof_digest`), contagem de passos, idioma/programa e status, além dos totais por categoria (`synthesis_plan_total`, `synthesis_proof_total`, `synthesis_program_total`). A API (`meta_summary_to_dict`) expõe essas listas como `synthesis_plans`, `synthesis_proofs` e `synthesis_programs`, fechando o elo auditoria → síntese.
+- A `meta_memory` também absorve esses campos: cada `memory_entry` grava os totais de síntese e a lista determinística de digests utilizados, permitindo que recalls futuros saibam exatamente quais planos/provas/programas foram gerados em cada execução.
+- Para consumir esses snapshots em código, use `nsr.meta_memory_to_dict(meta_memory_node)`, que devolve `{"size": ..., "digest": ..., "entries": [...]}` com todos os campos persistidos (incluindo `synthesis_*`). Isso facilita pipelines externos que dependem do histórico determinístico sem ter que reimplementar parsing LIU.
+- Operadores Φ adicionados continuamente: recentes incluem `Φ_PLAN_DECOMPOSE`, que transforma objetivos textuais em passos determinísticos (`plan_step`) para alimentar reasoning/memória com rastros auditáveis.
 - `Φ_PROVE` integra o `logic_engine` ao loop Φ: consultas `FACT_QUERY`/`FACT_FOLLOWUP` agora executam PROVE após INFER, registrando um `logic_proof` no contexto (fatos conhecidos, derivados e verdade atual da consulta) e espelhando esse resumo no `meta_summary`.
 - Quando existe um `meta_calculation`, o `meta_summary` também carrega `meta_calculation` (serializado) e o `meta_plan` correspondente — útil para auditar as regras LC-Ω e a sequência Φ planejada antes mesmo de inspecionar o `lc_meta`.
 - O `meta_summary` também inclui um bloco `meta_calc_exec` sempre que um plano ΣVM é executado: rota/descrição do plano, flag `consistent`, erro (se houver), fingerprint da resposta e `snapshot_digest` BLAKE2b-128 (digest_size=16, sem chave/salt) do snapshot ΣVM (com `pc`/`stack_depth`). O CLI exporta esses campos como `calc_exec_*`, ligando o Meta-Cálculo à execução física auditável.
@@ -249,6 +258,34 @@ pytest → logs/mismatches → run_auto_evolution_cycle → EvolutionPatch → m
 /tests               # Suites de conformidade (WF, runtime, VM, compilers)
 /docs                # Manifesto, roadmap, quickstart e documentação pública
 ```
+
+**Inventário detalhado**
+
+- `spec/` – referências normativas (LIU, Compilers multilíngues, Runtime C_NSR, ΣVM, Manifesto). Cada subpasta (`A_LIU`, `B_Compilers`, `C_NSR_Runtime`, `D_SigmaVM`, `E_Manifesto`) descreve protocolos de interoperabilidade, estados ISR, bytecode e governança.
+- `src/liu/` – núcleo LIU (nós, arenas imutáveis, fingerprint, serialização JSON/S-expr, normalização e ontologia base). Inclui construtores utilitários (`struct`, `entity`, `text`, `number`) e ferramentas de fingerprint para auditoria.
+- `src/nsr/` – maior pacote:
+  - `runtime.py`, `state.py`, `operators.py`, `meta_*` implementam o pipeline Meta-LER → Meta-Pensar → Meta-Calcular → Meta-Expressar, memória determinística, planos ΣVM, operadores Φ completos, verificações de invariantes e integração com ΣVM.
+  - `meta_transformer.py` roteia entradas para `MetaRoute` (`MATH`, `LOGIC`, `CODE`, `INSTINCT`, `TEXT`, `STAT`), já cobrindo `BAYES {json}` e `MARKOV {json}` via `bayes_bridge`/`markov_bridge`.
+  - `bayes_engine.py` / `bayes_bridge.py` – redes bayesianas discretas com enumeração exata; `markov_engine.py` / `markov_bridge.py` – cadeias de Markov/HMM com algoritmo forward determinístico.
+  - `logic_engine.py`, `logic_bridge.py` – motor proposicional, parser textual (`FACT/IF/QUERY`), prova (`Φ_PROVE`) e persistência.
+  - `math_core`, `math_ast`, `math_bridge`, `math_instinct` – instinto matemático, AST simbólico e integração com ΣVM.
+  - `code_bridge`, `code_ast`, `frontend_*` – análise de snippets (Python/Rust/Elixir/Logic), AST determinístico e resumos `code_ast_summary`.
+  - `ian`, `ian_bridge` – instinto linguístico IAN-Ω (saudações, morfologia, conjugação determinística).
+  - `language_detector`, `lex`, `parser`, `liu` backends – tokenização multilíngue, gramática LxU/PSE, detecção de idioma/dialeto e hints para o pipeline.
+  - `meta_memory`, `meta_memory_store`, `meta_memory_induction` – memória curta, persistência `.nsr_memory`, indução de regras auditáveis.
+  - `meta_reasoner`, `meta_reflection`, `meta_justification`, `meta_expression`, `meta_equation` – trilhas de raciocínio, fases, árvore de justificativas, expressão final e snapshots da equação LIU.
+  - `meta_calculator.py`, `meta_calculus_router.py` – planos ΣVM, verificação estática e pipelines Φ (NORMALIZE/INFER/SUMMARIZE, MEMORY_* etc.).
+  - `nsr_evo/` – autoevolução determinística: consumo de mismatches, geração de patches (lexicon, regras, semântica, meta cálculo) e ferramentas CLI (`cli_cycle`, `cli_genome`, `cli_promote_kb`, etc.).
+  - `bayes_engine.py`, `markov_engine.py`, `regression_engine.py`, `factor_graph_engine.py`, `polynomial_engine.py` – bibliotecas sem pesos (redes bayesianas, cadeias/hmms, regressões lineares, grafos fatoriais e fatoração polinomial). Seus bridges textuais (`BAYES`, `MARKOV`, `REGRESS`, `FACTOR`, `POLY`) alimentam as rotas `STAT`/`MATH`.
+- `src/svm/` – ΣVM/Ω-VM: assembler (`opcodes.py`, `assembler.py`), runtime (`vm.py`), snapshots (`snapshots.py`), assinatura (`signing.py`), verificador (`verifier.py`) e integração com o MetaKernel.
+- `src/frontend_*` – compiladores determinísticos (Python, Rust, Elixir, lógica) que convertem código em LIU/ΣVM IR para testes e CTS.
+- `tests/` – suites abrangentes:
+  - `tests/nsr/` cobre meta_transformer, meta_plan digests, operadores Φ, bridges, memórias.
+  - `tests/svm/` valida VM, assembler, snapshots, CTS.
+  - `tests/frontend_*` e `tests/cts/` (compatibilidade).
+- `docs/` – Manifesto, quickstart, roadmap oficial 2025–2030, manifesto ético, security checklist, architecture deep-dive, auto-evolution workflow.
+- `bin/` – CLIs (`metanucleus-auto-calculus`, `metanucleus-auto-evolve`, `metanucleus-auto-intent`) para automatizar testes e ciclos de evolução.
+- `.meta/`, `.nsr_memory/`, `logs/`, `ci-artifacts/` – artefatos auditáveis (mismatches, memória persistente, snapshots de relatórios).
 
 ## Quickstart
 
