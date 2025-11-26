@@ -1,0 +1,412 @@
+{
+  "module": "A",
+  "range": "A020-A039",
+  "name": "core_operations",
+  "categories": [
+    {
+      "id": "A020",
+      "name": "validity_field",
+      "concepts": [
+        {
+          "id": "A020-001",
+          "name": "validity_field",
+          "aliases": ["v-field"],
+          "isa": ["A007-001"],
+          "examples": { "pt": ["campo de validade"], "en": ["validity field"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A021",
+      "name": "composition",
+      "concepts": [
+        {
+          "id": "A021-001",
+          "name": "composition",
+          "aliases": ["comp"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["composição"], "en": ["composition"] }
+        },
+        {
+          "id": "A021-002",
+          "name": "hybrid_composition",
+          "aliases": ["h-comp"],
+          "isa": ["A021-001"],
+          "examples": { "pt": ["composição híbrida"], "en": ["hybrid composition"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A022",
+      "name": "sequence",
+      "concepts": [
+        {
+          "id": "A022-001",
+          "name": "sequence",
+          "aliases": ["seq"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["sequência"], "en": ["sequence"] }
+        },
+        {
+          "id": "A022-002",
+          "name": "semantic_sequence",
+          "aliases": ["s-seq"],
+          "isa": ["A022-001"],
+          "examples": { "pt": ["sequência semântica"], "en": ["semantic sequence"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A023",
+      "name": "matrix",
+      "concepts": [
+        {
+          "id": "A023-001",
+          "name": "matrix",
+          "aliases": ["mat"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["matriz"], "en": ["matrix"] }
+        },
+        {
+          "id": "A023-002",
+          "name": "semantic_matrix",
+          "aliases": ["s-mat"],
+          "isa": ["A023-001"],
+          "examples": { "pt": ["matriz semântica"], "en": ["semantic matrix"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A024",
+      "name": "node_type",
+      "concepts": [
+        {
+          "id": "A024-001",
+          "name": "node_type",
+          "aliases": ["n-type"],
+          "isa": ["A006-001"],
+          "examples": { "pt": ["tipo de nó"], "en": ["node type"] }
+        },
+        {
+          "id": "A024-002",
+          "name": "semantic_node_type",
+          "aliases": ["s-n-type"],
+          "isa": ["A024-001"],
+          "examples": { "pt": ["tipo semântico de nó"], "en": ["semantic node type"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A025",
+      "name": "primitive",
+      "concepts": [
+        {
+          "id": "A025-001",
+          "name": "primitive",
+          "aliases": ["prim"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["primitiva"], "en": ["primitive"] }
+        },
+        {
+          "id": "A025-002",
+          "name": "calculus_primitive",
+          "aliases": ["calc-prim"],
+          "isa": ["A025-001"],
+          "examples": { "pt": ["primitiva de cálculo"], "en": ["calculus primitive"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A026",
+      "name": "operation_mode",
+      "concepts": [
+        {
+          "id": "A026-001",
+          "name": "operation_mode",
+          "aliases": ["op-mode"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["modo de operação"], "en": ["operation mode"] }
+        },
+        {
+          "id": "A026-002",
+          "name": "meta_operation_mode",
+          "aliases": ["meta-op-mode"],
+          "isa": ["A026-001"],
+          "examples": { "pt": ["modo meta-operacional"], "en": ["meta-operation mode"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A027",
+      "name": "relation_field",
+      "concepts": [
+        {
+          "id": "A027-001",
+          "name": "relation_field",
+          "aliases": ["r-field"],
+          "isa": ["A007-001"],
+          "examples": { "pt": ["campo relacional"], "en": ["relation field"] }
+        },
+        {
+          "id": "A027-002",
+          "name": "causal_relation_field",
+          "aliases": ["cr-field"],
+          "isa": ["A027-001"],
+          "examples": { "pt": ["campo de relação causal"], "en": ["causal relation field"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A028",
+      "name": "graph",
+      "concepts": [
+        {
+          "id": "A028-001",
+          "name": "graph",
+          "aliases": ["grp"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["grafo"], "en": ["graph"] }
+        },
+        {
+          "id": "A028-002",
+          "name": "semantic_graph",
+          "aliases": ["s-graph"],
+          "isa": ["A028-001"],
+          "examples": { "pt": ["grafo semântico"], "en": ["semantic graph"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A029",
+      "name": "tree",
+      "concepts": [
+        {
+          "id": "A029-001",
+          "name": "tree",
+          "aliases": ["tr"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["árvore"], "en": ["tree"] }
+        },
+        {
+          "id": "A029-002",
+          "name": "semantic_tree",
+          "aliases": ["s-tree"],
+          "isa": ["A029-001"],
+          "examples": { "pt": ["árvore semântica"], "en": ["semantic tree"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A030",
+      "name": "logical_connector",
+      "concepts": [
+        {
+          "id": "A030-001",
+          "name": "logical_connector",
+          "aliases": ["l-conn"],
+          "isa": ["A006-001"],
+          "examples": { "pt": ["conector lógico"], "en": ["logical connector"] }
+        },
+        {
+          "id": "A030-002",
+          "name": "binary_logical_connector",
+          "aliases": ["b-l-conn"],
+          "isa": ["A030-001"],
+          "examples": { "pt": ["conector lógico binário"], "en": ["binary logical connector"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A031",
+      "name": "boolean_operator",
+      "concepts": [
+        {
+          "id": "A031-001",
+          "name": "boolean_operator",
+          "aliases": ["bool-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador booleano"], "en": ["boolean operator"] }
+        },
+        {
+          "id": "A031-002",
+          "name": "logical_negation",
+          "aliases": ["not"],
+          "isa": ["A031-001"],
+          "examples": { "pt": ["negação"], "en": ["negation"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A032",
+      "name": "condition",
+      "concepts": [
+        {
+          "id": "A032-001",
+          "name": "condition",
+          "aliases": ["cond"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["condição"], "en": ["condition"] }
+        },
+        {
+          "id": "A032-002",
+          "name": "precondition",
+          "aliases": ["pre-cond"],
+          "isa": ["A032-001"],
+          "examples": { "pt": ["pré-condição"], "en": ["precondition"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A033",
+      "name": "comparator",
+      "concepts": [
+        {
+          "id": "A033-001",
+          "name": "comparator",
+          "aliases": ["cmp"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["comparador"], "en": ["comparator"] }
+        },
+        {
+          "id": "A033-002",
+          "name": "semantic_comparator",
+          "aliases": ["s-cmp"],
+          "isa": ["A033-001"],
+          "examples": { "pt": ["comparador semântico"], "en": ["semantic comparator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A034",
+      "name": "abstract_form",
+      "concepts": [
+        {
+          "id": "A034-001",
+          "name": "abstract_form",
+          "aliases": ["a-form"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["forma abstrata"], "en": ["abstract form"] }
+        },
+        {
+          "id": "A034-002",
+          "name": "meta_form",
+          "aliases": ["m-form"],
+          "isa": ["A034-001"],
+          "examples": { "pt": ["meta-forma"], "en": ["meta-form"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A035",
+      "name": "semantic_surface",
+      "concepts": [
+        {
+          "id": "A035-001",
+          "name": "semantic_surface",
+          "aliases": ["s-surface"],
+          "isa": ["A034-001"],
+          "examples": { "pt": ["superfície semântica"], "en": ["semantic surface"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A036",
+      "name": "cognitive_marker",
+      "concepts": [
+        {
+          "id": "A036-001",
+          "name": "cognitive_marker",
+          "aliases": ["c-marker"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["marcador cognitivo"], "en": ["cognitive marker"] }
+        },
+        {
+          "id": "A036-002",
+          "name": "semantic_marker",
+          "aliases": ["s-marker"],
+          "isa": ["A036-001"],
+          "examples": { "pt": ["marcador semântico"], "en": ["semantic marker"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A037",
+      "name": "concept_anchor",
+      "concepts": [
+        {
+          "id": "A037-001",
+          "name": "concept_anchor",
+          "aliases": ["anchor"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["âncora conceitual"], "en": ["concept anchor"] }
+        },
+        {
+          "id": "A037-002",
+          "name": "semantic_anchor",
+          "aliases": ["s-anchor"],
+          "isa": ["A037-001"],
+          "examples": { "pt": ["âncora semântica"], "en": ["semantic anchor"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A038",
+      "name": "reasoning_axis",
+      "concepts": [
+        {
+          "id": "A038-001",
+          "name": "reasoning_axis",
+          "aliases": ["r-axis"],
+          "isa": ["A015-001"],
+          "examples": { "pt": ["eixo de raciocínio"], "en": ["reasoning axis"] }
+        },
+        {
+          "id": "A038-002",
+          "name": "semantic_axis",
+          "aliases": ["s-axis"],
+          "isa": ["A038-001"],
+          "examples": { "pt": ["eixo semântico"], "en": ["semantic axis"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A039",
+      "name": "cognitive_frame",
+      "concepts": [
+        {
+          "id": "A039-001",
+          "name": "cognitive_frame",
+          "aliases": ["c-frame"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["quadro cognitivo"], "en": ["cognitive frame"] }
+        },
+        {
+          "id": "A039-002",
+          "name": "semantic_frame",
+          "aliases": ["s-frame"],
+          "isa": ["A039-001"],
+          "examples": { "pt": ["quadro semântico"], "en": ["semantic frame"] }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+{
+  "greeting": [
+    "oi",
+    "olá",
+    "ola",
+    "hello",
+    "hi",
+    "bom dia",
+    "boa tarde",
+    "boa noite"
+  ],
+  "definition_request": [
+    "o que é",
+    "o que e",
+    "definir",
+    "me explica",
+    "me explique",
+    "explique"
+  ],
+  "question_mark": ["?"]
+}

@@ -1,0 +1,216 @@
+{
+  "module": "A",
+  "range": "A000-A009",
+  "name": "core_entities",
+  "categories": [
+    {
+      "id": "A000",
+      "name": "entity",
+      "concepts": [
+        {
+          "id": "A000-001",
+          "name": "entity",
+          "aliases": ["thing", "unit"],
+          "isa": [],
+          "examples": { "pt": ["entidade"], "en": ["entity"] }
+        },
+        {
+          "id": "A000-002",
+          "name": "abstract_entity",
+          "aliases": ["a-entity"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["entidade abstrata"], "en": ["abstract entity"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A001",
+      "name": "structure",
+      "concepts": [
+        {
+          "id": "A001-001",
+          "name": "structure",
+          "aliases": ["struct"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["estrutura"], "en": ["structure"] }
+        },
+        {
+          "id": "A001-002",
+          "name": "composite_structure",
+          "aliases": ["c-struct"],
+          "isa": ["A001-001"],
+          "examples": { "pt": ["estrutura composta"], "en": ["composite structure"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A002",
+      "name": "process",
+      "concepts": [
+        {
+          "id": "A002-001",
+          "name": "process",
+          "aliases": ["proc"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["processo"], "en": ["process"] }
+        },
+        {
+          "id": "A002-002",
+          "name": "transform",
+          "aliases": ["xform"],
+          "isa": ["A002-001"],
+          "examples": { "pt": ["transformação"], "en": ["transformation"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A003",
+      "name": "operator",
+      "concepts": [
+        {
+          "id": "A003-001",
+          "name": "operator",
+          "aliases": ["op"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["operador"], "en": ["operator"] }
+        },
+        {
+          "id": "A003-002",
+          "name": "functional_operator",
+          "aliases": ["f-op"],
+          "isa": ["A003-001"],
+          "examples": { "pt": ["operador funcional"], "en": ["functional operator"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A004",
+      "name": "state",
+      "concepts": [
+        {
+          "id": "A004-001",
+          "name": "state",
+          "aliases": ["status"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["estado"], "en": ["state"] }
+        },
+        {
+          "id": "A004-002",
+          "name": "transitional_state",
+          "aliases": ["t-state"],
+          "isa": ["A004-001"],
+          "examples": { "pt": ["estado transitório"], "en": ["transitional state"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A005",
+      "name": "relation",
+      "concepts": [
+        {
+          "id": "A005-001",
+          "name": "relation",
+          "aliases": ["rel"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["relação"], "en": ["relation"] }
+        },
+        {
+          "id": "A005-002",
+          "name": "causal_relation",
+          "aliases": ["causal"],
+          "isa": ["A005-001"],
+          "examples": { "pt": ["relação causal"], "en": ["causal relation"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A006",
+      "name": "property",
+      "concepts": [
+        {
+          "id": "A006-001",
+          "name": "property",
+          "aliases": ["prop"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["propriedade"], "en": ["property"] }
+        },
+        {
+          "id": "A006-002",
+          "name": "complex_property",
+          "aliases": ["c-prop"],
+          "isa": ["A006-001"],
+          "examples": { "pt": ["propriedade complexa"], "en": ["complex property"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A007",
+      "name": "field",
+      "concepts": [
+        {
+          "id": "A007-001",
+          "name": "field",
+          "aliases": ["fld"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["campo"], "en": ["field"] }
+        },
+        {
+          "id": "A007-002",
+          "name": "semantic_field",
+          "aliases": ["s-field"],
+          "isa": ["A007-001"],
+          "examples": { "pt": ["campo semântico"], "en": ["semantic field"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A008",
+      "name": "pattern",
+      "concepts": [
+        {
+          "id": "A008-001",
+          "name": "pattern",
+          "aliases": ["ptrn"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["padrão"], "en": ["pattern"] }
+        },
+        {
+          "id": "A008-002",
+          "name": "macro_pattern",
+          "aliases": ["m-ptrn"],
+          "isa": ["A008-001"],
+          "examples": { "pt": ["macro-padrão"], "en": ["macro-pattern"] }
+        }
+      ]
+    },
+
+    {
+      "id": "A009",
+      "name": "domain",
+      "concepts": [
+        {
+          "id": "A009-001",
+          "name": "domain",
+          "aliases": ["dom"],
+          "isa": ["A000-001"],
+          "examples": { "pt": ["domínio"], "en": ["domain"] }
+        },
+        {
+          "id": "A009-002",
+          "name": "meta_domain",
+          "aliases": ["m-dom"],
+          "isa": ["A009-001"],
+          "examples": { "pt": ["meta-domínio"], "en": ["meta-domain"] }
+        }
+      ]
+    }
+  ]
+}

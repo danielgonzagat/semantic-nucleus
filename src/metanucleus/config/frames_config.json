@@ -1,0 +1,48 @@
+{
+  "frames": [
+    {
+      "id": "physical_action",
+      "label": "physical_action",
+      "language": "pt",
+      "patterns": [
+        "bateu",
+        "empurrou",
+        "quebrou"
+      ],
+      "role_hints": {
+        "AGENT": ["quem faz", "sujeito"],
+        "PATIENT": ["quem recebe", "objeto"],
+        "ACTION": ["verbo"]
+      }
+    },
+    {
+      "id": "communication",
+      "label": "communication",
+      "language": "pt",
+      "patterns": [
+        "disse",
+        "falou com",
+        "pediu para"
+      ],
+      "role_hints": {
+        "AGENT": ["quem fala"],
+        "PATIENT": ["quem recebe"],
+        "ACTION": ["disse", "falou", "pediu"]
+      }
+    },
+    {
+      "id": "definition_request",
+      "label": "definition_request",
+      "language": "pt",
+      "patterns": [
+        "o que é",
+        "o que e",
+        "me explique",
+        "me explica"
+      ],
+      "role_hints": {
+        "TOPIC": ["alvo"]
+      }
+    }
+  ]
+}
