@@ -6,5 +6,6 @@ liu
 metanucleus
 nsr
 nsr_evo
+nsr_learn
 ontology
 svm

@@ -8,9 +8,13 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
-from .weightless_learning import Episode, WeightlessLearner
+from .weightless_types import Episode
+
+if TYPE_CHECKING:
+    from .weightless_learning import WeightlessLearner
+
 from .rule_evaluator import RuleEvaluation
 
 

@@ -12,7 +12,7 @@ from typing import Dict, List, Tuple
 from liu import Node, NodeKind, fingerprint, relation
 
 from .structural_alignment import StructuralAligner, Alignment
-from .weightless_learning import Episode
+from .weightless_types import Episode
 
 
 @dataclass(frozen=True, slots=True)

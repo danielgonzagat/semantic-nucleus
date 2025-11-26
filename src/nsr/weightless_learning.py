@@ -20,44 +20,9 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 from liu import Node, NodeKind, entity, fingerprint, relation, struct, text, var
 
 from .state import Rule
+from .weightless_types import Episode, Pattern
 from .weightless_index import EpisodeIndex
 from .structural_alignment import StructuralAligner, find_common_patterns
-from .analogical_learning import AnalogicalLearner
-from .knowledge_compression import KnowledgeCompressor
-from .hypothesis_generation import HypothesisGenerator
-from .causal_learning import CausalLearner
-from .planning_system import PlanningSystem
-from .world_simulation import WorldSimulator
-
-
-@dataclass(frozen=True, slots=True)
-class Episode:
-    """Episódio completo: entrada → processamento → saída."""
-    
-    input_text: str
-    input_struct: Node
-    output_text: str
-    output_struct: Node
-    relations: Tuple[Node, ...]
-    context: Tuple[Node, ...]
-    quality: float
-    fingerprint: str  # Hash determinístico do episódio
-
-
-@dataclass(slots=True)
-class Pattern:
-    """Padrão extraído de múltiplos episódios."""
-    
-    # Estrutura do padrão (pode conter variáveis ?X, ?Y)
-    structure: Node
-    # Episódios que contêm este padrão
-    episode_fingerprints: Set[str]
-    # Frequência
-    frequency: int
-    # Confiança (baseada em qualidade média dos episódios)
-    confidence: float
-    # Generalização (quanto do padrão é variável)
-    generalization_level: float
 
 
 @dataclass(slots=True)

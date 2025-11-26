@@ -16,7 +16,7 @@ from liu import Node, NodeKind, fingerprint
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .weightless_learning import Episode
+    from .weightless_types import Episode
 
 
 @dataclass(slots=True)
@@ -155,6 +155,10 @@ class EpisodeIndex:
         if struct is not None:
             struct_results = self.find_by_structure(struct, k * 2)
             all_candidates.update(struct_results)
+            
+            # Se não houver keywords, extrai do struct (sem modificar o parâmetro)
+            if not keywords:
+                keywords = self._extract_entity_labels(struct)
         
         # Busca por relações
         if relations:

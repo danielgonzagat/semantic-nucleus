@@ -37,14 +37,15 @@ def test_pattern_extraction():
     """Testa extração de padrões."""
     learner = WeightlessLearner(min_pattern_support=2)
     
-    # Adiciona episódios com padrão comum
+    # Adiciona episódios com estrutura exatamente igual
+    # (para testar agrupamento por estrutura idêntica)
     for i in range(3):
         learner.add_episode(
-            input_text=f"Item {i}",
-            input_struct=struct(subject=entity(f"item_{i}"), action=entity("existe")),
+            input_text=f"Item existe {i}",
+            input_struct=struct(subject=entity("item"), action=entity("existe")),
             output_text="Sim",
             output_struct=struct(answer=text("Sim")),
-            relations=(relation("EXISTS", entity(f"item_{i}"), entity("coisa")),),
+            relations=(relation("EXISTS", entity("item"), entity("coisa")),),
             context=(),
             quality=0.7,
         )

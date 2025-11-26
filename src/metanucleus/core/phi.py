@@ -578,10 +578,9 @@ def _safe_eval_math(expr: str) -> float:
         raise ValueError("expressão inválida") from exc
 
     def _eval(node: ast.AST) -> float:
+        # Python 3.8+ uses ast.Constant for all literals
         if isinstance(node, ast.Constant) and isinstance(node.value, (int, float)):
             return float(node.value)
-        if isinstance(node, ast.Num):
-            return float(node.n)
         if isinstance(node, ast.BinOp):
             op_type = type(node.op)
             if op_type not in _BIN_OPS:

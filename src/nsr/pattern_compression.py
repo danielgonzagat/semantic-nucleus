@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple
 
 from liu import Node, NodeKind, fingerprint, var
 
-from .weightless_learning import Episode, Pattern
+from .weightless_types import Episode, Pattern
 from .abstraction_hierarchy import AbstractionHierarchy
 
 
