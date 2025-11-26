@@ -38,7 +38,7 @@ from typing import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Condition:
     """Uma condição em uma regra."""
     
@@ -86,7 +86,7 @@ class Condition:
         return f"{neg}{self.predicate}({args_str})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SymbolicRule:
     """Uma regra simbólica induzida."""
     
@@ -160,7 +160,7 @@ class SymbolicRule:
         return f"{ants} → {self.consequent} [sup={self.support}, conf={self.confidence:.2f}]"
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleSet:
     """Conjunto de regras aprendidas."""
     
@@ -213,7 +213,7 @@ class RuleSet:
         return iter(self.rules)
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleInductor:
     """
     Indutor de regras simbólicas a partir de dados.

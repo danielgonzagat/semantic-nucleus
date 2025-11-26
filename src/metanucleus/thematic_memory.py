@@ -8,7 +8,7 @@ from typing import Dict, List, Optional, Sequence, Set
 Speaker = str  # "user" | "system"
 
 
-@dataclass(slots=True)
+@dataclass()
 class MemoryItem:
     speaker: Speaker
     text: str

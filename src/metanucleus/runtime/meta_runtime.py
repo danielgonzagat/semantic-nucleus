@@ -22,7 +22,7 @@ from .scheduler import Scheduler
 from .test_suites import get_suite, list_suites
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaRuntime:
     state: MetaState
     text_adapter: TextInputAdapter = field(default_factory=TextInputAdapter)

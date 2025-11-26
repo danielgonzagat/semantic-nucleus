@@ -12,7 +12,7 @@ from metanucleus.core.state import MetaState
 from metanucleus.core.phi import apply_phi as default_apply_phi
 
 
-@dataclass(slots=True)
+@dataclass()
 class Scheduler:
     max_steps: int = 16
     apply_phi: Callable[[MetaState, Node], None] = field(default=default_apply_phi)

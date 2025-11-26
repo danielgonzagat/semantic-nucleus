@@ -59,7 +59,7 @@ def _ensure_logic_engine(session: SessionCtx):
     return session.logic_engine
 
 
-@dataclass(slots=True)
+@dataclass()
 class Trace:
     steps: List[str]
     digest: str = "0" * 32
@@ -119,7 +119,7 @@ class HaltReason(str, Enum):
     PLAN_EXECUTED = "PLAN_EXECUTED"
 
 
-@dataclass(slots=True)
+@dataclass()
 class RunOutcome:
     answer: str
     trace: Trace

@@ -15,7 +15,7 @@ from threading import RLock
 from typing import Dict
 
 
-@dataclass(slots=True)
+@dataclass()
 class AtomTable:
     """Tabela global de átomos internados."""
 

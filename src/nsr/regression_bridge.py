@@ -13,7 +13,7 @@ from liu import Node, entity, list_node, number, struct as liu_struct, text as l
 from .regression_engine import RegressionResult, solve_linear_regression
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class RegressionHook:
     struct_node: Node
     answer_node: Node

@@ -41,7 +41,7 @@ class FragmentType(Enum):
     TEMPLATE = auto()  # Template completo
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class TextFragment:
     """Um fragmento de texto com metadados."""
     

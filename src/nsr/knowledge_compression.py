@@ -15,7 +15,7 @@ from liu import Node, NodeKind, fingerprint, var
 from .weightless_types import Episode
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CompressedKnowledge:
     """Conhecimento comprimido."""
     

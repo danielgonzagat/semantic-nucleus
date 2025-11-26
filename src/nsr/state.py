@@ -27,7 +27,7 @@ def _env_path(var_name: str) -> str | None:
     return None
 
 
-@dataclass(slots=True)
+@dataclass()
 class Config:
     max_steps: int = 32
     min_quality: float = 0.6
@@ -45,13 +45,13 @@ class Config:
     normalize_aggressive: bool = False
 
 
-@dataclass(slots=True)
+@dataclass()
 class Rule:
     if_all: Tuple[Node, ...]
     then: Node
 
 
-@dataclass(slots=True)
+@dataclass()
 class Lexicon:
     synonyms: dict[str, str] = field(default_factory=dict)
     pos_hint: dict[str, str] = field(default_factory=dict)
@@ -96,7 +96,7 @@ class Lexicon:
         )
 
 
-@dataclass(slots=True)
+@dataclass()
 class Token:
     lemma: str
     tag: str
@@ -107,7 +107,7 @@ class Token:
 DEFAULT_ONTOLOGY = core_ontology.CORE_V1 + code_ontology.CODE_V1
 
 
-@dataclass(slots=True)
+@dataclass()
 class SessionCtx:
     config: Config = field(default_factory=Config)
     kb_ontology: Tuple[Node, ...] = field(default_factory=tuple)
@@ -130,7 +130,7 @@ class SessionCtx:
             self.kb_ontology = self.ontology_manager.get_active_relations()
 
 
-@dataclass(slots=True)
+@dataclass()
 class ISR:
     ontology: Tuple[Node, ...]
     relations: Tuple[Node, ...]

@@ -28,7 +28,7 @@ from heapq import nlargest, nsmallest
 from typing import Dict, FrozenSet, Iterator, List, Mapping, Sequence, Set, Tuple
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GraphNode:
     """Um nó no grafo de co-ocorrência."""
     
@@ -44,7 +44,7 @@ class GraphNode:
         return False
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class GraphEdge:
     """Uma aresta no grafo (co-ocorrência)."""
     
@@ -59,7 +59,7 @@ class GraphEdge:
         return self.pmi * math.log1p(self.count)
 
 
-@dataclass(slots=True)
+@dataclass()
 class CooccurrenceGraph:
     """
     Grafo de co-ocorrência para representação semântica discreta.

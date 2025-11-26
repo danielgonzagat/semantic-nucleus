@@ -14,7 +14,7 @@ from metanucleus.test.testcore import TestCase, TestResult, PatchSuggestion, run
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionConfig:
     """Configuração de uma sessão de evolução."""
 
@@ -23,7 +23,7 @@ class EvolutionConfig:
     focus_on_first_failure: bool = True
 
 
-@dataclass(slots=True)
+@dataclass()
 class PatchPlan:
     """
     Descreve um patch sugerido em termos humanos/estruturados.
@@ -42,7 +42,7 @@ class PatchPlan:
     raw_patch_suggestion: Dict[str, object]
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionStep:
     """Um round da evolução supervisionada."""
 
@@ -51,7 +51,7 @@ class EvolutionStep:
     patch_plans: List[PatchPlan]
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionRun:
     """Relatório completo da sessão."""
 

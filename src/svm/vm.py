@@ -31,7 +31,7 @@ from .bytecode import Instruction, decode, encode
 from .opcodes import Opcode
 
 
-@dataclass(slots=True)
+@dataclass()
 class Program:
     instructions: List[Instruction]
     constants: List[Any] = field(default_factory=list)

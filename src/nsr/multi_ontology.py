@@ -27,7 +27,7 @@ from liu import (
 from ontology.universal import build_universal_domain_specs
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class OntologyDomain:
     name: str
     relations: Tuple[Node, ...]

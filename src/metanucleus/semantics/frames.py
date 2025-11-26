@@ -8,18 +8,18 @@ from dataclasses import dataclass
 from typing import List
 
 
-@dataclass(slots=True)
+@dataclass()
 class Role:
     value: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class RoleAssignment:
     role: Role
     text: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class SemanticFrame:
     predicate: str
     roles: List[RoleAssignment]

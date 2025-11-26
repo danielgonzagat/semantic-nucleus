@@ -23,7 +23,7 @@ STOPWORDS = {
 }
 
 
-@dataclass(slots=True)
+@dataclass()
 class UtteranceView:
     text: str
     lang: str
@@ -35,7 +35,7 @@ class UtteranceView:
         return cls(text=text, lang=lang, tokens=[tok for tok in tokens if tok], lowered=text.lower())
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleMatch:
     rule_id: str
     intent: Optional[str]
@@ -44,7 +44,7 @@ class RuleMatch:
     confidence_delta: float
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleAnalysis:
     intent: Optional[str]
     confidence: float

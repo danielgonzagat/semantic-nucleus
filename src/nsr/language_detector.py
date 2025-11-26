@@ -120,7 +120,7 @@ CODE_DIALECTS = {
 WORD_PATTERN = re.compile(r"[A-Za-zÀ-ÿ']+")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class LanguageDetectionResult:
     category: str
     language: str | None

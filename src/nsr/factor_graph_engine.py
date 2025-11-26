@@ -8,20 +8,20 @@ from dataclasses import dataclass, field
 from typing import Dict, Mapping, Tuple
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FactorVariable:
     name: str
     values: Tuple[str, ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Factor:
     name: str
     variables: Tuple[str, ...]
     table: Dict[Tuple[str, ...], float]
 
 
-@dataclass(slots=True)
+@dataclass()
 class FactorGraph:
     variables: Dict[str, FactorVariable] = field(default_factory=dict)
     factors: Dict[str, Factor] = field(default_factory=dict)

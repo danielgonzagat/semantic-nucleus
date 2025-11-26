@@ -20,7 +20,7 @@ from metanucleus.utils.diff_apply import apply_unified_diff, DiffApplyError
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass()
 class PatchCandidate:
     id: str
     title: str
@@ -29,7 +29,7 @@ class PatchCandidate:
     metadata: dict[str, Any] | None = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class TestRunResult:
     success: bool
     return_code: int
@@ -38,7 +38,7 @@ class TestRunResult:
     stderr: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class PatchEvaluation:
     candidate: PatchCandidate
     test_result: TestRunResult | None
@@ -47,7 +47,7 @@ class PatchEvaluation:
     sandbox_path: Optional[Path] = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionConfig:
     project_root: Path
     test_command: Sequence[str]

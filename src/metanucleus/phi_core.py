@@ -11,7 +11,7 @@ from .meta_calculus import SemanticMetrics, compute_semantic_metrics
 from .thematic_memory import ThematicMemory
 
 
-@dataclass(slots=True)
+@dataclass()
 class EngineIntent:
     label: str
     confidence: float
@@ -19,7 +19,7 @@ class EngineIntent:
     reasons: List[str]
 
 
-@dataclass(slots=True)
+@dataclass()
 class EngineTurn:
     text: str
     language: str

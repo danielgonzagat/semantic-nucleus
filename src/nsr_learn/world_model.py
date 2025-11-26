@@ -30,7 +30,7 @@ from typing import Any, Callable, Dict, FrozenSet, Iterator, List, Mapping, Sequ
 import heapq
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Fluent:
     """
     Um fluent é uma proposição que pode mudar ao longo do tempo.
@@ -93,7 +93,7 @@ class State:
         return hash(self.fluents)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Action:
     """
     Uma ação que pode ser executada.

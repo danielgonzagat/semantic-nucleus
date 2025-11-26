@@ -20,7 +20,7 @@ from nsr_evo.policy import filter_novel_rules, sort_by_energy
 from nsr_evo.energy import compute_energy, EnergyConfig
 
 
-@dataclass(slots=True)
+@dataclass()
 class AutoEvoConfig:
     episodes_path: Path
     rules_path: Path
@@ -104,7 +104,7 @@ def register_and_evolve(
     return accepted
 
 
-@dataclass(slots=True)
+@dataclass()
 class EnergyEvolutionReport:
     considered_prompts: int
     candidate_rules: int

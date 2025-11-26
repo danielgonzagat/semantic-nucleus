@@ -1,81 +1,107 @@
-"""Φ-INTENT v1.1 built on config patterns."""
+"""
+Φ-INTENT v2 – Symbolic Pattern Matching DSL.
+
+Replaces hardcoded keyword spotting with a structural pattern matcher
+that binds variables using the Unification Engine.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from pathlib import Path
-from typing import Dict, List, Optional
-import json
+from typing import List, Dict, Optional, Any
 
-from .semantic_mapper import SemanticParse
-from .ontology_index import OntologyIndex, get_global_index
-
-INTENT_CONFIG_PATH = Path(__file__).resolve().parent / "config" / "intent_patterns.json"
-
+from .core_unification import unify, Variable, var
+from .semantic_mapper import SemanticParse # Keeping dependency for signature compatibility
 
 @dataclass
 class IntentFrame:
     label: str
     confidence: float
+    variables: Dict[str, Any] = field(default_factory=dict)
     reasons: List[str] = field(default_factory=list)
 
+@dataclass
+class IntentPattern:
+    intent_name: str
+    template: List[Any] # List of strings or Variables
+    score: float
 
-def _load_intent_patterns(path: Path = INTENT_CONFIG_PATH) -> Dict[str, List[str]]:
-    if not path.exists():
-        return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
-    patterns: Dict[str, List[str]] = {}
-    for key, values in data.items():
-        patterns[key] = [str(value).lower() for value in values]
-    return patterns
+class IntentMatcher:
+    def __init__(self):
+        self.patterns: List[IntentPattern] = []
+        self._compile_defaults()
 
+    def _compile_defaults(self):
+        # Define variables
+        x = var("target")
+        
+        # Definition Requests
+        self.add("definition_request", ["define", x], 1.0)
+        self.add("definition_request", ["o", "que", "e", x], 1.0)
+        self.add("definition_request", ["what", "is", x], 1.0)
+        self.add("definition_request", ["quem", "e", x], 1.0)
+        
+        # Arithmetic (simple trigger)
+        self.add("calculate", ["calcule", x], 1.0)
+        self.add("calculate", ["quanto", "e", x], 1.0)
+        
+        # Capabilities
+        self.add("capability_query", ["o", "que", "voce", "faz"], 1.0)
+        self.add("capability_query", ["quem", "e", "voce"], 1.0)
 
-def phi_intent(parse: SemanticParse, idx: Optional[OntologyIndex] = None) -> IntentFrame:
-    if idx is None:
-        idx = get_global_index()
+    def add(self, intent: str, template: List[Any], score: float):
+        self.patterns.append(IntentPattern(intent, template, score))
 
-    patterns = _load_intent_patterns()
-    text_lower = parse.text.lower()
-    scores: Dict[str, float] = {
-        "statement": 0.2,
-        "question": 0.0,
-        "definition_request": 0.0,
-        "command": 0.0,
-        "greeting": 0.0,
-    }
-    reason_map: Dict[str, List[str]] = {label: [] for label in scores}
+    def match(self, tokens: List[str]) -> Optional[IntentFrame]:
+        tokens_lower = [t.lower() for t in tokens]
+        best_intent = None
+        best_score = 0.0
+        
+        for pat in self.patterns:
+            # Unify the template list with the token list
+            # Note: This is simple list unification. 
+            # For robust NLP, we'd need sequence alignment, but this is a huge step up from Regex.
+            
+            # If lengths differ significantly, skip (or handle partials later)
+            if len(pat.template) != len(tokens_lower):
+                continue
+                
+            subst = unify(pat.template, tokens_lower, {})
+            
+            if subst is not None:
+                # Success!
+                vars_clean = {k.name: v for k, v in subst.items()}
+                return IntentFrame(
+                    label=pat.intent_name,
+                    confidence=pat.score,
+                    variables=vars_clean,
+                    reasons=[f"Matched pattern: {pat.template}"]
+                )
 
-    def add(label: str, value: float, note: str) -> None:
-        scores[label] = scores.get(label, 0.0) + value
-        reason_map.setdefault(label, []).append(note)
+        return None
 
-    if any(token.lower in patterns.get("greeting", []) for token in parse.tokens if not token.is_punctuation):
-        add("greeting", 1.5, "match greeting token")
+# Global matcher
+_MATCHER = IntentMatcher()
 
-    for pat in patterns.get("definition_request", []):
-        if pat in text_lower:
-            add("definition_request", 1.2, f"match definition_request: {pat!r}")
+def phi_intent(parse: Any, idx: Any = None) -> IntentFrame:
+    """
+    Entry point compatible with old system.
+    """
+    # Extract text tokens
+    if hasattr(parse, "tokens"):
+        # semantic tokens have .lower attribute
+        tokens = [t.lower for t in parse.tokens if not t.is_punctuation]
+    else:
+        # Fallback
+        text = getattr(parse, "text", str(parse))
+        tokens = text.lower().split()
 
-    if any(token.text == "?" for token in parse.tokens) or text_lower.strip().endswith("?"):
-        add("question", 1.5, "termina_com_?")
+    # 1. Try Structural Match
+    result = _MATCHER.match(tokens)
+    if result:
+        return result
 
-    # Imperative heuristic (first token verb-like or operator concept)
-    tokens_lower = [t.lower for t in parse.tokens if not t.is_punctuation]
-    if tokens_lower:
-        first = tokens_lower[0]
-        if first.endswith(("ar", "er", "ir")):
-            add("command", 0.8, "primeiro token parece verbo")
-        concept = idx.by_name(first) or idx.by_alias(first)
-        if concept and concept.category_id.startswith("A003"):
-            add("command", 1.0, "primeiro token é operador")
+    # 2. Fallback Heuristics (for things not in DSL yet)
+    if "?" in tokens or (hasattr(parse, "text") and "?" in parse.text):
+        return IntentFrame("question", 0.5, reason=["Fallback: Question mark detected"])
 
-    # If we matched a definition request but it's also clearly a question, bump question score
-    if scores["definition_request"] > 0 and scores["question"] > 0:
-        add("question", 0.5, "definition_request também marcado como pergunta")
-
-    label = max(scores.items(), key=lambda item: item[1])[0]
-    top_score = scores[label]
-    reasons = reason_map.get(label, [])
-    if not reasons:
-        reasons.append("padrão neutro; assumindo 'statement'")
-    confidence = min(0.95, 0.4 + top_score / 2)
-    return IntentFrame(label=label, confidence=confidence, reasons=reasons)
+    return IntentFrame("statement", 0.3, reason=["Default fallback"])

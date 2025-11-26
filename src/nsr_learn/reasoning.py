@@ -42,7 +42,7 @@ class StepType(Enum):
     CONCLUSION = auto()  # Conclusão final
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ReasoningStep:
     """Um passo individual na cadeia de raciocínio."""
     

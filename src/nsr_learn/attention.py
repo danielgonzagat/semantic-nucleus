@@ -43,7 +43,7 @@ class AttentionFactor(Enum):
     POSITION = auto()  # Posição no contexto
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class AttentionScore:
     """Score de atenção para um item."""
     

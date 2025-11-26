@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple
 from liu import Node, NodeKind, fingerprint
 
 
-@dataclass(slots=True)
+@dataclass()
 class WorldModel:
     """
     Modelo interno do mundo.

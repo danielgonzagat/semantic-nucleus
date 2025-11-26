@@ -8,7 +8,7 @@ from typing import Dict, Iterable, List, Optional, Sequence
 LanguageCode = str
 
 
-@dataclass(slots=True)
+@dataclass()
 class SemanticFrame:
     """Describes a symbolic frame with intent hints and lexical patterns."""
 
@@ -22,7 +22,7 @@ class SemanticFrame:
     tags: Sequence[str] = field(default_factory=tuple)
 
 
-@dataclass(slots=True)
+@dataclass()
 class FrameMatch:
     frame: SemanticFrame
     score: int

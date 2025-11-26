@@ -19,7 +19,7 @@ if TYPE_CHECKING:
     from .weightless_types import Episode
 
 
-@dataclass(slots=True)
+@dataclass()
 class EpisodeIndex:
     """
     Sistema de índices multi-dimensional para busca rápida de episódios.

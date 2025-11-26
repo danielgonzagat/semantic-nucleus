@@ -20,7 +20,7 @@ class GitHubError(RuntimeError):
         self.message = message
 
 
-@dataclass(slots=True)
+@dataclass()
 class GitHubConfig:
     owner: str
     repo: str

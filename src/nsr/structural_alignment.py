@@ -12,7 +12,7 @@ from typing import Dict, List, Tuple
 from liu import Node, NodeKind, fingerprint, var
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Alignment:
     """Alinhamento entre duas estruturas."""
     

@@ -16,7 +16,7 @@ _NEGATION_PREFIXES = ("NOT_", "NO_", "NAO_", "NON_", "WITHOUT_", "SEM_", "ANTI_"
 _NEGATION_SUFFIXES = ("_NOT", "_NO", "_NAO", "_NON", "_NEG", "_LESS")
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Contradiction:
     """Representa um par positivo/negativo incompatível."""
 

@@ -13,7 +13,7 @@ from metanucleus.utils.diff_apply import apply_unified_diff, DiffApplyError
 from metanucleus.evolution.supervised_evolution import PatchEvaluation
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionPRManager:
     client: GitHubClient
     repo_root: Path

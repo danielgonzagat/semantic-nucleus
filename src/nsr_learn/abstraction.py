@@ -45,7 +45,7 @@ class RelationType(Enum):
     SIMILAR_TO = auto()  # Similaridade: gato SIMILAR_TO cachorro
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Concept:
     """Um conceito na hierarquia."""
     
@@ -60,7 +60,7 @@ class Concept:
         return prop in self.properties
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class HierarchicalRelation:
     """Uma relação hierárquica entre conceitos."""
     

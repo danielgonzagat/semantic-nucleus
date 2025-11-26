@@ -11,7 +11,7 @@ from typing import Iterable, List
 from liu import Node, entity, list_node, number, struct as liu_struct, text
 
 
-@dataclass(slots=True)
+@dataclass()
 class _ReasoningStep:
     index: int
     label: str

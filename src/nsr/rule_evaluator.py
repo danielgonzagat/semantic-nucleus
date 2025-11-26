@@ -17,7 +17,7 @@ if TYPE_CHECKING:
     from .weightless_learning import WeightlessLearner
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleEvaluation:
     """Avaliação de uma regra."""
     

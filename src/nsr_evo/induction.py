@@ -8,7 +8,7 @@ from nsr import RunOutcome
 from nsr_evo.kb_store import RuleSpec
 
 
-@dataclass(slots=True)
+@dataclass()
 class InductionConfig:
     min_quality: float = 0.6
     max_contradictions: int = 0
@@ -16,7 +16,7 @@ class InductionConfig:
     max_new_rules_per_cycle: int = 8
 
 
-@dataclass(slots=True)
+@dataclass()
 class EpisodeView:
     text: str
     outcome: RunOutcome

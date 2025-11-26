@@ -13,7 +13,7 @@ from metanucleus.evolution.rule_mismatch_log import RuleMismatch, load_rule_mism
 from metanucleus.utils.project import get_project_root
 
 
-@dataclass(slots=True)
+@dataclass()
 class RulePatchCandidate:
     title: str
     description: str

@@ -17,7 +17,7 @@ from .weightless_types import Episode, Pattern
 from .abstraction_hierarchy import AbstractionHierarchy
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CompressedPattern:
     """Padrão comprimido: estrutura mínima que captura múltiplos episódios."""
     

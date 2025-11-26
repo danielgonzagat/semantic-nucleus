@@ -16,7 +16,7 @@ from metanucleus.evolution.semantic_mismatch_log import (
 from metanucleus.utils.project import get_project_root
 
 
-@dataclass(slots=True)
+@dataclass()
 class SemanticPatchCandidate:
     title: str
     description: str

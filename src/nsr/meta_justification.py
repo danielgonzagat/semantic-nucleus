@@ -28,7 +28,7 @@ from .meta_trace_utils import (
 )
 
 
-@dataclass(slots=True)
+@dataclass()
 class _JustificationDecision:
     order: int
     label: str
@@ -41,7 +41,7 @@ class _JustificationDecision:
     context: int | None
 
 
-@dataclass(slots=True)
+@dataclass()
 class _JustificationPhase:
     name: str
     order: int

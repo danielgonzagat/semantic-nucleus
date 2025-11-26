@@ -45,7 +45,7 @@ class Sort(str, Enum):
     ANY = "Any"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Signature:
     name: str
     args: Tuple[Sort, ...]

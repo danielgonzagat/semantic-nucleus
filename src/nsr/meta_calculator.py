@@ -17,7 +17,7 @@ from .state import SessionCtx
 from .meta_transformer import MetaCalculationPlan
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaCalculationResult:
     """Resultado determinístico da execução de um MetaCalculationPlan."""
 

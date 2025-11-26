@@ -24,7 +24,7 @@ MAX_AST_NODES = 512
 MAX_LITERAL_PREVIEW = 80
 
 
-@dataclass(slots=True)
+@dataclass()
 class _AstTracker:
     max_nodes: int = MAX_AST_NODES
     count: int = 0

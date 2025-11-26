@@ -10,7 +10,7 @@ from metanucleus.core.liu import NodeKind
 from metanucleus.core.state import MetaState
 
 
-@dataclass(slots=True)
+@dataclass()
 class OutputRenderer:
     def render(self, state: MetaState) -> str:
         answer = state.isr.answer

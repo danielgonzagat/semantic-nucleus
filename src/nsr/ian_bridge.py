@@ -12,7 +12,7 @@ from liu import entity, list_node, number, struct, text, Node
 from .ian import DEFAULT_INSTINCT, IANInstinct, ReplyPlan, Utterance
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class InstinctHook:
     instinct: IANInstinct
     utterance: Utterance

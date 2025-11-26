@@ -10,7 +10,7 @@ from typing import Dict
 from .nodes import Node
 
 
-@dataclass(slots=True)
+@dataclass()
 class Arena:
     """Mantém referências únicas para cada nó."""
 

@@ -9,7 +9,7 @@ from typing import Any, Iterator
 from nsr import RunOutcome
 
 
-@dataclass(slots=True)
+@dataclass()
 class Episode:
     text: str
     answer: str

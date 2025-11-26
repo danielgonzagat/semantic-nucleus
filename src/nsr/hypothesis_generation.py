@@ -15,7 +15,7 @@ from .weightless_types import Episode
 from .state import Rule
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Hypothesis:
     """Hipótese sobre uma relação."""
     

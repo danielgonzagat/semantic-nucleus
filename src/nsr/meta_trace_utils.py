@@ -10,7 +10,7 @@ from typing import List, Sequence
 from liu import Node, NodeKind
 
 
-@dataclass(slots=True)
+@dataclass()
 class TraceOperation:
     order: int
     label: str

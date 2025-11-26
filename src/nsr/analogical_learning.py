@@ -15,7 +15,7 @@ from .structural_alignment import StructuralAligner, Alignment
 from .weightless_types import Episode
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Analogy:
     """Analogia entre dois pares de conceitos."""
     

@@ -51,7 +51,7 @@ def tokenize(text: str) -> List[str]:
     return [m.group(0).lower() for m in TOKEN_PATTERN.finditer(text)]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class LearningConfig:
     """Configuração do motor de aprendizado."""
     
@@ -77,7 +77,7 @@ class LearningConfig:
     max_response_tokens: int = 100
 
 
-@dataclass(slots=True)
+@dataclass()
 class LearningState:
     """Estado atual do sistema de aprendizado."""
     
@@ -107,7 +107,7 @@ class LearningState:
         return hasher.hexdigest()
 
 
-@dataclass(slots=True)
+@dataclass()
 class QueryResult:
     """Resultado de uma query ao sistema."""
     

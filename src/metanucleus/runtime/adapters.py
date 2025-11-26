@@ -29,7 +29,7 @@ def classify_input(raw: str) -> InputKind:
     return InputKind.TEXT
 
 
-@dataclass(slots=True)
+@dataclass()
 class TextInputAdapter:
     default_lang: str = "pt"
 
@@ -43,7 +43,7 @@ class TextInputAdapter:
         return utterance
 
 
-@dataclass(slots=True)
+@dataclass()
 class CodeInputAdapter:
     language: str = "python"
 

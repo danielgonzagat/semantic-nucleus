@@ -14,7 +14,7 @@ MAGIC = b"SVMB"
 VERSION = (1, 0)
 
 
-@dataclass(slots=True)
+@dataclass()
 class Instruction:
     opcode: Opcode
     operand: int = 0

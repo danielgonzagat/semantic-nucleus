@@ -18,7 +18,7 @@ _META_DIR.mkdir(parents=True, exist_ok=True)
 META_CALCULUS_MISMATCH_LOG_PATH = _META_DIR / "meta_calculus_mismatches.jsonl"
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaCalculusMismatchEntry:
     test_id: str
     expr: str

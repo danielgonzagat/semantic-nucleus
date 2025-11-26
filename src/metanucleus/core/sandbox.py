@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from .state import MetaState
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaSandbox:
     """
     Mantém um snapshot independente do MetaState e permite

@@ -12,7 +12,7 @@ from metanucleus.utils.diff_apply import apply_unified_diff
 from metanucleus.utils.project import get_project_root
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionPatch:
     """
     Representa um patch simbólico sugerido por algum domínio de evolução.

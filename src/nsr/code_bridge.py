@@ -20,7 +20,7 @@ from .code_ast import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CodeHook:
     """Acoplamento determinístico entre código-fonte e LIU."""
 

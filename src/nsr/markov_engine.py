@@ -15,7 +15,7 @@ def _normalize(probabilities: Dict[str, float]) -> Dict[str, float]:
     return {state: round(value / total, 6) for state, value in probabilities.items()}
 
 
-@dataclass(slots=True)
+@dataclass()
 class MarkovModel:
     """
     Cadeia de Markov/HMM discreta com inferência determinística (algoritmo forward).

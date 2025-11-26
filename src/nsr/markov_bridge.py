@@ -13,7 +13,7 @@ from liu import Node, entity, list_node, number, struct as liu_struct, text as l
 from .markov_engine import MarkovModel
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MarkovHook:
     struct_node: Node
     answer_node: Node

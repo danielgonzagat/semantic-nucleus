@@ -38,7 +38,7 @@ from typing import Dict, FrozenSet, Iterator, List, Mapping, Sequence, Set, Tupl
 from hashlib import blake2b
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Relation:
     """Uma relação entre entidades."""
     
@@ -53,7 +53,7 @@ class Relation:
         return f"{self.predicate}({', '.join(self.args)})"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Structure:
     """Uma estrutura relacional (conjunto de relações)."""
     
@@ -91,7 +91,7 @@ class Structure:
         return f"{self.name}: {{{rels}}}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class StructuralMapping:
     """Mapeamento entre duas estruturas."""
     
@@ -121,7 +121,7 @@ class StructuralMapping:
         return self.apply_to_relation(source_conclusion)
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Analogy:
     """Uma analogia completa entre domínios."""
     

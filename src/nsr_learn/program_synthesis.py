@@ -92,7 +92,7 @@ class OpType(Enum):
     COMPOSE = auto()
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Expr:
     """Uma expressão no DSL de síntese."""
     

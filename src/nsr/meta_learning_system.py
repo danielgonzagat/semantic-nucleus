@@ -18,7 +18,7 @@ if TYPE_CHECKING:
 from .rule_evaluator import RuleEvaluation
 
 
-@dataclass(slots=True)
+@dataclass()
 class LearningStrategy:
     """Estratégia de aprendizado."""
     

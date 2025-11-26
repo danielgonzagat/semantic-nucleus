@@ -17,7 +17,7 @@ from liu import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SynthesisStep:
     label: str
     description: str
@@ -32,7 +32,7 @@ class SynthesisStep:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class SynthesisPlan:
     plan_id: str
     steps: Tuple[SynthesisStep, ...]
@@ -48,7 +48,7 @@ class SynthesisPlan:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class ProofSynthesis:
     statement: str
     truth: str

@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple
 from liu import Node, NodeKind, relation, var
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CausalRelation:
     """Relação causal entre dois eventos."""
     
@@ -24,7 +24,7 @@ class CausalRelation:
     evidence_count: int  # Quantas vezes foi observada
 
 
-@dataclass(slots=True)
+@dataclass()
 class CausalGraph:
     """Grafo causal: representa relações causais."""
     

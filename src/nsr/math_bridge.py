@@ -14,7 +14,7 @@ from .math_instinct import MathInstinct, MathReply, MathUtterance
 from .math_ast import build_math_ast_node
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MathHook:
     instinct: MathInstinct | None
     utterance: MathUtterance

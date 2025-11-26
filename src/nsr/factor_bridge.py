@@ -13,7 +13,7 @@ from liu import Node, entity, list_node, number, struct as liu_struct, text as l
 from .factor_graph_engine import FactorGraph
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class FactorHook:
     struct_node: Node
     answer_node: Node

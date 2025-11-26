@@ -18,7 +18,7 @@ _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 RULE_MISMATCH_LOG_PATH = _LOGS_DIR / "rule_mismatches.jsonl"
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleMismatch:
     rule_name: str
     description: str

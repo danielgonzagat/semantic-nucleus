@@ -15,7 +15,7 @@ if TYPE_CHECKING:
     from metanucleus.runtime.meta_runtime import MetaRuntime
 
 
-@dataclass(slots=True)
+@dataclass()
 class Expected:
     intent: Optional[str] = None
     lang: Optional[str] = None
@@ -23,7 +23,7 @@ class Expected:
     answer_contains: Optional[str] = None
 
 
-@dataclass(slots=True)
+@dataclass()
 class TestCase:
     name: str
     input_text: str
@@ -31,21 +31,21 @@ class TestCase:
     __test__ = False
 
 
-@dataclass(slots=True)
+@dataclass()
 class FieldDiff:
     path: str
     expected: Any
     actual: Any
 
 
-@dataclass(slots=True)
+@dataclass()
 class PatchSuggestion:
     module: str
     reason: str
     hints: dict[str, Any]
 
 
-@dataclass(slots=True)
+@dataclass()
 class TestResult:
     case: TestCase
     passed: bool

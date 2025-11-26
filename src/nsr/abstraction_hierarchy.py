@@ -14,7 +14,7 @@ from typing import Dict, List, Set, Tuple
 from liu import Node, NodeKind, entity, fingerprint, var
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class AbstractionLevel:
     """Nível de abstração na hierarquia."""
     

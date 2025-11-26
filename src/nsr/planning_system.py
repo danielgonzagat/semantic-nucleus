@@ -13,7 +13,7 @@ from typing import Dict, List, Set, Tuple
 from liu import Node, NodeKind, fingerprint
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Action:
     """Ação que pode ser executada."""
     
@@ -23,7 +23,7 @@ class Action:
     cost: float = 1.0  # Custo da ação
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Plan:
     """Plano: sequência de ações para alcançar objetivo."""
     
@@ -33,7 +33,7 @@ class Plan:
     success_probability: float  # Probabilidade de sucesso
 
 
-@dataclass(slots=True)
+@dataclass()
 class PlanningSystem:
     """
     Sistema de planejamento que aprende quais ações funcionam.

@@ -22,13 +22,13 @@ class DiffApplyError(RuntimeError):
     """Erro lançado ao aplicar um diff em um arquivo base."""
 
 
-@dataclass(slots=True)
+@dataclass()
 class HunkLine:
     op: str  # " ", "+", "-"
     text: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class Hunk:
     old_start: int
     old_length: int
@@ -37,7 +37,7 @@ class Hunk:
     lines: List[HunkLine] = field(default_factory=list)
 
 
-@dataclass(slots=True)
+@dataclass()
 class FilePatch:
     old_path: str
     new_path: str
@@ -216,7 +216,7 @@ def apply_patch_to_text(original_text: str, file_patch: FilePatch) -> str:
     return result
 
 
-@dataclass(slots=True)
+@dataclass()
 class DiffApplication:
     """
     Resultado de aplicar um diff completo em um repositório local.

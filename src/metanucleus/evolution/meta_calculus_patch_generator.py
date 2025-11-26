@@ -19,7 +19,7 @@ from metanucleus.evolution.meta_calculus_mismatch_log import (
 from metanucleus.utils.project import get_project_root
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaCalculusPatchCandidate:
     title: str
     description: str

@@ -58,7 +58,7 @@ class MetaRoute(str, Enum):
     STAT = "stat"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaTransformResult:
     """Resultado imutável do estágio Meta-LER."""
 
@@ -83,7 +83,7 @@ class MetaTransformResult:
     active_domains: Tuple[str, ...] | None = None
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaCalculationPlan:
     """Plano determinístico de meta-cálculo pronto para ΣVM."""
 

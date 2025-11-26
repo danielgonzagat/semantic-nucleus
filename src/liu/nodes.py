@@ -14,7 +14,7 @@ from .kinds import NodeKind
 FieldsTuple = Tuple[Tuple[str, "Node"], ...]
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Node:
     kind: NodeKind
     label: str | None = None

@@ -14,7 +14,7 @@ from metanucleus.core.liu import Node, struct, text
 TOKEN_PATTERN = re.compile(r"[A-Za-zÀ-ÿ0-9]+|[^\w\s]", re.UNICODE)
 
 
-@dataclass(slots=True)
+@dataclass()
 class Token:
     surface: str
     lower: str

@@ -15,7 +15,7 @@ from nsr_evo.kb_store import load_rule_specs, rule_from_spec
 ENV_ROOT = Path(".nsr_learning")
 
 
-@dataclass(slots=True, frozen=True)
+@dataclass(frozen=True)
 class EnvironmentKB:
     """Snapshot of the knowledge base for a specific environment."""
 

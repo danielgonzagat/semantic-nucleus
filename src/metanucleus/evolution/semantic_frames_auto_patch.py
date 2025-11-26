@@ -18,7 +18,7 @@ _LOG_PATH = _ROOT / ".metanucleus" / "mismatch_log.jsonl"
 _PATTERNS_PATH = _ROOT / ".metanucleus" / "frame_patterns.json"
 
 
-@dataclass(slots=True)
+@dataclass()
 class FramePattern:
     language: str
     predicate: str

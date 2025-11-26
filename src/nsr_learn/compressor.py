@@ -28,7 +28,7 @@ from hashlib import blake2b
 from typing import Dict, FrozenSet, Iterator, List, Mapping, Sequence, Tuple
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Pattern:
     """Um padrão extraído dos dados."""
     
@@ -48,7 +48,7 @@ class Pattern:
         return f"P{hasher.hexdigest()[:8]}"
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CompressionResult:
     """Resultado de uma compressão."""
     
@@ -68,7 +68,7 @@ class CompressionResult:
         return self.total_bits
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Substitution:
     """Uma regra de substituição: sequência → símbolo."""
     
@@ -77,7 +77,7 @@ class Substitution:
     frequency: int
 
 
-@dataclass(slots=True)
+@dataclass()
 class Dictionary:
     """Dicionário de padrões aprendidos."""
     

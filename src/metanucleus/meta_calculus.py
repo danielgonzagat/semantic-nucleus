@@ -28,7 +28,7 @@ LOGICAL_MARKERS = {
 }
 
 
-@dataclass(slots=True)
+@dataclass()
 class SemanticMetrics:
     surprise: float
     redundancy: float

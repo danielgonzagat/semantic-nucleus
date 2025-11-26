@@ -13,7 +13,7 @@ from liu import Node, entity, list_node, number, struct as liu_struct, text as l
 from .bayes_engine import BayesNetwork
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BayesHook:
     struct_node: Node
     answer_node: Node

@@ -22,7 +22,7 @@ from liu import (
 from .meta_transformer import MetaRoute
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MetaExpressionConfig:
     preview_limit: int = 160
 

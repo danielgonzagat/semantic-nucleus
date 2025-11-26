@@ -13,7 +13,7 @@ from typing import Set, Tuple
 from liu import Node
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class Episode:
     """Episódio completo: entrada → processamento → saída."""
     
@@ -27,7 +27,7 @@ class Episode:
     fingerprint: str  # Hash determinístico do episódio
 
 
-@dataclass(slots=True)
+@dataclass()
 class Pattern:
     """Padrão extraído de múltiplos episódios."""
     

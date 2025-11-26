@@ -19,7 +19,7 @@ _LOG_PATH = _ROOT / ".metanucleus" / "mismatch_log.jsonl"
 _RULES_PATH = _ROOT / "src" / "metanucleus" / "data" / "meta_calculus_rules.json"
 
 
-@dataclass(slots=True)
+@dataclass()
 class CalcRuleFailure:
     rule_id: str
     count: int

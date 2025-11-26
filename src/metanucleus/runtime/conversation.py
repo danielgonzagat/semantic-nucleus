@@ -66,7 +66,7 @@ def _important(text: str, terms: Set[str], min_tokens: int) -> bool:
     return bool(terms & strong)
 
 
-@dataclass(slots=True)
+@dataclass()
 class MemoryConfig:
     """Parâmetros de memória/conversação."""
 
@@ -80,7 +80,7 @@ TurnId = int
 TopicId = int
 
 
-@dataclass(slots=True)
+@dataclass()
 class TurnRecord:
     id: TurnId
     role: str  # "user" / "meta"
@@ -91,7 +91,7 @@ class TurnRecord:
     important: bool
 
 
-@dataclass(slots=True)
+@dataclass()
 class TopicRecord:
     id: TopicId
     title: str
@@ -100,7 +100,7 @@ class TopicRecord:
     aggregated_terms: Set[str] = field(default_factory=set)
 
 
-@dataclass(slots=True)
+@dataclass()
 class ConversationState:
     turns: List[TurnRecord] = field(default_factory=list)
     topics: Dict[TopicId, TopicRecord] = field(default_factory=dict)

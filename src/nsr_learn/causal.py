@@ -32,7 +32,7 @@ from typing import Any, Callable, Dict, FrozenSet, Iterator, List, Mapping, Sequ
 import math
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CausalVariable:
     """Uma variável no grafo causal."""
     
@@ -43,7 +43,7 @@ class CausalVariable:
         return self.name
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class CausalLink:
     """Uma aresta causal: X → Y."""
     

@@ -1,313 +1,153 @@
 """
-Advanced Inference Engine - Making the AI More Intelligent
+Real Inference Engine - Powered by Unification.
+Replaces the fake heuristics with a rigorous Forward Chaining logic engine (GOFAI).
 
-This module implements advanced inference capabilities from the roadmap:
-- Φ_INFER advanced with multiple inference types
-- Causal reasoning (A causes B)
-- Temporal reasoning (A before B)
-- Conditional reasoning (if-then-else)
-- Contradiction detection
-- Inference explanation with proofs
+Capabilities:
+- Applies rules recursively to derive new facts.
+- Uses the 'core_unification' engine for variable binding.
+- Supports transitive, causal, and conditional logic strictly.
 """
 
 from __future__ import annotations
+from typing import List, Set, Iterator, Tuple, Any
 
-from dataclasses import dataclass, field
-from typing import List, Optional, Set, Tuple
-from collections import defaultdict
-
-from liu import Node, NodeKind, entity, relation, struct, text, operation
-from nsr.state import SessionCtx, Rule, ISR
-
+# Import our new rigorous math core
+from metanucleus.core_unification import (
+    unify, substitute, Variable, Structure, Term, var, struct, sym, is_compound
+)
 
 @dataclass
 class InferenceRule:
-    """A single inference rule with conditions and consequences."""
+    """A logical implication: IF premises THEN conclusion."""
     name: str
-    conditions: List[Node]
-    consequences: List[Node]
-    confidence: float
-    rule_type: str  # 'causal', 'temporal', 'conditional', 'transitive'
+    premises: List[Structure]
+    conclusion: Structure
     
     def __repr__(self):
-        return f"InferenceRule({self.name}, type={self.rule_type}, confidence={self.confidence:.2f})"
+        prem_str = " ^ ".join(str(p) for p in self.premises)
+        return f"{self.name}: {prem_str} => {self.conclusion}"
 
+from dataclasses import dataclass, field
 
-@dataclass
-class InferenceProof:
-    """Proof of an inference with all steps traced."""
-    conclusion: Node
-    rules_applied: List[InferenceRule] = field(default_factory=list)
-    premises: List[Node] = field(default_factory=list)
-    confidence: float = 1.0
-    
-    def add_step(self, rule: InferenceRule, premise: Node):
-        """Add a step to the proof."""
-        self.rules_applied.append(rule)
-        self.premises.append(premise)
-        self.confidence *= rule.confidence
-
-
-class AdvancedInferenceEngine:
+class ForwardChainingEngine:
     """
-    Advanced inference engine that makes the AI truly intelligent.
+    A deterministic inference engine.
     
-    Implements multiple types of inference:
-    - Transitive: A→B, B→C ⟹ A→C
-    - Causal: A causes B, B causes C ⟹ A causes C
-    - Temporal: A before B, B before C ⟹ A before C
-    - Conditional: if A then B, A ⟹ B
-    - Contrapositive: if A then B ⟹ if not B then not A
+    Algorithm:
+    1. Matches rule premises against known facts using Unification.
+    2. Binds variables (e.g., ?x -> 'rain').
+    3. Instantiates conclusions (e.g., wet('rain')).
+    4. Adds new facts to the Knowledge Base.
+    5. Repeats until a fixed point is reached (no new facts).
     """
     
-    def __init__(self, session: SessionCtx):
-        self.session = session
-        self.inference_rules: List[InferenceRule] = []
-        self.proofs: List[InferenceProof] = []
-        self._init_basic_rules()
-    
-    def _init_basic_rules(self):
-        """Initialize basic inference rules."""
-        
-        # Causal rules
-        self.add_rule(InferenceRule(
-            name="causal_transitivity",
-            conditions=[
-                relation("causes", entity("A"), entity("B")),
-                relation("causes", entity("B"), entity("C"))
-            ],
-            consequences=[
-                relation("causes", entity("A"), entity("C"))
-            ],
-            confidence=0.9,
-            rule_type="causal"
-        ))
-        
-        # Temporal rules
-        self.add_rule(InferenceRule(
-            name="temporal_transitivity",
-            conditions=[
-                relation("before", entity("A"), entity("B")),
-                relation("before", entity("B"), entity("C"))
-            ],
-            consequences=[
-                relation("before", entity("A"), entity("C"))
-            ],
-            confidence=1.0,
-            rule_type="temporal"
-        ))
-        
-        # Conditional rules
-        self.add_rule(InferenceRule(
-            name="modus_ponens",
-            conditions=[
-                relation("implies", entity("A"), entity("B")),
-                entity("A")
-            ],
-            consequences=[entity("B")],
-            confidence=1.0,
-            rule_type="conditional"
-        ))
-        
-        # Contrapositive
-        self.add_rule(InferenceRule(
-            name="contrapositive",
-            conditions=[
-                relation("implies", entity("A"), entity("B"))
-            ],
-            consequences=[
-                relation("implies", relation("not", entity("B")), relation("not", entity("A")))
-            ],
-            confidence=1.0,
-            rule_type="conditional"
-        ))
-        
-        # Symmetry rules
-        self.add_rule(InferenceRule(
-            name="symmetric_relation",
-            conditions=[
-                relation("similar_to", entity("A"), entity("B"))
-            ],
-            consequences=[
-                relation("similar_to", entity("B"), entity("A"))
-            ],
-            confidence=1.0,
-            rule_type="transitive"
-        ))
-    
-    def add_rule(self, rule: InferenceRule):
-        """Add an inference rule."""
-        self.inference_rules.append(rule)
-    
-    def infer(self, knowledge: List[Node], max_iterations: int = 10) -> Tuple[List[Node], List[InferenceProof]]:
-        """
-        Apply inference rules to derive new knowledge.
-        
-        Args:
-            knowledge: List of known facts
-            max_iterations: Maximum inference iterations
-            
-        Returns:
-            Tuple of (new_knowledge, proofs)
-        """
-        all_knowledge = set(self._fingerprint_node(n) for n in knowledge)
-        new_facts: List[Node] = []
-        proofs: List[InferenceProof] = []
-        
-        for iteration in range(max_iterations):
-            iteration_facts = []
-            
-            for rule in self.inference_rules:
-                # Try to match rule conditions against knowledge
-                matches = self._match_rule(rule, knowledge)
-                
-                for match in matches:
-                    # Apply rule to get consequences
-                    consequences = self._apply_rule(rule, match)
-                    
-                    # Add new consequences
-                    for consequence in consequences:
-                        fp = self._fingerprint_node(consequence)
-                        if fp not in all_knowledge:
-                            iteration_facts.append(consequence)
-                            all_knowledge.add(fp)
-                            
-                            # Create proof
-                            proof = InferenceProof(conclusion=consequence)
-                            for cond in match:
-                                proof.add_step(rule, cond)
-                            proofs.append(proof)
-            
-            if not iteration_facts:
-                break  # No new facts derived
-            
-            new_facts.extend(iteration_facts)
-            knowledge = knowledge + iteration_facts
-        
-        return new_facts, proofs
-    
-    def _match_rule(self, rule: InferenceRule, knowledge: List[Node]) -> List[List[Node]]:
-        """Match rule conditions against knowledge."""
-        matches: List[List[Node]] = []
-        
-        # Simple matching: try to find all conditions in knowledge
-        for i, fact in enumerate(knowledge):
-            if self._matches_pattern(rule.conditions[0], fact):
-                # Found first condition, try to find others
-                match = [fact]
-                
-                if len(rule.conditions) == 1:
-                    matches.append(match)
-                elif len(rule.conditions) == 2:
-                    # Look for second condition
-                    for j, fact2 in enumerate(knowledge[i+1:], i+1):
-                        if self._matches_pattern(rule.conditions[1], fact2):
-                            matches.append([fact, fact2])
-        
-        return matches
-    
-    def _matches_pattern(self, pattern: Node, fact: Node) -> bool:
-        """Check if a fact matches a pattern."""
-        if pattern.kind != fact.kind:
-            return False
-        
-        if pattern.kind == NodeKind.ENTITY:
-            # Entity matches if labels are similar or pattern is variable
-            if pattern.label and pattern.label.startswith("?"):
-                return True  # Variable matches anything
-            return pattern.label == fact.label
-        
-        if pattern.kind == NodeKind.REL:
-            # Relation matches if label is same and args match
-            if pattern.label != fact.label:
-                return False
-            
-            if len(pattern.args) != len(fact.args):
-                return False
-            
-            # Check if args match (recursively)
-            for p_arg, f_arg in zip(pattern.args, fact.args):
-                if not self._matches_pattern(p_arg, f_arg):
-                    return False
-            
+    def __init__(self):
+        self.facts: List[Structure] = []
+        self.rules: List[InferenceRule] = []
+        # To prevent cycles and redundant work
+        self._fact_hashes: Set[str] = set() 
+        self.derivations: List[str] = []
+
+    def add_fact(self, fact: Structure):
+        """Add a fact if it's new."""
+        h = str(fact)
+        if h not in self._fact_hashes:
+            self.facts.append(fact)
+            self._fact_hashes.add(h)
             return True
-        
-        return False
-    
-    def _apply_rule(self, rule: InferenceRule, match: List[Node]) -> List[Node]:
-        """Apply a rule with matched conditions."""
-        consequences = []
-        
-        # Simple substitution: replace variables in consequences
-        for consequence in rule.consequences:
-            # For now, return consequence as-is
-            # In full implementation, would substitute matched variables
-            consequences.append(consequence)
-        
-        return consequences
-    
-    def _fingerprint_node(self, node: Node) -> str:
-        """Create fingerprint for deduplication."""
-        from liu import fingerprint
-        return fingerprint(node)
-    
-    def explain_inference(self, proof: InferenceProof) -> str:
-        """Explain an inference in natural language."""
-        explanation = [f"Conclusion: {self._node_to_text(proof.conclusion)}"]
-        explanation.append(f"Confidence: {proof.confidence:.2%}")
-        explanation.append("\nProof steps:")
-        
-        for i, (rule, premise) in enumerate(zip(proof.rules_applied, proof.premises), 1):
-            explanation.append(f"  {i}. Applied {rule.name} ({rule.rule_type})")
-            explanation.append(f"     Premise: {self._node_to_text(premise)}")
-        
-        return "\n".join(explanation)
-    
-    def _node_to_text(self, node: Node) -> str:
-        """Convert node to readable text."""
-        if node.kind == NodeKind.ENTITY and node.label:
-            return node.label
-        elif node.kind == NodeKind.REL and node.label:
-            args_text = ", ".join(self._node_to_text(arg) for arg in node.args)
-            return f"{node.label}({args_text})"
-        elif node.kind == NodeKind.TEXT and node.label:
-            return node.label
-        else:
-            from liu import fingerprint
-            return fingerprint(node)[:16]
-    
-    def detect_contradictions(self, knowledge: List[Node]) -> List[Tuple[Node, Node]]:
-        """Detect contradictions in knowledge base."""
-        contradictions: List[Tuple[Node, Node]] = []
-        
-        for i, fact1 in enumerate(knowledge):
-            for fact2 in knowledge[i+1:]:
-                if self._is_contradiction(fact1, fact2):
-                    contradictions.append((fact1, fact2))
-        
-        return contradictions
-    
-    def _is_contradiction(self, fact1: Node, fact2: Node) -> bool:
-        """Check if two facts contradict each other."""
-        # Simple contradiction detection
-        if fact1.kind == NodeKind.REL and fact2.kind == NodeKind.REL:
-            # Check for opposite relations
-            if fact1.label == "not" and len(fact1.args) == 1:
-                return self._matches_pattern(fact1.args[0], fact2)
-            if fact2.label == "not" and len(fact2.args) == 1:
-                return self._matches_pattern(fact2.args[0], fact1)
-        
         return False
 
+    def add_rule(self, name: str, premises: List[Structure], conclusion: Structure):
+        """Register a logic rule."""
+        self.rules.append(InferenceRule(name, premises, conclusion))
 
-def create_inference_engine(session: Optional[SessionCtx] = None) -> AdvancedInferenceEngine:
-    """Create an advanced inference engine."""
-    return AdvancedInferenceEngine(session or SessionCtx())
+    def _find_matches(self, goals: List[Structure], subst: dict) -> Iterator[dict]:
+        """
+        Recursive backtracking search to find all ways to satisfy a list of goals (premises).
+        This is essentially a Prolog query engine.
+        """
+        if not goals:
+            yield subst
+            return
 
+        first_goal = goals[0]
+        remaining_goals = goals[1:]
 
-__all__ = [
-    "AdvancedInferenceEngine",
-    "InferenceRule",
-    "InferenceProof",
-    "create_inference_engine"
-]
+        # We need to instantiate the goal with current substitution so far
+        # e.g., if ?x=rain, and goal is wet(?x), we look for wet(rain)
+        current_goal_term = substitute(first_goal, subst)
+
+        for fact in self.facts:
+            # Try to unify the current goal with a known fact
+            new_subst = unify(current_goal_term, fact, subst)
+            if new_subst is not None:
+                # If it matches, try to solve the rest of the goals with the new substitution
+                yield from self._find_matches(remaining_goals, new_subst)
+
+    def step(self) -> int:
+        """
+        Run one pass of inference over all rules.
+        Returns number of new facts derived.
+        """
+        new_facts_count = 0
+        
+        for rule in self.rules:
+            # Find all valid substitutions for this rule's premises
+            for valid_subst in self._find_matches(rule.premises, {}):
+                # Generate the conclusion based on the match
+                new_fact = substitute(rule.conclusion, valid_subst)
+                
+                # If it's a valid structure and we haven't seen it...
+                if isinstance(new_fact, Structure) and self.add_fact(new_fact):
+                    new_facts_count += 1
+                    # Log the derivation proof
+                    proof = f"Derived {new_fact} via [{rule.name}] using {valid_subst}"
+                    self.derivations.append(proof)
+        
+        return new_facts_count
+
+    def run_until_fixpoint(self, max_steps=50) -> List[str]:
+        """Run inference until no new facts can be derived."""
+        total_derived = 0
+        for i in range(max_steps):
+            count = self.step()
+            if count == 0:
+                break
+            total_derived += count
+        return self.derivations
+
+# --- Convenience Factory ---
+
+def create_standard_engine() -> ForwardChainingEngine:
+    """Creates an engine with standard logical laws."""
+    engine = ForwardChainingEngine()
+    
+    # Variables
+    x, y, z = var("x"), var("y"), var("z")
+    
+    # Rule: Causal Transitivity
+    # causes(?x, ?y) ^ causes(?y, ?z) => causes(?x, ?z)
+    engine.add_rule(
+        "causal_transitivity",
+        [struct("causes", x, y), struct("causes", y, z)],
+        struct("causes", x, z)
+    )
+    
+    # Rule: Modus Ponens (generalized for properties)
+    # implies(?x, ?y) ^ is(?x) => is(?y)
+    # Note: simplified representation for this demo
+    engine.add_rule(
+        "modus_ponens",
+        [struct("implies", x, y), struct("true", x)],
+        struct("true", y)
+    )
+
+    # Rule: Temporal Ordering
+    # before(?x, ?y) ^ before(?y, ?z) => before(?x, ?z)
+    engine.add_rule(
+        "temporal_transitivity",
+        [struct("before", x, y), struct("before", y, z)],
+        struct("before", x, z)
+    )
+    
+    return engine

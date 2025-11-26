@@ -30,7 +30,7 @@ from .liu import Node, NodeKind
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaAnalysis:
     """Resumo estrutural do código analisado."""
 
@@ -40,7 +40,7 @@ class MetaAnalysis:
     liu_repr: str
 
 
-@dataclass(slots=True)
+@dataclass()
 class RegressionSample:
     inputs: Tuple[Any, ...]
     original_output: Any
@@ -48,13 +48,13 @@ class RegressionSample:
     matched: bool
 
 
-@dataclass(slots=True)
+@dataclass()
 class RegressionReport:
     passed: bool
     samples: List[RegressionSample]
 
 
-@dataclass(slots=True)
+@dataclass()
 class PatchExplanation:
     summary: str
     operations: List[str]
@@ -65,7 +65,7 @@ class PatchExplanation:
     regression: RegressionReport
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionResult:
     """Retorno completo de uma tentativa de evolução."""
 
@@ -80,7 +80,7 @@ class EvolutionResult:
     explanation_fingerprint: str = ""
 
 
-@dataclass(slots=True)
+@dataclass()
 class EvolutionRequest:
     """Representa um alvo de evolução específico."""
 

@@ -6,13 +6,13 @@ from pathlib import Path
 from nsr_evo.kb_store import RuleSpec, load_rule_specs, write_rule_specs
 
 
-@dataclass(slots=True)
+@dataclass()
 class GenomeEntry:
     index: int
     spec: RuleSpec
 
 
-@dataclass(slots=True)
+@dataclass()
 class GenomeSummary:
     total: int
     active: int

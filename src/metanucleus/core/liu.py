@@ -21,7 +21,7 @@ class NodeKind(Enum):
     NIL = auto()
 
 
-@dataclass(slots=True)
+@dataclass()
 class Node:
     kind: NodeKind
     label: Optional[str] = None

@@ -23,7 +23,7 @@ from metanucleus.semantics.intent_lexicon import (
 from metanucleus.utils.project import get_project_root
 
 
-@dataclass(slots=True)
+@dataclass()
 class IntentLexiconPatchCandidate:
     title: str
     description: str

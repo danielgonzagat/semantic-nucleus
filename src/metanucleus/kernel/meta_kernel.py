@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass()
 class AutoEvolutionConfig:
     enable_intent: bool = True
     enable_calculus: bool = True
@@ -39,12 +39,12 @@ class AutoEvolutionConfig:
     max_new_calculus_rules: int = 10
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaKernelConfig:
     auto_evolution: AutoEvolutionConfig = field(default_factory=AutoEvolutionConfig)
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaKernelTurnResult:
     answer_text: str
     answer_struct: Any | None = None
@@ -59,7 +59,7 @@ class MetaKernelTurnResult:
 # ---------------------------------------------------------------------------
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaKernel:
     state: MetaState = field(default_factory=MetaState)
     config: MetaKernelConfig = field(default_factory=MetaKernelConfig)

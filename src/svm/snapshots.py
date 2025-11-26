@@ -165,7 +165,7 @@ def _canonical_bytes(body: Dict[str, Any]) -> bytes:
     return json.dumps(body, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
-@dataclass(slots=True)
+@dataclass()
 class SnapshotSignature:
     algorithm: str
     public_key: str
@@ -187,7 +187,7 @@ class SnapshotSignature:
         )
 
 
-@dataclass(slots=True)
+@dataclass()
 class SVMSnapshot:
     """
     Materialized representation of a ΣVM snapshot bundle.

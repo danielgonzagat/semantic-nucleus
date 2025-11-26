@@ -13,7 +13,7 @@ from liu import Node, entity, list_node, number, struct as liu_struct, text as l
 from .polynomial_engine import PolynomialResult, factor_polynomial
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PolynomialHook:
     struct_node: Node
     answer_node: Node

@@ -43,7 +43,7 @@ def _format_section(label: str, nodes: Tuple[Node, ...], max_items: int) -> str:
     return f"{label}[{total}]: {joined}"
 
 
-@dataclass(slots=True)
+@dataclass()
 class SectionStats:
     count: int
     digest: str
@@ -52,7 +52,7 @@ class SectionStats:
         return {"count": self.count, "digest": self.digest}
 
 
-@dataclass(slots=True)
+@dataclass()
 class EquationSnapshotStats:
     input_digest: str
     ontology: SectionStats
@@ -138,7 +138,7 @@ class EquationSnapshotStats:
         )
 
 
-@dataclass(slots=True)
+@dataclass()
 class EquationInvariantStatus:
     ok: bool
     failures: Tuple[str, ...]
@@ -158,7 +158,7 @@ def _section_stats(nodes: Tuple[Node, ...]) -> SectionStats:
     return SectionStats(count=len(nodes), digest=_nodes_digest(nodes))
 
 
-@dataclass(slots=True)
+@dataclass()
 class EquationSnapshot:
     """
     Representa a “equação semântica” corrente do NSR.

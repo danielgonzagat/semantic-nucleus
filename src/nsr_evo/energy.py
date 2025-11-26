@@ -7,12 +7,12 @@ from nsr import run_text_full, SessionCtx
 from nsr.state import Rule
 
 
-@dataclass(slots=True)
+@dataclass()
 class EnergyConfig:
     min_quality_ok: float = 0.6
 
 
-@dataclass(slots=True)
+@dataclass()
 class EnergyMetrics:
     total: int
     contradictions: int

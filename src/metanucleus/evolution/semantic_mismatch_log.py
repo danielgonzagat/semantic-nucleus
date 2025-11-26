@@ -18,7 +18,7 @@ _LOGS_DIR.mkdir(parents=True, exist_ok=True)
 SEMANTIC_MISMATCH_LOG_PATH = _LOGS_DIR / "semantic_mismatches.jsonl"
 
 
-@dataclass(slots=True)
+@dataclass()
 class SemanticMismatch:
     phrase: str
     lang: str

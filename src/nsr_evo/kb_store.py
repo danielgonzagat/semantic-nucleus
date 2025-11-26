@@ -9,7 +9,7 @@ from liu import relation, entity, var
 from nsr import Rule
 
 
-@dataclass(slots=True)
+@dataclass()
 class RuleSpec:
     """Representação serializável de uma regra simbólica."""
 

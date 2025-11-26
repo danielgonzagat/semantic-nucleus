@@ -25,7 +25,7 @@ from .weightless_index import EpisodeIndex
 from .structural_alignment import StructuralAligner, find_common_patterns
 
 
-@dataclass(slots=True)
+@dataclass()
 class WeightlessLearner:
     """
     Sistema de aprendizado que ajusta estruturas, não pesos.

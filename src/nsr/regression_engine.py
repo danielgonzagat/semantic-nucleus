@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from typing import List, Mapping, Sequence
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class RegressionResult:
     features: tuple[str, ...]
     coefficients: tuple[tuple[str, float], ...]

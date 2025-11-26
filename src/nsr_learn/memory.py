@@ -41,7 +41,7 @@ from typing import (
 )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class MemoryTrace:
     """
     Um traço de memória armazenado.
@@ -89,7 +89,7 @@ class MemoryTrace:
         )
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class RetrievalResult:
     """Resultado de uma recuperação de memória."""
     
@@ -103,7 +103,7 @@ class RetrievalResult:
         return self.trace.value
 
 
-@dataclass(slots=True)
+@dataclass()
 class AssociativeMemory:
     """
     Memória associativa discreta com múltiplos índices.

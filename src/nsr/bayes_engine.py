@@ -8,14 +8,14 @@ from dataclasses import dataclass, field
 from typing import Dict, Iterable, Mapping, Sequence, Tuple
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class BayesVariable:
     name: str
     values: Tuple[str, ...]
     parents: Tuple[str, ...] = ()
 
 
-@dataclass(slots=True)
+@dataclass()
 class BayesNetwork:
     """
     Representa uma rede Bayesiana discreta com inferência determinística.

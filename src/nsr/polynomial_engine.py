@@ -9,7 +9,7 @@ from fractions import Fraction
 from typing import Iterable, List, Sequence
 
 
-@dataclass(frozen=True, slots=True)
+@dataclass(frozen=True)
 class PolynomialResult:
     variable: str
     degree: int

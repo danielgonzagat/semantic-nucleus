@@ -18,7 +18,7 @@ _META_DIR.mkdir(parents=True, exist_ok=True)
 INTENT_MISMATCH_LOG_PATH = _META_DIR / "intent_mismatches.jsonl"
 
 
-@dataclass(slots=True)
+@dataclass()
 class IntentMismatchLogEntry:
     text: str
     expected_intent: str

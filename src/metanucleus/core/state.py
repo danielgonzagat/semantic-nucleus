@@ -12,7 +12,7 @@ from uuid import uuid4
 from .liu import Node, NodeKind, nil, rel, text, entity
 
 
-@dataclass(slots=True)
+@dataclass()
 class ISR:
     """
     Estado Semântico Reativo mínimo (inspiração NSR).
@@ -27,7 +27,7 @@ class ISR:
     quality: float = 0.0
 
 
-@dataclass(slots=True)
+@dataclass()
 class Metrics:
     total_cycles: int = 0
     total_requests: int = 0
@@ -39,12 +39,12 @@ class Metrics:
     lang_counts: Dict[str, int] = field(default_factory=dict)
 
 
-@dataclass(slots=True)
+@dataclass()
 class Config:
     max_reasoning_steps: int = 32
 
 
-@dataclass(slots=True)
+@dataclass()
 class MetaState:
     """
     Estado global do Metanúcleo.
