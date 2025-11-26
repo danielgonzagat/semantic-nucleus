@@ -68,6 +68,12 @@ from .meta_expressor import build_meta_expression
 from .meta_memory import build_meta_memory, meta_memory_to_dict
 from .meta_reflection import build_meta_reflection
 from .meta_synthesis import build_meta_synthesis
+
+# New enhanced capabilities - Perfect AI System
+from .enhanced_conversation import EnhancedConversation, create_conversation
+from .deep_reasoning import DeepReasoner, ReasoningChain, create_deep_reasoner
+from .code_evolution import CodeEvolutionEngine, create_evolution_engine
+from .perfect_ai import PerfectAI, create_perfect_ai, demo_perfect_ai
 from .language_detector import detect_language_profile
 from .code_ast import build_python_ast_meta, build_rust_ast_meta
 from .math_ast import build_math_ast_node

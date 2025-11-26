@@ -176,6 +176,7 @@ src/nsr/synthesis.py
 src/nsr/weightless_index.py
 src/nsr/weightless_integration.py
 src/nsr/weightless_learning.py
+src/nsr/weightless_types.py
 src/nsr/world_simulation.py
 src/nsr_evo/__init__.py
 src/nsr_evo/api.py
