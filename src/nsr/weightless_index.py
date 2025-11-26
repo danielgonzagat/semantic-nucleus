@@ -156,7 +156,7 @@ class EpisodeIndex:
             struct_results = self.find_by_structure(struct, k * 2)
             all_candidates.update(struct_results)
             
-            # Se não houver keywords, extrai do struct
+            # Se não houver keywords, extrai do struct (sem modificar o parâmetro)
             if not keywords:
                 keywords = self._extract_entity_labels(struct)
         

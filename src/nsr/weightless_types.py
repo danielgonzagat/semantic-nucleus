@@ -41,3 +41,7 @@ class Pattern:
     confidence: float
     # Generalização (quanto do padrão é variável)
     generalization_level: float
+
+
+__all__ = ['Episode', 'Pattern']
+
