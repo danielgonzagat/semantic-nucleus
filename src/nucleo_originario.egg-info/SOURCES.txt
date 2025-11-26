@@ -115,8 +115,11 @@ src/nsr/causal_learning.py
 src/nsr/cli.py
 src/nsr/code_ast.py
 src/nsr/code_bridge.py
+src/nsr/code_evolution.py
 src/nsr/consistency.py
 src/nsr/context_stats.py
+src/nsr/deep_reasoning.py
+src/nsr/enhanced_conversation.py
 src/nsr/equation.py
 src/nsr/explain.py
 src/nsr/factor_bridge.py
@@ -161,6 +164,7 @@ src/nsr/multi_ontology.py
 src/nsr/operators.py
 src/nsr/parser.py
 src/nsr/pattern_compression.py
+src/nsr/perfect_ai.py
 src/nsr/planning_system.py
 src/nsr/polynomial_bridge.py
 src/nsr/polynomial_engine.py
