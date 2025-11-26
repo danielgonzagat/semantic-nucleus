@@ -7,12 +7,14 @@ Se A é como B, e sabemos que B tem propriedade X, então A provavelmente tem X 
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, fingerprint, relation
 
 from .structural_alignment import StructuralAligner, Alignment
-from .weightless_learning import Episode
+
+if TYPE_CHECKING:  # evita import circular em tempo de execução
+    from .weightless_learning import Episode
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,7 +96,7 @@ class AnalogicalLearner:
         # Simplificação: retorna estrutura similar a source_B
         return [source_B]  # Em produção, generalizaria baseado no mapeamento
     
-    def learn_from_episodes(self, episodes: List[Episode]) -> List[Node]:
+    def learn_from_episodes(self, episodes: List["Episode"]) -> List[Node]:
         """
         Aprende analogias de uma lista de episódios.
         

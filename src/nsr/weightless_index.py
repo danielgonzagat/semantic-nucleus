@@ -177,7 +177,7 @@ class EpisodeIndex:
         scored.sort(key=lambda x: x[1], reverse=True)
         return [ep_fp for ep_fp, _ in scored[:k]]
     
-    def _extract_keywords(self, episode: Episode) -> Set[str]:
+    def _extract_keywords(self, episode: "Episode") -> Set[str]:
         """Extrai palavras-chave de um episódio."""
         keywords: Set[str] = set()
         
