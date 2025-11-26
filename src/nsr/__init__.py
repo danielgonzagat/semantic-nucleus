@@ -47,6 +47,16 @@ from .markov_engine import MarkovModel
 from .factor_bridge import FactorHook, maybe_route_factor
 from .factor_graph_engine import FactorGraph, FactorVariable, Factor
 from .meta_transformer import MetaTransformer, MetaTransformResult, MetaRoute, meta_summary_to_dict, MetaCalculationPlan
+from .weightless_learning import WeightlessLearner, Episode, Pattern, learn_from_episodes
+from .weightless_index import EpisodeIndex
+from .weightless_integration import (
+    ensure_weightless_learner,
+    record_episode_for_learning,
+    find_similar_episodes_for_context,
+    apply_learned_rules_to_session,
+)
+from .rule_evaluator import RuleEvaluator, RuleEvaluation
+from .abstraction_hierarchy import AbstractionHierarchy, AbstractionLevel
 from .meta_calculator import MetaCalculationResult, execute_meta_plan
 from .meta_structures import (
     build_lc_meta_struct,
