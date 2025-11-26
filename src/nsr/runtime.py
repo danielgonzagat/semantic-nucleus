@@ -42,6 +42,11 @@ from .meta_memory_store import append_memory, load_recent_memory
 from .meta_memory_induction import record_episode, run_memory_induction
 from .context_stats import build_context_probabilities
 from .meta_synthesis import build_meta_synthesis
+from .weightless_integration import (
+    record_episode_for_learning,
+    find_similar_episodes_for_context,
+    apply_learned_rules_to_session,
+)
 
 
 # Maximum iterations for synthesis drain loop
@@ -268,6 +273,19 @@ def run_struct_full(
         trace.add(code_label, isr.quality, len(isr.relations), len(isr.context))
     isr = _apply_memory_recall_if_needed(isr, session, trace)
     isr = _apply_memory_link_if_needed(isr, session, trace)
+    
+    # Busca episódios similares para contexto (aprendizado sem pesos)
+    similar_episodes = find_similar_episodes_for_context(struct_node, session, k=3)
+    if similar_episodes:
+        # Adiciona contexto dos episódios similares
+        similar_context = []
+        for ep in similar_episodes[:2]:  # Top 2
+            for rel in ep.relations[:3]:  # Top 3 relações
+                similar_context.append(rel)
+        if similar_context:
+            isr = isr.snapshot()
+            isr.context = tuple(list(isr.context) + similar_context)
+    
     calc_mode = getattr(session.config, "calc_mode", "hybrid")
     plan_exec_enabled = calc_mode != "skip"
     if preseed_answer is not None and isr.quality >= session.config.min_quality:
@@ -358,6 +376,21 @@ def run_struct_full(
         )
         _persist_meta_memory(session, meta_memory)
         session.last_equation_stats = equation_stats
+        
+        # Registra episódio para aprendizado sem pesos
+        if meta_info:
+            record_episode_for_learning(outcome, meta_info, session)
+            # Aplica regras aprendidas periodicamente
+            if len(session.meta_history) % 10 == 0:
+                new_rules_count = apply_learned_rules_to_session(session)
+                if new_rules_count > 0:
+                    trace.add(
+                        f"LEARNED_RULES[{new_rules_count}]",
+                        isr.quality,
+                        len(isr.relations),
+                        len(isr.context),
+                    )
+        
         outcome = RunOutcome(
             answer=answer_text,
             trace=trace,

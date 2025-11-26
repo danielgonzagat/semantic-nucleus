@@ -20,6 +20,7 @@ from typing import Dict, Iterable, List, Optional, Set, Tuple
 from liu import Node, NodeKind, entity, fingerprint, relation, struct, text, var
 
 from .state import Rule
+from .weightless_index import EpisodeIndex
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,14 +74,17 @@ class WeightlessLearner:
     # Regras aprendidas
     learned_rules: List[Rule] = field(default_factory=list)
     
-    # Índices para busca rápida
-    input_index: Dict[str, Set[str]] = field(default_factory=dict)  # fingerprint → episode_fps
-    relation_index: Dict[str, Set[str]] = field(default_factory=dict)  # rel_fp → episode_fps
+    # Índice eficiente para busca rápida
+    index: EpisodeIndex = field(default_factory=EpisodeIndex)
     
     # Configuração
     min_pattern_support: int = 3
     min_confidence: float = 0.6
     max_patterns: int = 10000
+    auto_learn_interval: int = 50  # Aprende a cada N episódios
+    episodes_since_learning: int = 0
+    # Sistema de avaliação de regras
+    rule_evaluator: "RuleEvaluator | None" = None
     
     def add_episode(
         self,
@@ -114,39 +118,79 @@ class WeightlessLearner:
         
         self.episodes[ep_fp] = episode
         
-        # Indexa por input
-        input_fp = fingerprint(input_struct)
-        if input_fp not in self.input_index:
-            self.input_index[input_fp] = set()
-        self.input_index[input_fp].add(ep_fp)
+        # Adiciona ao índice eficiente
+        self.index.add_episode(episode)
         
-        # Indexa por relações
-        for rel in relations:
-            rel_fp = fingerprint(rel)
-            if rel_fp not in self.relation_index:
-                self.relation_index[rel_fp] = set()
-            self.relation_index[rel_fp].add(ep_fp)
+        # Incrementa contador para aprendizado automático
+        self.episodes_since_learning += 1
+        
+        # Aprende automaticamente se necessário
+        if self.episodes_since_learning >= self.auto_learn_interval:
+            self._auto_learn()
+            self._evolve_rules()
+            self.episodes_since_learning = 0
         
         return ep_fp
     
-    def find_similar_episodes(self, query_struct: Node, k: int = 10) -> List[Episode]:
-        """Encontra episódios similares usando índice estrutural."""
+    def find_similar_episodes(
+        self,
+        query_struct: Node | None = None,
+        query_relations: List[Node] | None = None,
+        query_keywords: Set[str] | None = None,
+        k: int = 10,
+    ) -> List[Episode]:
+        """Encontra episódios similares usando índice multi-dimensional."""
         
-        query_fp = fingerprint(query_struct)
-        candidate_fps = self.input_index.get(query_fp, set())
-        
-        # Se não encontrou exato, busca por relações comuns
-        if not candidate_fps:
-            query_rels = self._extract_relations(query_struct)
-            for rel in query_rels:
-                rel_fp = fingerprint(rel)
-                candidate_fps.update(self.relation_index.get(rel_fp, set()))
+        # Usa índice eficiente
+        candidate_fps = self.index.find_similar(
+            struct=query_struct,
+            relations=query_relations,
+            keywords=query_keywords,
+            k=k,
+        )
         
         episodes = [self.episodes[fp] for fp in candidate_fps if fp in self.episodes]
+        return episodes
+    
+    def _auto_learn(self) -> None:
+        """Aprendizado automático: extrai padrões e aprende regras."""
+        if len(self.episodes) < self.min_pattern_support:
+            return
         
-        # Ordena por qualidade e retorna top-k
-        episodes.sort(key=lambda e: e.quality, reverse=True)
-        return episodes[:k]
+        # Extrai padrões
+        patterns = self.extract_patterns()
+        
+        # Aprende regras
+        new_rules = self.learn_rules_from_patterns(patterns)
+        
+        # Log (pode ser removido em produção)
+        if new_rules:
+            print(f"[WeightlessLearning] Aprendidas {len(new_rules)} novas regras de {len(self.episodes)} episódios")
+    
+    def _evolve_rules(self) -> None:
+        """Evolui regras: avalia e remove regras ruins."""
+        if not self.learned_rules:
+            return
+        
+        if self.rule_evaluator is None:
+            from .rule_evaluator import RuleEvaluator
+            self.rule_evaluator = RuleEvaluator()
+        
+        # Pega amostra de episódios para avaliação
+        episodes_list = list(self.episodes.values())
+        sample_size = min(100, len(episodes_list))
+        sample_episodes = episodes_list[:sample_size]
+        
+        # Evolui regras
+        good_rules, removed_rules = self.rule_evaluator.evolve_rules(
+            self.learned_rules, sample_episodes, self
+        )
+        
+        # Atualiza lista de regras
+        self.learned_rules = good_rules
+        
+        if removed_rules:
+            print(f"[WeightlessLearning] Removidas {len(removed_rules)} regras com baixo fitness")
     
     def extract_patterns(self, min_support: int | None = None) -> List[Pattern]:
         """Extrai padrões frequentes dos episódios."""
@@ -338,16 +382,73 @@ class WeightlessLearner:
         return hasher.hexdigest()
     
     def save(self, path: str) -> None:
-        """Salva o estado do aprendizado."""
-        # Implementação: serializa episódios, padrões e regras
-        # Por enquanto, placeholder
-        pass
+        """Salva o estado do aprendizado em JSON."""
+        target = Path(path)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        
+        # Serializa episódios (simplificado - apenas metadados)
+        episodes_data = []
+        for ep_fp, episode in self.episodes.items():
+            episodes_data.append({
+                "fingerprint": ep_fp,
+                "input_text": episode.input_text,
+                "output_text": episode.output_text,
+                "quality": episode.quality,
+                "input_struct_fp": fingerprint(episode.input_struct),
+                "output_struct_fp": fingerprint(episode.output_struct),
+            })
+        
+        # Serializa padrões
+        patterns_data = []
+        for pattern_fp, pattern in self.patterns.items():
+            patterns_data.append({
+                "fingerprint": pattern_fp,
+                "structure_fp": fingerprint(pattern.structure),
+                "frequency": pattern.frequency,
+                "confidence": pattern.confidence,
+                "generalization_level": pattern.generalization_level,
+            })
+        
+        # Serializa regras
+        rules_data = []
+        for rule in self.learned_rules:
+            rules_data.append({
+                "if_all": [fingerprint(ant) for ant in rule.if_all],
+                "then": fingerprint(rule.then),
+            })
+        
+        payload = {
+            "episodes": episodes_data,
+            "patterns": patterns_data,
+            "rules": rules_data,
+            "config": {
+                "min_pattern_support": self.min_pattern_support,
+                "min_confidence": self.min_confidence,
+                "max_patterns": self.max_patterns,
+            },
+        }
+        
+        with target.open("w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
     
     def load(self, path: str) -> None:
-        """Carrega o estado do aprendizado."""
-        # Implementação: deserializa
-        # Por enquanto, placeholder
-        pass
+        """Carrega o estado do aprendizado de JSON."""
+        target = Path(path)
+        if not target.exists():
+            return
+        
+        with target.open("r", encoding="utf-8") as f:
+            payload = json.load(f)
+        
+        # Carrega configuração
+        config = payload.get("config", {})
+        self.min_pattern_support = config.get("min_pattern_support", 3)
+        self.min_confidence = config.get("min_confidence", 0.6)
+        self.max_patterns = config.get("max_patterns", 10000)
+        
+        # Nota: Para carregar episódios completos, precisaria reconstruir estruturas LIU
+        # Por enquanto, apenas carrega metadados
+        # Em produção, salvaria estruturas LIU serializadas
 
 
 def learn_from_episodes(

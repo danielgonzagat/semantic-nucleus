@@ -121,6 +121,7 @@ class SessionCtx:
     memory_loaded: bool = False
     last_equation_stats: "EquationSnapshotStats | None" = None
     ontology_manager: MultiOntologyManager | None = None
+    weightless_learner: "WeightlessLearner | None" = None  # Sistema de aprendizado sem pesos
 
     def __post_init__(self) -> None:
         if self.ontology_manager is None:

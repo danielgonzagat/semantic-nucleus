@@ -14,6 +14,7 @@ from typing import Dict, List, Set, Tuple
 from liu import Node, NodeKind, fingerprint, var
 
 from .weightless_learning import Episode, Pattern
+from .abstraction_hierarchy import AbstractionHierarchy
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,8 +42,9 @@ class PatternCompressor:
     4. Cria representação comprimida
     """
     
-    def __init__(self, min_support: int = 3):
+    def __init__(self, min_support: int = 3, hierarchy: AbstractionHierarchy | None = None):
         self.min_support = min_support
+        self.hierarchy = hierarchy or AbstractionHierarchy()
     
     def compress_episodes(
         self, episodes: List[Episode]
@@ -62,8 +64,10 @@ class PatternCompressor:
             # Encontra subestruturas comuns
             common_substructures = self._find_common_substructures(group)
             
-            # Generaliza
+            # Generaliza usando hierarquia de abstração
             generalized = self._generalize_substructures(common_substructures)
+            # Aplica hierarquia de abstração
+            generalized = self.hierarchy.generalize(generalized, target_level=1)
             
             # Calcula compressão
             original_size = sum(self._structure_size(e.input_struct) for e in group)
