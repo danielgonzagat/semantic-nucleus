@@ -25,6 +25,9 @@ from .structural_alignment import StructuralAligner, find_common_patterns
 from .analogical_learning import AnalogicalLearner
 from .knowledge_compression import KnowledgeCompressor
 from .hypothesis_generation import HypothesisGenerator
+from .causal_learning import CausalLearner
+from .planning_system import PlanningSystem
+from .world_simulation import WorldSimulator
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +97,9 @@ class WeightlessLearner:
     analogical_learner: "AnalogicalLearner | None" = None
     knowledge_compressor: "KnowledgeCompressor | None" = None
     hypothesis_generator: "HypothesisGenerator | None" = None
+    causal_learner: "CausalLearner | None" = None
+    planning_system: "PlanningSystem | None" = None
+    world_simulator: "WorldSimulator | None" = None
     
     def add_episode(
         self,
