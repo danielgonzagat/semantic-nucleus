@@ -7,54 +7,46 @@ Este módulo implementa uma arquitetura experimental de aprendizado que NÃO usa
 - Matrizes de pesos contínuos
 - Gradientes
 
-Em vez disso, usa:
-- Compressão MDL (Minimum Description Length)
-- Grafos de co-ocorrência discretos
-- Indução de regras simbólicas
-- Memória associativa discreta
-- Raciocínio por analogia estrutural
-- Cadeia de raciocínio simbólica (Chain of Thought)
-- Abstração hierárquica
-- Atenção simbólica multi-head
-- Geração de texto via composição
+CAPACIDADES IMPLEMENTADAS:
+
+Nível 1 - Fundamentos:
+├── Compressão MDL (Minimum Description Length)
+├── Grafos de co-ocorrência discretos
+├── Indução de regras simbólicas
+└── Memória associativa discreta
+
+Nível 2 - Raciocínio:
+├── Analogia estrutural (Structure-Mapping)
+├── Chain of Thought simbólico
+├── Abstração hierárquica (Taxonomias)
+└── Atenção simbólica multi-head
+
+Nível 3 - Aprendizado Real:
+├── Program Synthesis (aprender programas de exemplos)
+├── World Model (simular consequências)
+├── Raciocínio Causal (causa-efeito)
+├── Meta-Learning (aprender a aprender)
+├── Active Learning (decidir o que explorar)
+└── Curriculum Learning (do simples ao complexo)
 
 A hipótese fundamental: Inteligência = Compressão (Kolmogorov/Solomonoff)
 Se conseguimos comprimir bem os dados, conseguimos "entendê-los".
-
-Arquitetura:
-                    ┌─────────────────────────────────────┐
-                    │     Advanced Learning Engine        │
-                    │  (Orquestra todos os componentes)   │
-                    └──────────────────┬──────────────────┘
-                                       │
-         ┌─────────┬─────────┬─────────┼─────────┬─────────┬─────────┐
-         ▼         ▼         ▼         ▼         ▼         ▼         ▼
-    ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-    │ MDL     │ │Co-occur │ │ Rule    │ │Assoc.  │ │Analogy │ │Chain of│
-    │Compress │ │ Graph   │ │Inductor │ │Memory  │ │Engine  │ │Thought │
-    └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
-         │           │           │           │           │           │
-         └───────────┴───────────┴─────┬─────┴───────────┴───────────┘
-                                       │
-         ┌─────────┬─────────┬─────────┼─────────┬─────────┐
-         ▼         ▼         ▼         ▼         ▼         ▼
-    ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-    │Taxonomy │ │Pattern  │ │Concept  │ │Symbolic │ │Text    │
-    │         │ │Abstract │ │Composer │ │Attention│ │Generate│
-    └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
 
 Autor: NSR-Learn Team
 Licença: MIT
 """
 
-# Core components (original)
+# === LEVEL 1: CORE COMPONENTS ===
+
 from .compressor import MDLCompressor, CompressionResult
 from .graph import CooccurrenceGraph, GraphNode, GraphEdge
-from .inductor import RuleInductor, SymbolicRule, RuleSet
+from .inductor import RuleInductor, SymbolicRule, RuleSet, Condition
 from .memory import AssociativeMemory, MemoryTrace, RetrievalResult
 from .engine import LearningEngine, LearningConfig, LearningState
 
-# Advanced: Analogy
+# === LEVEL 2: REASONING COMPONENTS ===
+
+# Analogy
 from .analogy import (
     Relation,
     Structure, 
@@ -67,7 +59,7 @@ from .analogy import (
     DOCTOR_PATIENT,
 )
 
-# Advanced: Reasoning (Chain of Thought)
+# Reasoning (Chain of Thought)
 from .reasoning import (
     StepType,
     ReasoningStep,
@@ -78,7 +70,7 @@ from .reasoning import (
     create_example_kb,
 )
 
-# Advanced: Abstraction
+# Abstraction
 from .abstraction import (
     RelationType,
     Concept,
@@ -90,7 +82,7 @@ from .abstraction import (
     create_default_taxonomy,
 )
 
-# Advanced: Attention
+# Attention
 from .attention import (
     AttentionFactor,
     AttentionScore,
@@ -103,7 +95,7 @@ from .attention import (
     MultiHeadSymbolicAttention,
 )
 
-# Advanced: Generation
+# Generation
 from .generator import (
     FragmentType,
     TextFragment,
@@ -116,7 +108,7 @@ from .generator import (
     create_default_generator,
 )
 
-# Advanced: Integrated Engine
+# Integrated Engine
 from .advanced_engine import (
     ProcessingMode,
     AdvancedConfig,
@@ -125,13 +117,81 @@ from .advanced_engine import (
     create_demo_engine,
 )
 
-__version__ = "0.2.0"
+# === LEVEL 3: REAL LEARNING COMPONENTS ===
+
+# Program Synthesis
+from .program_synthesis import (
+    OpType,
+    Expr,
+    Evaluator,
+    SynthesisExample,
+    SynthesizedProgram,
+    ProgramSynthesizer,
+    PatternLearner,
+    SequencePredictor,
+)
+
+# World Model
+from .world_model import (
+    Fluent,
+    State,
+    Action,
+    TransitionRule,
+    Plan,
+    WorldModel,
+    MentalSimulator,
+    create_blocks_world,
+)
+
+# Causal Reasoning
+from .causal import (
+    CausalVariable,
+    CausalLink,
+    ConditionalProbability,
+    CausalGraph,
+    Intervention,
+    CausalQuery,
+    CausalReasoner,
+    learn_causal_structure,
+)
+
+# Meta-Learning
+from .meta_learning import (
+    TaskType,
+    Task,
+    LearningStrategy,
+    LearnedModel,
+    MemoizationStrategy,
+    PatternMatchingStrategy,
+    RuleInductionStrategy,
+    AnalogyStrategy,
+    StrategyPerformance,
+    MetaLearner,
+)
+
+# Active & Curriculum Learning
+from .active_curriculum import (
+    QueryStrategy,
+    Query,
+    LabeledExample,
+    UncertaintyEstimator,
+    DiversitySampler,
+    ActiveLearner,
+    DifficultyMetric,
+    CurriculumExample,
+    LearningStage,
+    DifficultyEstimator,
+    CurriculumLearner,
+    AdaptiveLearner,
+)
+
+__version__ = "0.3.0"
 
 __all__ = [
     # Version
     "__version__",
     
-    # === CORE COMPONENTS ===
+    # === LEVEL 1: CORE ===
     
     # Compressor
     "MDLCompressor",
@@ -146,6 +206,7 @@ __all__ = [
     "RuleInductor",
     "SymbolicRule",
     "RuleSet",
+    "Condition",
     
     # Memory
     "AssociativeMemory",
@@ -157,7 +218,7 @@ __all__ = [
     "LearningConfig",
     "LearningState",
     
-    # === ADVANCED COMPONENTS ===
+    # === LEVEL 2: REASONING ===
     
     # Analogy
     "Relation",
@@ -217,4 +278,62 @@ __all__ = [
     "ProcessingResult",
     "AdvancedLearningEngine",
     "create_demo_engine",
+    
+    # === LEVEL 3: REAL LEARNING ===
+    
+    # Program Synthesis
+    "OpType",
+    "Expr",
+    "Evaluator",
+    "SynthesisExample",
+    "SynthesizedProgram",
+    "ProgramSynthesizer",
+    "PatternLearner",
+    "SequencePredictor",
+    
+    # World Model
+    "Fluent",
+    "State",
+    "Action",
+    "TransitionRule",
+    "Plan",
+    "WorldModel",
+    "MentalSimulator",
+    "create_blocks_world",
+    
+    # Causal Reasoning
+    "CausalVariable",
+    "CausalLink",
+    "ConditionalProbability",
+    "CausalGraph",
+    "Intervention",
+    "CausalQuery",
+    "CausalReasoner",
+    "learn_causal_structure",
+    
+    # Meta-Learning
+    "TaskType",
+    "Task",
+    "LearningStrategy",
+    "LearnedModel",
+    "MemoizationStrategy",
+    "PatternMatchingStrategy",
+    "RuleInductionStrategy",
+    "AnalogyStrategy",
+    "StrategyPerformance",
+    "MetaLearner",
+    
+    # Active & Curriculum Learning
+    "QueryStrategy",
+    "Query",
+    "LabeledExample",
+    "UncertaintyEstimator",
+    "DiversitySampler",
+    "ActiveLearner",
+    "DifficultyMetric",
+    "CurriculumExample",
+    "LearningStage",
+    "DifficultyEstimator",
+    "CurriculumLearner",
+    "AdaptiveLearner",
 ]
