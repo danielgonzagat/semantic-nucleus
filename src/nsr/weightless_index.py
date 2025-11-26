@@ -16,7 +16,7 @@ from liu import Node, NodeKind, fingerprint
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from .weightless_learning import Episode
+    from .weightless_types import Episode
 
 
 @dataclass(slots=True)

@@ -11,7 +11,7 @@ from typing import Dict, List, Set, Tuple
 
 from liu import Node, NodeKind, relation, var
 
-from .weightless_learning import Episode
+from .weightless_types import Episode
 from .state import Rule
 
 

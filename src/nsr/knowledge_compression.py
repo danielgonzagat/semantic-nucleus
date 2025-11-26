@@ -12,7 +12,7 @@ from typing import Dict, List, Set, Tuple
 
 from liu import Node, NodeKind, fingerprint, var
 
-from .weightless_learning import Episode
+from .weightless_types import Episode
 
 
 @dataclass(frozen=True, slots=True)
