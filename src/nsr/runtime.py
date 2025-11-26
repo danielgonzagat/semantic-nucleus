@@ -377,20 +377,6 @@ def run_struct_full(
         _persist_meta_memory(session, meta_memory)
         session.last_equation_stats = equation_stats
         
-        # Registra episódio para aprendizado sem pesos
-        if meta_info:
-            record_episode_for_learning(outcome, meta_info, session)
-            # Aplica regras aprendidas periodicamente
-            if len(session.meta_history) % 10 == 0:
-                new_rules_count = apply_learned_rules_to_session(session)
-                if new_rules_count > 0:
-                    trace.add(
-                        f"LEARNED_RULES[{new_rules_count}]",
-                        isr.quality,
-                        len(isr.relations),
-                        len(isr.context),
-                    )
-        
         outcome = RunOutcome(
             answer=answer_text,
             trace=trace,
@@ -416,6 +402,7 @@ def run_struct_full(
             math_ast=meta_info.math_ast if meta_info else None,
             domain_scope=meta_info.domain_scope if meta_info else None,
         )
+        _record_learning_artifacts(outcome, meta_info, session, trace)
         return outcome
     steps = 0
     seen_signatures = set()
@@ -633,6 +620,7 @@ def run_struct_full(
         math_ast=meta_info.math_ast if meta_info else None,
         domain_scope=meta_info.domain_scope if meta_info else None,
     )
+    _record_learning_artifacts(outcome, meta_info, session, trace)
     return outcome
 
 
@@ -701,6 +689,27 @@ def _maybe_attach_calc_answer(
         return False
     isr.context = tuple((*isr.context, answer))
     return True
+
+
+def _record_learning_artifacts(
+    outcome: RunOutcome,
+    meta_info: MetaTransformResult | None,
+    session: SessionCtx,
+    trace: Trace,
+) -> None:
+    """Registra episódios e aplica regras aprendidas sem alterar o fluxo principal."""
+    if meta_info is None:
+        return
+    record_episode_for_learning(outcome, meta_info, session)
+    if len(session.meta_history) % 10 == 0:
+        new_rules_count = apply_learned_rules_to_session(session)
+        if new_rules_count > 0:
+            trace.add(
+                f"LEARNED_RULES[{new_rules_count}]",
+                outcome.quality,
+                len(outcome.isr.relations),
+                len(outcome.isr.context),
+            )
 
 
 def _prime_ops_from_meta_calc(

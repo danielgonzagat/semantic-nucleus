@@ -7,13 +7,14 @@ Sistema que formula hipóteses sobre relações e as testa contra dados.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, relation, var
 
-from .weightless_learning import Episode
 from .state import Rule
 
+if TYPE_CHECKING:
+    from .weightless_learning import Episode
 
 @dataclass(frozen=True, slots=True)
 class Hypothesis:
@@ -43,7 +44,7 @@ class HypothesisGenerator:
         self.hypotheses: List[Hypothesis] = []
         self.accepted_rules: List[Rule] = []
     
-    def generate_from_episodes(self, episodes: List[Episode]) -> List[Hypothesis]:
+    def generate_from_episodes(self, episodes: List["Episode"]) -> List[Hypothesis]:
         """Gera hipóteses a partir de episódios."""
         
         # Extrai padrões de relações
@@ -75,7 +76,7 @@ class HypothesisGenerator:
         return hypotheses
     
     def test_hypothesis(
-        self, hypothesis: Hypothesis, episodes: List[Episode]
+        self, hypothesis: Hypothesis, episodes: List["Episode"]
     ) -> Hypothesis:
         """Testa hipótese contra episódios."""
         
@@ -126,7 +127,7 @@ class HypothesisGenerator:
         return False
     
     def _extract_relation_patterns(
-        self, episodes: List[Episode]
+        self, episodes: List["Episode"]
     ) -> List[Dict]:
         """Extrai padrões de relações dos episódios."""
         from collections import Counter

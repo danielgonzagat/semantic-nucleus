@@ -8,11 +8,12 @@ from __future__ import annotations
 
 from collections import Counter
 from dataclasses import dataclass
-from typing import Dict, List, Set, Tuple
+from typing import Dict, List, Set, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, fingerprint, var
 
-from .weightless_learning import Episode
+if TYPE_CHECKING:  # evita import circular
+    from .weightless_learning import Episode
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,7 +42,7 @@ class KnowledgeCompressor:
     """
     
     def compress(
-        self, episodes: List[Episode], min_episodes: int = 3
+        self, episodes: List["Episode"], min_episodes: int = 3
     ) -> List[CompressedKnowledge]:
         """Comprime lista de episódios em conhecimento mínimo."""
         
@@ -83,13 +84,13 @@ class KnowledgeCompressor:
         return compressed
     
     def _group_similar(
-        self, episodes: List[Episode], min_size: int
-    ) -> List[List[Episode]]:
+        self, episodes: List["Episode"], min_size: int
+    ) -> List[List["Episode"]]:
         """Agrupa episódios similares."""
         from .structural_alignment import StructuralAligner
         
         aligner = StructuralAligner()
-        groups: List[List[Episode]] = []
+        groups: List[List["Episode"]] = []
         
         for episode in episodes:
             added = False
@@ -108,7 +109,7 @@ class KnowledgeCompressor:
         return [g for g in groups if len(g) >= min_size]
     
     def _find_minimal_common_structure(
-        self, episodes: List[Episode]
+        self, episodes: List["Episode"]
     ) -> Node:
         """Encontra estrutura comum mínima de um grupo."""
         from .structural_alignment import StructuralAligner
@@ -142,7 +143,7 @@ class KnowledgeCompressor:
         return size
     
     def _calculate_information_preserved(
-        self, episodes: List[Episode], compressed: Node
+        self, episodes: List["Episode"], compressed: Node
     ) -> float:
         """
         Calcula quanto da informação original foi preservada.

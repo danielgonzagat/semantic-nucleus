@@ -15,19 +15,21 @@ from collections import Counter, defaultdict
 from dataclasses import dataclass, field
 from hashlib import blake2b
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple, TYPE_CHECKING
 
 from liu import Node, NodeKind, entity, fingerprint, relation, struct, text, var
 
 from .state import Rule
 from .weightless_index import EpisodeIndex
-from .structural_alignment import StructuralAligner, find_common_patterns
-from .analogical_learning import AnalogicalLearner
+from .structural_alignment import StructuralAligner
 from .knowledge_compression import KnowledgeCompressor
 from .hypothesis_generation import HypothesisGenerator
 from .causal_learning import CausalLearner
 from .planning_system import PlanningSystem
 from .world_simulation import WorldSimulator
+
+if TYPE_CHECKING:  # evita import circular com analogical_learning
+    from .analogical_learning import AnalogicalLearner
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,7 +165,8 @@ class WeightlessLearner:
             keywords=query_keywords,
             k=k,
         )
-        
+        if not candidate_fps and query_struct is not None:
+            candidate_fps = self._fallback_struct_similarity(query_struct, k)
         episodes = [self.episodes[fp] for fp in candidate_fps if fp in self.episodes]
         return episodes
     
@@ -201,15 +204,21 @@ class WeightlessLearner:
         
         # 3. Gera e testa hipóteses
         hypotheses = self.hypothesis_generator.generate_from_episodes(episodes_list)
+        accepted_rules: List[Rule] = []
         for hypothesis in hypotheses:
             tested = self.hypothesis_generator.test_hypothesis(hypothesis, episodes_list)
             if self.hypothesis_generator.accept_or_reject(tested):
                 # Adiciona regra aceita
-                if tested.rule not in self.learned_rules:
-                    self.learned_rules.append(tested.rule)
+                accepted_rules.append(tested.rule)
+        added_from_hypothesis = self._add_learned_rules(accepted_rules)
         
         # 4. Aprende regras de padrões
         new_rules = self.learn_rules_from_patterns(patterns)
+        added_from_patterns = self._add_learned_rules(new_rules)
+        
+        # 4b. Regras transitivas determinísticas derivadas de episódios recentes
+        transitive_rules = self._derive_transitive_rules_from_episodes(episodes_list)
+        added_from_transitive = self._add_learned_rules(transitive_rules)
         
         # 5. Comprime conhecimento (opcional, para otimização)
         if len(episodes_list) > 100:
@@ -217,11 +226,57 @@ class WeightlessLearner:
             # Usa conhecimento comprimido para melhorar busca
         
         # Log (pode ser removido em produção)
-        total_new = len(new_rules) + len(self.hypothesis_generator.accepted_rules)
+        total_new = added_from_hypothesis + added_from_patterns + added_from_transitive
         if total_new > 0:
             print(f"[WeightlessLearning] Aprendidas {total_new} novas regras de {len(self.episodes)} episódios")
-            print(f"  - Padrões: {len(new_rules)}")
-            print(f"  - Hipóteses aceitas: {len(self.hypothesis_generator.accepted_rules)}")
+            print(f"  - Padrões: {added_from_patterns}")
+            print(f"  - Hipóteses aceitas: {added_from_hypothesis}")
+            print(f"  - Transitivas: {added_from_transitive}")
+    
+    def _derive_transitive_rules_from_episodes(self, episodes: List[Episode]) -> List[Rule]:
+        """Infere regras transitivas simples (R(a,b) & R(b,c) => R(a,c))."""
+        label_support: Dict[str, int] = defaultdict(int)
+        for episode in episodes:
+            rels = [
+                rel
+                for rel in episode.relations
+                if rel.kind is NodeKind.REL and len(rel.args) >= 2
+            ]
+            for rel1 in rels:
+                for rel2 in rels:
+                    if rel1 is rel2:
+                        continue
+                    if rel1.label != rel2.label:
+                        continue
+                    if rel1.args[1] != rel2.args[0]:
+                        continue
+                    label_support[rel1.label or ""] += 1
+        derived: List[Rule] = []
+        for label, count in label_support.items():
+            if not label or count < self.min_pattern_support:
+                continue
+            antecedents = (
+                relation(label, var("?X"), var("?Y")),
+                relation(label, var("?Y"), var("?Z")),
+            )
+            consequent = relation(label, var("?X"), var("?Z"))
+            derived.append(Rule(if_all=antecedents, then=consequent))
+        return derived
+
+    def _add_learned_rules(self, candidates: Iterable[Rule]) -> int:
+        """Adiciona regras novas evitando duplicatas determinísticas."""
+        if not candidates:
+            return 0
+        existing = {self._rule_fingerprint(rule) for rule in self.learned_rules}
+        added = 0
+        for rule in candidates:
+            fp = self._rule_fingerprint(rule)
+            if fp in existing:
+                continue
+            self.learned_rules.append(rule)
+            existing.add(fp)
+            added += 1
+        return added
     
     def _evolve_rules(self) -> None:
         """Evolui regras: avalia e remove regras ruins."""
@@ -257,7 +312,7 @@ class WeightlessLearner:
         # Agrupa episódios por estrutura de entrada similar
         structure_groups: Dict[str, List[Episode]] = defaultdict(list)
         for episode in self.episodes.values():
-            struct_fp = fingerprint(episode.input_struct)
+            struct_fp = self._structure_shape_fingerprint(episode.input_struct)
             structure_groups[struct_fp].append(episode)
         
         patterns: List[Pattern] = []
@@ -348,7 +403,6 @@ class WeightlessLearner:
                 seen_rule_fps.add(rule_fp)
                 unique_rules.append(rule)
         
-        self.learned_rules.extend(unique_rules)
         return unique_rules
     
     def _extract_relations(self, struct: Node) -> List[Node]:
@@ -375,25 +429,122 @@ class WeightlessLearner:
         self, struct: Node, episodes: List[Episode]
     ) -> Node:
         """
-        Generaliza uma estrutura substituindo entidades específicas por variáveis.
-        
-        Se múltiplos episódios têm estruturas similares mas com entidades diferentes,
-        substitui essas entidades por variáveis.
+        Generaliza uma estrutura substituindo apenas os campos que variam entre episódios.
         """
-        # Simplificação: por enquanto retorna a estrutura original
-        # Implementação completa exigiria análise de alinhamento estrutural
-        return struct
+        if not episodes:
+            return struct
+        # Caminhos das entidades do representante
+        entity_paths = self._collect_entity_paths(struct)
+        if not entity_paths:
+            return struct
+        varying_paths: set[tuple] = set()
+        for path, node in entity_paths:
+            labels = {node.label}
+            for episode in episodes[1:]:
+                other = self._node_at_path(episode.input_struct, path)
+                if other is None or other.label is None:
+                    continue
+                labels.add(other.label)
+            if len(labels) > 1:
+                varying_paths.add(path)
+        if not varying_paths:
+            return struct
+        replacements: dict[tuple, Node] = {}
+        counter = 1
+        for path in sorted(varying_paths):
+            replacements[path] = var(f"?E{counter}")
+            counter += 1
+        return self._replace_entities(struct, replacements)
     
     def _generalize_relation(self, rel: Node) -> Node:
-        """Generaliza uma relação substituindo entidades por variáveis."""
-        if rel.kind is not NodeKind.REL or len(rel.args) < 2:
+        """Generaliza uma relação substituindo argumentos posicionais por variáveis determinísticas."""
+        if rel.kind is not NodeKind.REL or not rel.args:
             return rel
-        
-        # Substitui argumentos por variáveis
-        var_x = var("?X")
-        var_y = var("?Y")
-        
-        return relation(rel.label or "", var_x, var_y)
+        generalized_args = [var(f"?A{idx+1}") for idx, _ in enumerate(rel.args)]
+        return relation(rel.label or "", *generalized_args)
+
+    def _collect_entity_paths(
+        self, node: Node, current_path: tuple = ()
+    ) -> List[tuple[tuple, Node]]:
+        paths: List[tuple[tuple, Node]] = []
+        if node.kind is NodeKind.ENTITY:
+            paths.append((current_path, node))
+        for idx, arg in enumerate(node.args):
+            paths.extend(
+                self._collect_entity_paths(arg, (*current_path, ("arg", idx)))
+            )
+        for key, value in node.fields:
+            paths.extend(
+                self._collect_entity_paths(value, (*current_path, ("field", key)))
+            )
+        return paths
+
+    def _node_at_path(self, node: Node, path: tuple) -> Node | None:
+        current = node
+        for kind, ref in path:
+            if kind == "arg":
+                index = int(ref)
+                if index >= len(current.args):
+                    return None
+                current = current.args[index]
+            else:
+                fields = dict(current.fields)
+                if ref not in fields:
+                    return None
+                current = fields[ref]
+        return current
+
+    def _replace_entities(
+        self, node: Node, replacements: Dict[tuple, Node], path: tuple = ()
+    ) -> Node:
+        if node.kind is NodeKind.ENTITY and path in replacements:
+            return replacements[path]
+        new_args = tuple(
+            self._replace_entities(arg, replacements, (*path, ("arg", idx)))
+            for idx, arg in enumerate(node.args)
+        )
+        new_fields = tuple(
+            (key, self._replace_entities(value, replacements, (*path, ("field", key))))
+            for key, value in node.fields
+        )
+        if new_args == node.args and new_fields == node.fields:
+            return node
+        return Node(
+            kind=node.kind,
+            label=node.label,
+            args=new_args,
+            fields=new_fields,
+            value=node.value,
+        )
+
+    def _structure_shape_fingerprint(self, struct: Node) -> str:
+        """Fingerprint determinístico apenas da forma estrutural (ignora entidades específicas)."""
+        entity_paths = self._collect_entity_paths(struct)
+        if not entity_paths:
+            return fingerprint(struct)
+        replacements: Dict[tuple, Node] = {}
+        counter = 1
+        for path, _ in entity_paths:
+            replacements[path] = var(f"?S{counter}")
+            counter += 1
+        canonical = self._replace_entities(struct, replacements)
+        return fingerprint(canonical)
+    
+    def _fallback_struct_similarity(self, query_struct: Node, k: int) -> List[str]:
+        """Busca linear determinística baseada em campos principais quando o índice não encontra candidatos."""
+        query_fields = dict(query_struct.fields)
+        scored: List[tuple[int, str]] = []
+        for fp, episode in self.episodes.items():
+            episode_fields = dict(episode.input_struct.fields)
+            score = 0
+            for key in ("subject", "action", "object"):
+                if key in query_fields and key in episode_fields:
+                    if query_fields[key] == episode_fields[key]:
+                        score += 1
+            if score > 0:
+                scored.append((score, fp))
+        scored.sort(key=lambda item: (-item[0], item[1]))
+        return [fp for _, fp in scored[:k]]
     
     def _calculate_generalization_level(self, original: Node, generalized: Node) -> float:
         """Calcula o nível de generalização (0=específico, 1=totalmente genérico)."""

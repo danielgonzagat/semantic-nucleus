@@ -242,10 +242,6 @@ def main(argv: list[str] | None = None) -> int:
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(main())
-
-
 def _extract_code_summary_data(outcome) -> dict[str, object] | None:
     digest = None
     fn_count = None
@@ -396,3 +392,7 @@ def _extract_logic_proof_data(outcome) -> dict[str, object] | None:
     if proof_payload:
         proof_data["proof"] = proof_payload
     return proof_data
+
+
+if __name__ == "__main__":
+    sys.exit(main())
